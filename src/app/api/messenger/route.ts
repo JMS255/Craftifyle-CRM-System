@@ -59,6 +59,9 @@ Photobooth + Event Photography Bundle:
 - 51 pax and above: ₱6,500
 Inclusions: 3 hours, unlimited photobooth shots, customizable backdrop, 300+ edited photos, 80–100 sneak peek photos same day, FREE 30-second highlight video
 
+ADD-ONS (not included in any package, charged separately):
+- Magnet prints: ₱1,500 for 150 pcs — this is NOT included in any package. If client asks about magnets, tell them it's an add-on at ₱1,500 for 150 pcs. Never say magnets are included or free.
+
 RECOMMENDATION LOGIC
 - 50 pax and below: Event Photography ₱3,000 OR Bundle ₱5,000 — mention both
 - 51–100 pax: Event Photography ₱4,000 OR Bundle ₱6,500
