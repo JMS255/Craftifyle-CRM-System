@@ -199,6 +199,101 @@ async function saveMessages(senderId: string, userMsg: string, assistantMsg: str
   ])
 }
 
+const EXTRACT_PROMPT = `You are extracting structured client info from a Facebook Messenger sales conversation.
+Return ONLY valid JSON — no explanation, no markdown, no extra text.
+Schema:
+{
+  "name": null or string (client's full name),
+  "event_type": null or one of: wedding, birthday, debut, corporate, christmas_party, reunion, baptism, other,
+  "event_date": null or "YYYY-MM-DD" (assume year 2026 if not stated; null if totally unclear),
+  "event_time": null or string like "6:00 PM",
+  "venue": null or string,
+  "guest_count": null or integer,
+  "phone": null or string,
+  "email": null or string,
+  "mentioned_paid": false or true (true if client said PAID or confirmed payment)
+}
+Extract only info the CLIENT explicitly stated. If uncertain, use null.`
+
+async function extractAndUpsertLead(
+  senderId: string,
+  history: { role: string; content: string }[],
+  adRef: string | null,
+) {
+  try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    const extraction = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: EXTRACT_PROMPT },
+        ...history,
+        { role: 'user', content: 'Extract the client info now.' },
+      ],
+      temperature: 0,
+      max_tokens: 250,
+    })
+
+    const raw = extraction.choices[0]?.message?.content?.trim() ?? ''
+    let data: Record<string, unknown>
+    try {
+      // Strip markdown code fences if model adds them
+      const clean = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '')
+      data = JSON.parse(clean)
+    } catch {
+      return
+    }
+
+    if (!data.name) return
+
+    const db = createClient()
+
+    const notes: string[] = []
+    if (data.event_time) notes.push(`Event time: ${data.event_time}`)
+    if (adRef) notes.push(`Ad ref: ${adRef}`)
+
+    const leadStatus = data.mentioned_paid ? 'booked' : 'contacted'
+
+    const { data: existing } = await db
+      .from('leads')
+      .select('id')
+      .eq('messenger_sender_id', senderId)
+      .maybeSingle()
+
+    if (existing) {
+      await db.from('leads').update({
+        name: data.name,
+        ...(data.event_type && { event_type: data.event_type }),
+        ...(data.event_date && { event_date: data.event_date }),
+        ...(data.venue && { venue: data.venue }),
+        ...(data.guest_count && { guest_count: data.guest_count }),
+        ...(data.phone && { phone: data.phone }),
+        ...(data.email && { email: data.email }),
+        ...(notes.length && { notes: notes.join(' | ') }),
+        status: leadStatus,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+    } else {
+      await db.from('leads').insert({
+        messenger_sender_id: senderId,
+        name: data.name,
+        event_type: data.event_type ?? null,
+        event_date: data.event_date ?? null,
+        venue: data.venue ?? null,
+        guest_count: data.guest_count ?? null,
+        phone: data.phone ?? null,
+        email: data.email ?? null,
+        facebook: `messenger:${senderId}`,
+        source: 'facebook',
+        status: leadStatus,
+        ad_ref: adRef ?? null,
+        notes: notes.length ? notes.join(' | ') : null,
+      })
+    }
+  } catch (err) {
+    console.error('Lead extraction error:', err)
+  }
+}
+
 // GET — Facebook webhook verification
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -233,10 +328,10 @@ export async function POST(req: NextRequest) {
 
       const senderId = event.sender.id
       const messageText = event.message.text
+      const adRef: string | null = event.referral?.ref ?? null
       if (!messageText) continue
 
       try {
-        // Get conversation history for this sender
         const history = await getHistory(senderId)
 
         const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
@@ -254,7 +349,16 @@ export async function POST(req: NextRequest) {
         const reply = completion.choices[0]?.message?.content ?? ''
         if (reply) {
           await sendMessage(senderId, reply)
+          const updatedHistory = [
+            ...history,
+            { role: 'user', content: messageText },
+            { role: 'assistant', content: reply },
+          ]
           await saveMessages(senderId, messageText, reply)
+          // Fire-and-forget: extract lead info and upsert in background
+          extractAndUpsertLead(senderId, updatedHistory, adRef).catch((e) =>
+            console.error('Lead upsert failed:', e)
+          )
         }
       } catch (err) {
         console.error('Error:', err)
