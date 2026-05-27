@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk'
+import type { ChatCompletionMessageParam } from 'groq-sdk/resources/chat/completions'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@/lib/supabase'
@@ -180,7 +181,7 @@ async function sendMessage(recipientId: string, text: string) {
   }
 }
 
-async function getHistory(senderId: string) {
+async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[]> {
   const db = createClient()
   const { data } = await db
     .from('messenger_conversations')
@@ -188,7 +189,10 @@ async function getHistory(senderId: string) {
     .eq('sender_id', senderId)
     .order('created_at', { ascending: true })
     .limit(20)
-  return data ?? []
+  return (data ?? []).map((row) => ({
+    role: row.role as 'user' | 'assistant',
+    content: row.content,
+  }))
 }
 
 async function saveMessages(senderId: string, userMsg: string, assistantMsg: string) {
@@ -217,7 +221,7 @@ Extract only info the CLIENT explicitly stated. If uncertain, use null.`
 
 async function extractAndUpsertLead(
   senderId: string,
-  history: { role: string; content: string }[],
+  history: ChatCompletionMessageParam[],
   adRef: string | null,
 ) {
   try {
@@ -349,7 +353,7 @@ export async function POST(req: NextRequest) {
         const reply = completion.choices[0]?.message?.content ?? ''
         if (reply) {
           await sendMessage(senderId, reply)
-          const updatedHistory = [
+          const updatedHistory: ChatCompletionMessageParam[] = [
             ...history,
             { role: 'user', content: messageText },
             { role: 'assistant', content: reply },
