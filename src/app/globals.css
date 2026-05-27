@@ -1,13 +1,57 @@
 @import "tailwindcss";
 
+/* ─── Dark theme (default) ─── */
 :root {
   --bg: #0a0a0f;
+  --sidebar-bg: #07070d;
   --card: #111118;
+  --sidebar-border: #141420;
   --card-border: #1e1e2e;
+  --border-secondary: #1a1a28;
+  --input-bg: #16161f;
+  --input-border: #2a2a3a;
+  --card-border-active: #2a2a4a;
+  --text-faint: #4a4a6a;
+  --text-muted: #6b7280;
+  --text-secondary: #9ca3af;
   --text: #f4f4f8;
-  --muted: #6b7280;
+  --text-heading: #ffffff;
+  --hover-bg: rgba(255, 255, 255, 0.04);
+  --subtle-bg: rgba(255, 255, 255, 0.05);
   --accent: #6366f1;
   --accent-glow: rgba(99, 102, 241, 0.15);
+  --accent-subtle: rgba(99, 102, 241, 0.12);
+  --accent-subtle2: rgba(99, 102, 241, 0.2);
+  --accent-text: #a5b4fc;
+  --scrollbar-thumb: #2a2a3a;
+  --scrollbar-thumb-hover: #3a3a5a;
+}
+
+/* ─── Light theme ─── */
+[data-theme="light"] {
+  --bg: #f5f5fa;
+  --sidebar-bg: #ffffff;
+  --card: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --card-border: #e2e2ee;
+  --border-secondary: #ebebf5;
+  --input-bg: #f9f9fc;
+  --input-border: #d1d5db;
+  --card-border-active: #c7c7e8;
+  --text-faint: #9ca3af;
+  --text-muted: #6b7280;
+  --text-secondary: #374151;
+  --text: #111118;
+  --text-heading: #0a0a1a;
+  --hover-bg: rgba(0, 0, 0, 0.03);
+  --subtle-bg: rgba(0, 0, 0, 0.02);
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.12);
+  --accent-subtle: rgba(99, 102, 241, 0.08);
+  --accent-subtle2: rgba(99, 102, 241, 0.15);
+  --accent-text: #6366f1;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
 }
 
 @theme inline {
@@ -21,7 +65,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
@@ -30,6 +75,7 @@ body {
   color: var(--text);
   font-family: var(--font-geist-sans), 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 /* Custom scrollbar */
@@ -41,11 +87,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a3a;
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a5a;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Card base */
@@ -60,17 +106,28 @@ body {
   box-shadow: 0 0 24px rgba(99, 102, 241, 0.12);
 }
 
-/* Input dark style */
-input, textarea, select {
-  background: #16161f !important;
-  border-color: #2a2a3a !important;
+/* Input dark/light style */
+input,
+textarea,
+select {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
   color: var(--text) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-input::placeholder, textarea::placeholder {
-  color: #4a4a6a !important;
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint) !important;
 }
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--accent) !important;
   outline: none !important;
   box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+/* Light mode: keep text readable on white cards */
+[data-theme="light"] .text-white {
+  color: var(--text-heading) !important;
 }

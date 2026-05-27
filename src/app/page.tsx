@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import type { Lead, Booking, LeadStatus } from '@/types'
+import type { Lead, Booking } from '@/types'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -104,7 +104,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3" style={{ color: '#4a4a6a' }}>
+        <div className="flex items-center gap-3" style={{ color: 'var(--text-faint)' }}>
           <div className="w-4 h-4 rounded-full animate-pulse" style={{ background: '#6366f1' }} />
           <span className="text-sm">Loading…</span>
         </div>
@@ -117,8 +117,8 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#4a4a6a' }}>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Dashboard</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-faint)' }}>
             {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
@@ -142,9 +142,9 @@ export default function Dashboard() {
             }}
             className="text-sm px-4 py-1.5 rounded-full font-medium transition-all"
             style={{
-              background: selectedYear === y ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
-              color: selectedYear === y ? '#a5b4fc' : '#6b7280',
-              border: `1px solid ${selectedYear === y ? '#6366f1' : '#1e1e2e'}`,
+              background: selectedYear === y ? 'var(--accent-subtle2)' : 'var(--subtle-bg)',
+              color: selectedYear === y ? 'var(--accent-text)' : 'var(--text-muted)',
+              border: `1px solid ${selectedYear === y ? 'var(--accent)' : 'var(--card-border)'}`,
             }}
           >
             {y}
@@ -154,22 +154,25 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Total Leads" value={yearLeads.length} gradient="from-indigo-500 to-violet-600" icon="◎" />
-        <StatCard label="Converted" value={yearBooked} gradient="from-emerald-500 to-teal-600" icon="✓" />
-        <StatCard label="Lost" value={yearLost} gradient="from-red-500 to-rose-600" icon="✕" />
-        <StatCard label="Conv. Rate" value={`${yearConvRate}%`} gradient="from-amber-500 to-orange-600" icon="%" />
+        <StatCard label="Total Leads" value={yearLeads.length} glowColor="#6366f1" icon="◎" />
+        <StatCard label="Converted" value={yearBooked} glowColor="#10b981" icon="✓" />
+        <StatCard label="Lost" value={yearLost} glowColor="#ef4444" icon="✕" />
+        <StatCard label="Conv. Rate" value={`${yearConvRate}%`} glowColor="#f59e0b" icon="%" />
       </div>
 
       {/* Main grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Monthly breakdown */}
         <section className="md:col-span-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: '#4a4a6a' }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
             Leads by Month
           </h2>
           {monthStats.length === 0 ? (
-            <div className="rounded-2xl p-8 text-center" style={{ background: '#111118', border: '1px solid #1e1e2e' }}>
-              <p className="text-sm" style={{ color: '#4a4a6a' }}>No leads for {selectedYear} yet. <Link href="/leads/new" className="text-indigo-400 hover:underline">Add one →</Link></p>
+            <div className="rounded-2xl p-8 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
+                No leads for {selectedYear} yet.{' '}
+                <Link href="/leads/new" className="text-indigo-400 hover:underline">Add one →</Link>
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -177,8 +180,14 @@ export default function Dashboard() {
                 const isOpen = openMonth === m.yearMonth
                 const hasData = m.total > 0
                 return (
-                  <div key={m.yearMonth} className="rounded-2xl overflow-hidden transition-all"
-                    style={{ background: '#111118', border: `1px solid ${isOpen ? '#2a2a4a' : '#1e1e2e'}` }}>
+                  <div
+                    key={m.yearMonth}
+                    className="rounded-2xl overflow-hidden transition-all"
+                    style={{
+                      background: 'var(--card)',
+                      border: `1px solid ${isOpen ? 'var(--card-border-active)' : 'var(--card-border)'}`,
+                    }}
+                  >
                     <button
                       onClick={() => hasData && setOpenMonth(isOpen ? null : m.yearMonth)}
                       disabled={!hasData}
@@ -186,10 +195,15 @@ export default function Dashboard() {
                       style={{ opacity: hasData ? 1 : 0.3 }}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xs transition-transform inline-block" style={{ color: '#4a4a6a', transform: isOpen ? 'rotate(90deg)' : 'none' }}>
+                        <span
+                          className="text-xs transition-transform inline-block"
+                          style={{ color: 'var(--text-faint)', transform: isOpen ? 'rotate(90deg)' : 'none' }}
+                        >
                           {hasData ? '▶' : '—'}
                         </span>
-                        <span className="font-semibold text-white w-20 shrink-0">{m.monthLabel}</span>
+                        <span className="font-semibold w-20 shrink-0" style={{ color: 'var(--text-heading)' }}>
+                          {m.monthLabel}
+                        </span>
                         {hasData && (
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <Chip label={`${m.total} leads`} color="indigo" />
@@ -199,18 +213,28 @@ export default function Dashboard() {
                         )}
                       </div>
                       {hasData && (
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2"
+                        <span
+                          className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2"
                           style={{
-                            background: m.conversionRate >= 50 ? 'rgba(16,185,129,0.15)' : m.conversionRate >= 20 ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)',
-                            color: m.conversionRate >= 50 ? '#34d399' : m.conversionRate >= 20 ? '#fbbf24' : '#6b7280',
-                          }}>
+                            background: m.conversionRate >= 50
+                              ? 'rgba(16,185,129,0.15)'
+                              : m.conversionRate >= 20
+                              ? 'rgba(245,158,11,0.15)'
+                              : 'var(--subtle-bg)',
+                            color: m.conversionRate >= 50
+                              ? '#34d399'
+                              : m.conversionRate >= 20
+                              ? '#fbbf24'
+                              : 'var(--text-muted)',
+                          }}
+                        >
                           {m.conversionRate}%
                         </span>
                       )}
                     </button>
 
                     {isOpen && hasData && (
-                      <div className="border-t px-4 py-4" style={{ borderColor: '#1e1e2e' }}>
+                      <div className="border-t px-4 py-4" style={{ borderColor: 'var(--card-border)' }}>
                         <div className="flex rounded-full overflow-hidden h-1.5 mb-4 gap-0.5">
                           <BarSeg count={m.booked} total={m.total} color="#10b981" />
                           <BarSeg count={m.negotiating} total={m.total} color="#8b5cf6" />
@@ -227,8 +251,11 @@ export default function Dashboard() {
                           <MiniStat label="Booked" value={m.booked} color="#10b981" />
                           <MiniStat label="Lost" value={m.lost} color="#ef4444" />
                         </div>
-                        <Link href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
-                          className="text-xs hover:underline" style={{ color: '#6366f1' }}>
+                        <Link
+                          href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
+                          className="text-xs hover:underline"
+                          style={{ color: 'var(--accent)' }}
+                        >
                           View all {m.monthLabel} leads →
                         </Link>
                       </div>
@@ -242,31 +269,45 @@ export default function Dashboard() {
 
         {/* Upcoming events */}
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: '#4a4a6a' }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
             Upcoming Events
           </h2>
-          <div className="rounded-2xl overflow-hidden" style={{ background: '#111118', border: '1px solid #1e1e2e' }}>
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
+          >
             {bookings.length === 0 ? (
-              <p className="text-sm px-5 py-6" style={{ color: '#4a4a6a' }}>No upcoming events.</p>
+              <p className="text-sm px-5 py-6" style={{ color: 'var(--text-faint)' }}>No upcoming events.</p>
             ) : (
               <ul>
                 {bookings.map((b, i) => (
-                  <li key={b.id} style={{ borderTop: i > 0 ? '1px solid #1a1a28' : 'none' }}>
-                    <Link href={`/bookings/${b.id}`}
-                      className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-white/[0.02]">
+                  <li key={b.id} style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+                    <Link
+                      href={`/bookings/${b.id}`}
+                      className="flex items-center justify-between px-4 py-3.5 transition-colors"
+                      style={{ background: 'transparent' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"
-                          style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"
+                          style={{ background: 'var(--accent-subtle)', color: '#818cf8' }}
+                        >
                           📸
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{b.event_name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: '#4a4a6a' }}>{fmt(b.event_date)}</p>
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>
+                            {b.event_name}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{fmt(b.event_date)}</p>
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-2">
                         {b.package_price != null && (
-                          <p className="text-xs font-medium" style={{ color: '#9ca3af' }}>{peso(b.package_price)}</p>
+                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                            {peso(b.package_price)}
+                          </p>
                         )}
                         <p className="text-xs mt-0.5" style={{ color: b.balance_paid ? '#10b981' : '#f59e0b' }}>
                           {b.balance_paid ? '✓ Paid' : 'Balance due'}
@@ -277,8 +318,8 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-            <div className="px-4 py-3 border-t" style={{ borderColor: '#1a1a28' }}>
-              <Link href="/bookings" className="text-xs hover:underline" style={{ color: '#6366f1' }}>
+            <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--border-secondary)' }}>
+              <Link href="/bookings" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
                 View all bookings →
               </Link>
             </div>
@@ -289,14 +330,23 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ label, value, gradient, icon }: { label: string; value: number | string; gradient: string; icon: string }) {
+function StatCard({ label, value, glowColor, icon }: {
+  label: string
+  value: number | string
+  glowColor: string
+  icon: string
+}) {
   return (
-    <div className="rounded-2xl p-4 relative overflow-hidden"
-      style={{ background: '#111118', border: '1px solid #1e1e2e' }}>
-      <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 blur-2xl"
-        style={{ background: gradient.includes('indigo') ? '#6366f1' : gradient.includes('emerald') ? '#10b981' : gradient.includes('red') ? '#ef4444' : '#f59e0b', transform: 'translate(30%, -30%)' }} />
-      <p className="text-2xl md:text-3xl font-bold text-white">{value}</p>
-      <p className="text-xs mt-1.5 font-medium" style={{ color: '#4a4a6a' }}>{label}</p>
+    <div
+      className="rounded-2xl p-4 relative overflow-hidden transition-colors"
+      style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
+    >
+      <div
+        className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
+        style={{ background: glowColor, transform: 'translate(30%, -30%)' }}
+      />
+      <p className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-heading)' }}>{value}</p>
+      <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--text-faint)' }}>{label}</p>
     </div>
   )
 }
@@ -323,8 +373,8 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
   return (
     <div className="flex items-center gap-2">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-      <span className="text-xs" style={{ color: '#6b7280' }}>{label}</span>
-      <span className="text-xs font-bold text-white ml-auto">{value}</span>
+      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="text-xs font-bold ml-auto" style={{ color: 'var(--text-heading)' }}>{value}</span>
     </div>
   )
 }

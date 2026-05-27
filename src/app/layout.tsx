@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google'
 import './globals.css'
 import Sidebar from '@/components/Sidebar'
 import ChatWidget from '@/components/ChatWidget'
+import ThemeProvider from '@/components/ThemeProvider'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 
@@ -11,15 +12,30 @@ export const metadata: Metadata = {
   description: 'Photobooth business management',
 }
 
+// Prevent flash of wrong theme before React hydrates
+const themeScript = `
+  (function() {
+    try {
+      var t = localStorage.getItem('craftifyle-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch(e) {}
+  })();
+`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} h-full`}>
-      <body className="h-full flex antialiased" style={{ background: '#0a0a0f' }}>
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0 min-h-screen">
-          {children}
-        </main>
-        <ChatWidget />
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="h-full flex antialiased" style={{ background: 'var(--bg)' }}>
+        <ThemeProvider>
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 min-h-screen">
+            {children}
+          </main>
+          <ChatWidget />
+        </ThemeProvider>
       </body>
     </html>
   )
