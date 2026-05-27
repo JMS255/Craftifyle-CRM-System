@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from 'groq-sdk/resources/chat/complet
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@/lib/supabase'
+import { createCalendarEvent } from '@/lib/google-calendar'
 
 const SYSTEM_PROMPT = `CRAFTY AI — SYSTEM PROMPT
 For: llama-3.1-8b-instant | Business: Photobooth & Event Photography | Location: Zamboanga City, PH
@@ -272,6 +273,8 @@ async function extractAndUpsertLead(
       .eq('messenger_sender_id', senderId)
       .maybeSingle()
 
+    let leadId: string | null = null
+
     if (existing) {
       await db.from('leads').update({
         name: data.name,
@@ -285,8 +288,9 @@ async function extractAndUpsertLead(
         status: leadStatus,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
+      leadId = existing.id
     } else {
-      await db.from('leads').insert({
+      const { data: newLead } = await db.from('leads').insert({
         messenger_sender_id: senderId,
         name: data.name,
         event_type: data.event_type ?? null,
@@ -300,8 +304,62 @@ async function extractAndUpsertLead(
         status: leadStatus,
         ad_ref: adRef ?? null,
         notes: notes.length ? notes.join(' | ') : null,
-      })
+      }).select('id').single()
+      leadId = newLead?.id ?? null
     }
+
+    // Auto-create booking when client says PAID
+    if (data.mentioned_paid && leadId && data.event_date) {
+      // Check if booking already exists for this lead
+      const { data: existingBooking } = await db
+        .from('bookings')
+        .select('id')
+        .eq('lead_id', leadId)
+        .maybeSingle()
+
+      if (!existingBooking) {
+        const pax = data.guest_count as number ?? 0
+        // Auto-determine price based on pax
+        let packagePrice = 5000
+        let packageName = 'Bundle (Photobooth + Photography)'
+        if (pax > 50) { packagePrice = 6500 }
+
+        const eventName = `${data.name}'s ${data.event_type ?? 'Event'}`
+
+        const { data: newBooking } = await db.from('bookings').insert({
+          lead_id: leadId,
+          event_name: eventName,
+          event_date: data.event_date,
+          event_time: data.event_time ?? null,
+          venue: data.venue ?? null,
+          package_name: packageName,
+          package_price: packagePrice,
+          deposit_amount: 1000,
+          deposit_paid: true,
+          deposit_paid_date: new Date().toISOString().slice(0, 10),
+          balance_amount: packagePrice - 1000,
+          balance_paid: false,
+          status: 'upcoming',
+          craftifyle_income: 0,
+          personal_income: 0,
+        }).select('id').single()
+
+        // Auto-sync to Google Calendar
+        if (newBooking?.id) {
+          const gcalEventId = await createCalendarEvent({
+            title: `📸 ${eventName}`,
+            date: data.event_date as string,
+            time: data.event_time as string ?? null,
+            venue: data.venue as string ?? null,
+            description: `Client: ${data.name}\nGuests: ${pax} pax\nPackage: ${packageName}\nPrice: ₱${packagePrice.toLocaleString()}\nDeposit: ✅ Paid`,
+          })
+          if (gcalEventId) {
+            await db.from('bookings').update({ gcal_event_id: gcalEventId }).eq('id', newBooking.id)
+          }
+        }
+      }
+    }
+
   } catch (err) {
     console.error('Lead extraction error:', err)
   }
