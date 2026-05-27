@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 const nav = [
   { href: '/', label: 'Dashboard', short: 'Home', icon: '⊞' },
@@ -13,6 +14,13 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function signOut() {
+    const db = createClient()
+    await db.auth.signOut()
+    router.replace('/login')
+  }
 
   function isActive(href: string) {
     return href === '/' ? pathname === '/' : pathname.startsWith(href)
@@ -61,17 +69,24 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t" style={{ borderColor: '#141420' }}>
+        <div className="px-4 py-4 border-t space-y-3" style={{ borderColor: '#141420' }}>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
               J
             </div>
-            <div>
-              <p className="text-xs font-medium" style={{ color: '#9ca3af' }}>James Ignacio</p>
+            <div className="min-w-0">
+              <p className="text-xs font-medium truncate" style={{ color: '#9ca3af' }}>James Ignacio</p>
               <p className="text-xs" style={{ color: '#4a4a6a' }}>Zamboanga City</p>
             </div>
           </div>
+          <button
+            onClick={signOut}
+            className="w-full text-xs py-1.5 rounded-lg transition-colors text-left px-2 hover:bg-white/5"
+            style={{ color: '#4a4a6a' }}
+          >
+            Sign out →
+          </button>
         </div>
       </aside>
 
