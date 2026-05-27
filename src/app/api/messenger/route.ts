@@ -266,13 +266,13 @@ async function extractAndUpsertLead(
     if (existing) {
       await db.from('leads').update({
         name: data.name,
-        ...(data.event_type && { event_type: data.event_type }),
-        ...(data.event_date && { event_date: data.event_date }),
-        ...(data.venue && { venue: data.venue }),
-        ...(data.guest_count && { guest_count: data.guest_count }),
-        ...(data.phone && { phone: data.phone }),
-        ...(data.email && { email: data.email }),
-        ...(notes.length && { notes: notes.join(' | ') }),
+        ...(data.event_type ? { event_type: data.event_type } : {}),
+        ...(data.event_date ? { event_date: data.event_date } : {}),
+        ...(data.venue ? { venue: data.venue } : {}),
+        ...(data.guest_count ? { guest_count: data.guest_count } : {}),
+        ...(data.phone ? { phone: data.phone } : {}),
+        ...(data.email ? { email: data.email } : {}),
+        ...(notes.length ? { notes: notes.join(' | ') } : {}),
         status: leadStatus,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
