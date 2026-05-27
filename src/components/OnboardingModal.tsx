@@ -70,24 +70,18 @@ export default function OnboardingModal() {
     setOpen(true)
   }
 
+  // Allow Sidebar (or anything) to open the tutorial via a custom event
+  useEffect(() => {
+    window.addEventListener('crafty-open-tutorial', reopen)
+    return () => window.removeEventListener('crafty-open-tutorial', reopen)
+  }, [])
+
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
 
   return (
     <>
-      {/* Help button — always visible in corner */}
-      <button
-        onClick={reopen}
-        title="How to use Crafty CRM"
-        className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
-        style={{
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          color: 'white',
-          boxShadow: '0 0 16px rgba(99,102,241,0.4)',
-        }}
-      >
-        ?
-      </button>
+      {/* Help button — rendered by Sidebar, exposed via window event */}
 
       {/* Modal backdrop */}
       {open && (

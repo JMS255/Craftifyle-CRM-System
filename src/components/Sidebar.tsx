@@ -122,8 +122,8 @@ export default function Sidebar() {
             </div>
           </Link>
 
-          {/* Theme toggle + sign out row */}
-          <div className="flex items-center justify-between">
+          {/* Theme toggle + tutorial + sign out row */}
+          <div className="flex items-center gap-1.5">
             <button
               onClick={toggleTheme}
               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors"
@@ -138,9 +138,23 @@ export default function Sidebar() {
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
 
+            {/* Tutorial button */}
+            <button
+              onClick={() => window.dispatchEvent(new Event('crafty-open-tutorial'))}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-colors"
+              style={{
+                background: 'var(--subtle-bg)',
+                border: '1px solid var(--card-border)',
+                color: 'var(--text-muted)',
+              }}
+              title="How to use Crafty CRM"
+            >
+              ?
+            </button>
+
             <button
               onClick={signOut}
-              className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5"
+              className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5 ml-auto"
               style={{ color: 'var(--text-faint)' }}
             >
               Sign out →
