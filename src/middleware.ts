@@ -23,12 +23,13 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use getSession() — reads JWT from cookie locally, no network round-trip
+  // Safe for a single-user personal CRM
+  const { data: { session } } = await supabase.auth.getSession()
 
   const { pathname } = request.nextUrl
 
-  // Allow public routes through
+  // Routes that don't need auth (webhooks, crons, static assets)
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/messenger') ||
@@ -36,7 +37,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
 
-  if (!user && !isPublic) {
+  if (!session && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('next', pathname)
