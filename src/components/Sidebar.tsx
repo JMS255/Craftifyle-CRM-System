@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from './ThemeProvider'
 
@@ -13,10 +14,34 @@ const nav = [
   { href: '/personal', label: 'Finances', short: 'Money', icon: '◇' },
 ]
 
+interface Profile {
+  full_name: string | null
+  business_name: string | null
+  location: string | null
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, toggleTheme } = useTheme()
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [email, setEmail] = useState('')
+
+  async function loadProfile() {
+    const db = createClient()
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) return
+    setEmail(user.email ?? '')
+    const { data } = await db.from('profiles').select('full_name, business_name, location').eq('id', user.id).maybeSingle()
+    setProfile(data ?? { full_name: null, business_name: null, location: null })
+  }
+
+  useEffect(() => {
+    loadProfile()
+    // Refresh when profile is saved
+    window.addEventListener('profile-updated', loadProfile)
+    return () => window.removeEventListener('profile-updated', loadProfile)
+  }, [])
 
   async function signOut() {
     const db = createClient()
@@ -27,6 +52,10 @@ export default function Sidebar() {
   function isActive(href: string) {
     return href === '/' ? pathname === '/' : pathname.startsWith(href)
   }
+
+  const displayName = profile?.full_name || email.split('@')[0] || 'My Account'
+  const displaySub = profile?.business_name || profile?.location || 'Crafty CRM'
+  const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
     <>
@@ -77,25 +106,24 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div className="px-4 py-4 border-t space-y-3" style={{ borderColor: 'var(--sidebar-border)' }}>
-          {/* User */}
-          <div className="flex items-center gap-2">
+          {/* User — click to go to profile */}
+          <Link href="/profile" className="flex items-center gap-2 rounded-xl px-2 py-1.5 -mx-2 transition-colors hover:bg-white/5">
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
             >
-              J
+              {initials}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
-                James Ignacio
+                {displayName}
               </p>
-              <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Zamboanga City</p>
+              <p className="text-xs truncate" style={{ color: 'var(--text-faint)' }}>{displaySub}</p>
             </div>
-          </div>
+          </Link>
 
           {/* Theme toggle + sign out row */}
           <div className="flex items-center justify-between">
-            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors"
@@ -106,13 +134,10 @@ export default function Sidebar() {
               }}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <span className="text-sm leading-none">
-                {theme === 'dark' ? '☀️' : '🌙'}
-              </span>
+              <span className="text-sm leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
 
-            {/* Sign out */}
             <button
               onClick={signOut}
               className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5"
@@ -143,15 +168,15 @@ export default function Sidebar() {
             </Link>
           )
         })}
-        {/* Theme toggle in mobile nav */}
-        <button
-          onClick={toggleTheme}
+        {/* Profile tab on mobile */}
+        <Link
+          href="/profile"
           className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: pathname === '/profile' ? '#818cf8' : 'var(--text-faint)' }}
         >
-          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
-          <span className="text-[10px] font-medium leading-tight">Theme</span>
-        </button>
+          <span className="text-lg leading-none">◉</span>
+          <span className="text-[10px] font-medium leading-tight">Profile</span>
+        </Link>
       </nav>
     </>
   )

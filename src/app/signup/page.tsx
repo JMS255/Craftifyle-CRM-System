@@ -50,7 +50,7 @@ function SignupForm() {
 
     setLoading(true)
     const db = createClient()
-    const { error: authError } = await db.auth.signUp({ email, password })
+    const { data, error: authError } = await db.auth.signUp({ email, password })
     setLoading(false)
 
     if (authError) {
@@ -58,6 +58,13 @@ function SignupForm() {
       return
     }
 
+    // If email confirmation is disabled, session is returned immediately — redirect to app
+    if (data.session) {
+      router.replace('/')
+      return
+    }
+
+    // Email confirmation required
     setDone(true)
   }
 
