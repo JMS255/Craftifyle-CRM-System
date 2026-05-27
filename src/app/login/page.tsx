@@ -130,8 +130,11 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--card-border)' }}>
-          Craftifyle · Zamboanga City
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-faint)' }}>
+          New user?{' '}
+          <Link href="/signup" className="text-indigo-400 hover:underline">
+            Sign up with invite code
+          </Link>
         </p>
       </div>
     </div>

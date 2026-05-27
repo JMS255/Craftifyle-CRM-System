@@ -126,12 +126,14 @@ export default function PersonalPage() {
     if (!incomeForm.description.trim() || !incomeForm.amount) return
     setSaving(true)
     setError('')
+    const { data: { user } } = await db.auth.getUser()
     const { error: err } = await db.from('personal_income').insert({
       description: incomeForm.description.trim(),
       amount: parseFloat(incomeForm.amount),
       income_date: incomeForm.income_date,
       category: incomeForm.category,
       notes: incomeForm.notes || null,
+      user_id: user?.id,
     })
     if (err) { setError(`Could not save income: ${err.message}`); setSaving(false); return }
     setIncomeForm(EMPTY_INCOME)
@@ -145,12 +147,14 @@ export default function PersonalPage() {
     if (!expenseForm.description.trim() || !expenseForm.amount) return
     setSaving(true)
     setError('')
+    const { data: { user } } = await db.auth.getUser()
     const { error: err } = await db.from('personal_expenses').insert({
       description: expenseForm.description.trim(),
       amount: parseFloat(expenseForm.amount),
       expense_date: expenseForm.expense_date,
       category: expenseForm.category,
       notes: expenseForm.notes || null,
+      user_id: user?.id,
     })
     if (err) { setError(`Could not save expense: ${err.message}`); setSaving(false); return }
     setExpenseForm(EMPTY_EXPENSE)

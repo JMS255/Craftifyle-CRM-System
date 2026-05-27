@@ -2,8 +2,11 @@ import Groq from 'groq-sdk'
 import type { ChatCompletionMessageParam } from 'groq-sdk/resources/chat/completions'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { createClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { createCalendarEvent } from '@/lib/google-calendar'
+
+// All Messenger leads/bookings belong to James's account
+const ADMIN_USER_ID = process.env.ADMIN_USER_ID ?? ''
 
 const SYSTEM_PROMPT = `CRAFTY AI — SYSTEM PROMPT
 For: llama-3.1-8b-instant | Business: Photobooth & Event Photography | Location: Zamboanga City, PH
@@ -191,7 +194,7 @@ async function sendMessage(recipientId: string, text: string) {
 }
 
 async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[]> {
-  const db = createClient()
+  const db = createAdminClient()
   const { data } = await db
     .from('messenger_conversations')
     .select('role, content')
@@ -205,7 +208,7 @@ async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[
 }
 
 async function saveMessages(senderId: string, userMsg: string, assistantMsg: string) {
-  const db = createClient()
+  const db = createAdminClient()
   await db.from('messenger_conversations').insert([
     { sender_id: senderId, role: 'user', content: userMsg },
     { sender_id: senderId, role: 'assistant', content: assistantMsg },
@@ -259,7 +262,7 @@ async function extractAndUpsertLead(
     // Create lead even without name — use "Unknown" as placeholder
     if (!data.name) data.name = 'Unknown (Messenger)'
 
-    const db = createClient()
+    const db = createAdminClient()
 
     const notes: string[] = []
     if (data.event_time) notes.push(`Event time: ${data.event_time}`)
@@ -304,6 +307,7 @@ async function extractAndUpsertLead(
         status: leadStatus,
         ad_ref: adRef ?? null,
         notes: notes.length ? notes.join(' | ') : null,
+        user_id: ADMIN_USER_ID || null,
       }).select('id').single()
       leadId = newLead?.id ?? null
     }
@@ -341,6 +345,7 @@ async function extractAndUpsertLead(
           status: 'upcoming',
           craftifyle_income: 0,
           personal_income: 0,
+          user_id: ADMIN_USER_ID || null,
         }).select('id').single()
 
         // Auto-sync to Google Calendar
@@ -403,7 +408,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Check if James has taken over this lead (crafty_active = false)
-        const db2 = createClient()
+        const db2 = createAdminClient()
         const { data: leadCheck } = await db2
           .from('leads')
           .select('crafty_active')

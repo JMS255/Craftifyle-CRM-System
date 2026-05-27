@@ -117,12 +117,14 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     e.preventDefault()
     if (!actContent.trim()) return
     setAddingActivity(true)
+    const { data: { user } } = await db.auth.getUser()
     await db.from('activities').insert({
       lead_id: id,
       type: actType,
       content: actContent.trim(),
       follow_up_date: actFollowUp || null,
       completed: false,
+      user_id: user?.id,
     })
     setActContent('')
     setActFollowUp('')
@@ -139,6 +141,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     e.preventDefault()
     if (!bookForm.event_name.trim()) return
     setConverting(true)
+    const { data: { user } } = await db.auth.getUser()
     const { data: booking } = await db
       .from('bookings')
       .insert({
@@ -154,6 +157,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           ? parseFloat(bookForm.package_price) - parseFloat(bookForm.deposit_amount)
           : 0,
         status: 'upcoming',
+        user_id: user?.id,
       })
       .select()
       .single()

@@ -49,6 +49,7 @@ export default function NewLeadPage() {
     setError('')
 
     const db = createClient()
+    const { data: { user } } = await db.auth.getUser()
     const { data, error: err } = await db
       .from('leads')
       .insert({
@@ -65,6 +66,7 @@ export default function NewLeadPage() {
         source: form.source,
         notes: form.notes || null,
         status: 'new',
+        user_id: user?.id,
       })
       .select()
       .single()

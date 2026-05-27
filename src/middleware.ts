@@ -32,6 +32,8 @@ export async function middleware(request: NextRequest) {
   // Routes that don't need auth (webhooks, crons, static assets)
   const isPublic =
     pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/api/auth/check-invite') ||
     pathname.startsWith('/api/messenger') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/_next') ||
