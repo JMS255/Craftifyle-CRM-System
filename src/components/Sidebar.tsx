@@ -46,9 +46,9 @@ export default function Sidebar() {
             </div>
             <div>
               <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-heading)' }}>
-                Craftifyle
+                Crafty CRM
               </p>
-              <p className="text-xs leading-tight" style={{ color: 'var(--text-faint)' }}>CRM</p>
+              <p className="text-xs leading-tight" style={{ color: 'var(--text-faint)' }}>Beta</p>
             </div>
           </div>
         </div>

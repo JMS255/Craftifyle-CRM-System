@@ -8,8 +8,8 @@ import ThemeProvider from '@/components/ThemeProvider'
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 
 export const metadata: Metadata = {
-  title: 'Craftifyle CRM',
-  description: 'Photobooth business management',
+  title: 'Crafty CRM',
+  description: 'Crafty CRM — Business management for service businesses',
 }
 
 // Prevent flash of wrong theme before React hydrates

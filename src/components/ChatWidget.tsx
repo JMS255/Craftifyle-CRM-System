@@ -75,7 +75,7 @@ export default function ChatWidget() {
             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-base">🤖</div>
             <div>
               <p className="text-white font-semibold text-sm">Craft AI</p>
-              <p className="text-indigo-200 text-xs">Your Craftifyle assistant</p>
+              <p className="text-indigo-200 text-xs">Your Crafty CRM assistant</p>
             </div>
             <button
               onClick={() => { setMessages([]); setInput('') }}

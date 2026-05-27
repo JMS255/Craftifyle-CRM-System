@@ -64,7 +64,7 @@ function LoginForm() {
           >
             C
           </div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>Craftifyle CRM</h1>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>Crafty CRM</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>Sign in to your dashboard</p>
         </div>
 
