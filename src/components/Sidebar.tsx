@@ -182,13 +182,23 @@ export default function Sidebar() {
             </Link>
           )
         })}
+        {/* Theme toggle on mobile */}
+        <button
+          onClick={toggleTheme}
+          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
+          style={{ color: 'var(--text-faint)' }}
+        >
+          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <span className="text-[10px] font-medium leading-tight">Theme</span>
+        </button>
+
         {/* Profile tab on mobile */}
         <Link
           href="/profile"
           className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
           style={{ color: pathname === '/profile' ? '#818cf8' : 'var(--text-faint)' }}
         >
-          <span className="text-lg leading-none">◉</span>
+          <span className="text-lg leading-none">👤</span>
           <span className="text-[10px] font-medium leading-tight">Profile</span>
         </Link>
       </nav>
