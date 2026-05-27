@@ -11,16 +11,14 @@ export const metadata: Metadata = {
   description: 'Photobooth business management',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} h-full`}>
-      <body className="h-full flex bg-gray-50 antialiased">
+      <body className="h-full flex antialiased" style={{ background: '#0a0a0f' }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0 min-h-screen">
+          {children}
+        </main>
         <ChatWidget />
       </body>
     </html>
