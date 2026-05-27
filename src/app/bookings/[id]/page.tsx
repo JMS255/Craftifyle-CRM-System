@@ -24,6 +24,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const [craftifyleIncome, setCraftifyleIncome] = useState('')
   const [savingIncome, setSavingIncome] = useState(false)
+  const [syncingCal, setSyncingCal] = useState(false)
+  const [calMsg, setCalMsg] = useState('')
 
   const db = createClient()
 
@@ -96,6 +98,28 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     setSavingIncome(false)
   }
 
+  async function syncCalendar() {
+    setSyncingCal(true)
+    setCalMsg('')
+    const res = await fetch('/api/bookings/sync-calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: id }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      setCalMsg(booking?.gcal_event_id ? '✅ Calendar updated!' : '✅ Added to Google Calendar!')
+      // Refresh booking to get gcal_event_id
+      db.from('bookings').select('*').eq('id', id).single().then(({ data: b }) => {
+        if (b) setBooking(b)
+      })
+    } else {
+      setCalMsg('❌ Sync failed — check env vars')
+    }
+    setSyncingCal(false)
+    setTimeout(() => setCalMsg(''), 3000)
+  }
+
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
   if (!booking) return <div className="p-8 text-red-500 text-sm">Booking not found.</div>
 
@@ -112,12 +136,22 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           <Link href="/bookings" className="text-sm text-indigo-600 hover:underline">
             ← Back to Bookings
           </Link>
-          <Link
-            href={`/bookings/${id}/invoice`}
-            className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-medium"
-          >
-            🧾 View Invoice
-          </Link>
+          <div className="flex gap-2 items-center">
+            {calMsg && <span className="text-xs text-gray-500">{calMsg}</span>}
+            <button
+              onClick={syncCalendar}
+              disabled={syncingCal}
+              className="text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium"
+            >
+              {syncingCal ? 'Syncing…' : booking?.gcal_event_id ? '📅 Update Calendar' : '📅 Add to Calendar'}
+            </button>
+            <Link
+              href={`/bookings/${id}/invoice`}
+              className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-medium"
+            >
+              🧾 Invoice
+            </Link>
+          </div>
         </div>
         <div className="flex items-start justify-between mt-3">
           <div>
