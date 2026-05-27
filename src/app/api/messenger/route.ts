@@ -310,14 +310,13 @@ async function extractAndUpsertLead(
 
     // Auto-create booking when client says PAID
     if (data.mentioned_paid && leadId && data.event_date) {
-      // Check if booking already exists for this lead
-      const { data: existingBooking } = await db
+      // Check if booking already exists for this lead (strong duplicate guard)
+      const { count } = await db
         .from('bookings')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('lead_id', leadId)
-        .maybeSingle()
 
-      if (!existingBooking) {
+      if (!count || count === 0) {
         const pax = data.guest_count as number ?? 0
         // Auto-determine price based on pax
         let packagePrice = 5000
