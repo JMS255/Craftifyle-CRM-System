@@ -79,7 +79,7 @@ export default function OnboardingModal() {
       <button
         onClick={reopen}
         title="How to use Crafty CRM"
-        className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-40 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
+        className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
         style={{
           background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
           color: 'white',
