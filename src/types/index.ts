@@ -68,6 +68,7 @@ export interface Booking {
   craftifyle_income: number
   personal_income: number
   notes: string | null
+  gcal_event_id: string | null
   created_at: string
   updated_at: string
 }
