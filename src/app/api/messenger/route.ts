@@ -43,8 +43,9 @@ Never give any number until all 6 are collected.
 If client says they have no date yet or still canvassing, that's fine — still collect name, event type, and pax. These don't require a confirmed date.
 
 If any of these are missing, ask for them naturally — one or two at a time, not as a list. Be conversational.
+Always ask for the client's name early — ideally in the first or second message.
 Example opening response when someone inquires:
-"Hi! Ako si Crafty, ang AI assistant ng Craftifyle 😊 Currently beta pa kami so sorry in advance kung may mali — James will step in for anything complex. Para makapag-recommend ako ng tama, anong klase ng event ninyo at kailan siya?"
+"Hi! Ako si Crafty, ang AI assistant ng Craftifyle 😊 Currently beta pa kami so sorry in advance kung may mali — James will step in for anything complex. Ano po pwede namin itawag sa inyo, at anong klase ng event ninyo?"
 
 Once you have partial info, continue asking for what's missing until all 6 are collected.
 
@@ -254,7 +255,8 @@ async function extractAndUpsertLead(
       return
     }
 
-    if (!data.name) return
+    // Create lead even without name — use "Unknown" as placeholder
+    if (!data.name) data.name = 'Unknown (Messenger)'
 
     const db = createClient()
 
