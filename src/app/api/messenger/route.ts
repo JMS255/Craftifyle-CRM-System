@@ -195,7 +195,7 @@ async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[
     .select('role, content')
     .eq('sender_id', senderId)
     .order('created_at', { ascending: true })
-    .limit(20)
+    .limit(10)
   return (data ?? []).map((row) => ({
     role: row.role as 'user' | 'assistant',
     content: row.content,
