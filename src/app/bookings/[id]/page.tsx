@@ -108,9 +108,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6">
-        <Link href="/bookings" className="text-sm text-indigo-600 hover:underline">
-          ← Back to Bookings
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/bookings" className="text-sm text-indigo-600 hover:underline">
+            ← Back to Bookings
+          </Link>
+          <Link
+            href={`/bookings/${id}/invoice`}
+            className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-medium"
+          >
+            🧾 View Invoice
+          </Link>
+        </div>
         <div className="flex items-start justify-between mt-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{booking.event_name}</h1>

@@ -42,13 +42,21 @@ function timeAgo(iso: string) {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+interface ConversationMessage {
+  role: string
+  content: string
+  created_at: string
+}
+
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const [lead, setLead] = useState<Lead | null>(null)
+  const [lead, setLead] = useState<Lead & { crafty_active?: boolean; messenger_sender_id?: string } | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
+  const [conversation, setConversation] = useState<ConversationMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [togglingCrafty, setTogglingCrafty] = useState(false)
 
   // Activity form
   const [actType, setActType] = useState<ActivityType>('note')
@@ -75,7 +83,25 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     ])
     setLead(l)
     setActivities(a ?? [])
+    if (l?.messenger_sender_id) {
+      const { data: msgs } = await db
+        .from('messenger_conversations')
+        .select('role, content, created_at')
+        .eq('sender_id', l.messenger_sender_id)
+        .order('created_at', { ascending: true })
+        .limit(50)
+      setConversation(msgs ?? [])
+    }
     setLoading(false)
+  }
+
+  async function toggleCrafty() {
+    if (!lead) return
+    setTogglingCrafty(true)
+    const newVal = !(lead.crafty_active ?? true)
+    await db.from('leads').update({ crafty_active: newVal }).eq('id', id)
+    setLead((prev) => prev ? { ...prev, crafty_active: newVal } : prev)
+    setTogglingCrafty(false)
   }
 
   useEffect(() => { reload() }, [id])
@@ -199,6 +225,58 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           )}
         </dl>
       </div>
+
+      {/* Crafty Takeover Toggle */}
+      {lead.messenger_sender_id && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Crafty AI</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {lead.crafty_active !== false
+                ? 'Crafty is handling this conversation automatically.'
+                : 'You are handling this — Crafty is silent.'}
+            </p>
+          </div>
+          <button
+            onClick={toggleCrafty}
+            disabled={togglingCrafty}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+              lead.crafty_active !== false ? 'bg-indigo-600' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                lead.crafty_active !== false ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
+      {/* Messenger Conversation Viewer */}
+      {conversation.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
+            💬 Messenger Conversation
+          </p>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {conversation.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
+                  msg.role === 'user'
+                    ? 'bg-gray-100 text-gray-800 rounded-tl-sm'
+                    : 'bg-indigo-600 text-white rounded-tr-sm'
+                }`}>
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-gray-400' : 'text-indigo-200'}`}>
+                    {msg.role === 'user' ? lead.name?.split(' ')[0] : 'Crafty'} · {timeAgo(msg.created_at)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* AI Reply */}
       <AiReply lead={lead} />

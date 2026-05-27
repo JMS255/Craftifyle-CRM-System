@@ -1,0 +1,82 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase'
+
+async function sendMessage(recipientId: string, text: string) {
+  const pageToken = process.env.MESSENGER_PAGE_ACCESS_TOKEN
+  if (!pageToken) return
+  await fetch('https://graph.facebook.com/v19.0/me/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recipient: { id: recipientId },
+      message: { text },
+      messaging_type: 'MESSAGE_TAG',
+      tag: 'CONFIRMED_EVENT_UPDATE',
+      access_token: pageToken,
+    }),
+  })
+}
+
+// Follow-up messages by days since last contact
+function getFollowUpMessage(name: string, daysQuiet: number, eventDate: string | null): string {
+  const firstName = name.split(' ')[0]
+  const eventStr = eventDate
+    ? new Date(eventDate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric' })
+    : null
+
+  if (daysQuiet === 1) return `${firstName}? 😊`
+  if (daysQuiet === 2) return eventStr
+    ? `${eventStr} is coming up — naka-hold pa po ang slot ninyo 😊`
+    : `How's it going po? Still interested? 😊`
+  if (daysQuiet === 3) return `Releasing the slot na po by tomorrow if walang confirm. Go na po ba? 😊`
+  if (daysQuiet <= 5) return `Hey ${firstName}! Just checking — still open to chatting about your event? 📸`
+  return `Should I close your inquiry or still interested po? 😊`
+}
+
+export async function GET(req: NextRequest) {
+  // Verify this is called by Vercel Cron
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
+  const db = createClient()
+  const now = new Date()
+
+  // Find leads that are active (contacted/quoted), have Messenger, Crafty is on,
+  // and haven't had a follow-up in 24+ hours
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: leads } = await db
+    .from('leads')
+    .select('id, name, event_date, messenger_sender_id, last_followup_sent, created_at')
+    .in('status', ['contacted', 'quoted', 'negotiating'])
+    .eq('crafty_active', true)
+    .not('messenger_sender_id', 'is', null)
+    .or(`last_followup_sent.is.null,last_followup_sent.lt.${oneDayAgo}`)
+
+  let sent = 0
+
+  for (const lead of leads ?? []) {
+    const createdAt = new Date(lead.created_at)
+    const daysQuiet = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Stop following up after 10 days
+    if (daysQuiet > 10) continue
+
+    const message = getFollowUpMessage(lead.name, daysQuiet, lead.event_date)
+
+    try {
+      await sendMessage(lead.messenger_sender_id, message)
+      await db
+        .from('leads')
+        .update({ last_followup_sent: now.toISOString() })
+        .eq('id', lead.id)
+      sent++
+    } catch (e) {
+      console.error(`Follow-up failed for lead ${lead.id}:`, e)
+    }
+  }
+
+  return NextResponse.json({ ok: true, sent })
+}
