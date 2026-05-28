@@ -131,6 +131,27 @@ function LoginForm() {
           </button>
         </form>
 
+        {/* Demo account */}
+        <div className="mt-4 rounded-2xl p-4 text-center transition-colors"
+          style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+            Just browsing? Try the demo
+          </p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-faint)' }}>
+            See a real account with sample data — no sign up needed.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('demo@craftycrmm.vercel.app')
+              setPassword('craftydemo2026')
+            }}
+            className="w-full py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80"
+            style={{ background: 'var(--accent-glow)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+            Fill demo credentials →
+          </button>
+        </div>
+
         <p className="text-center text-xs mt-4" style={{ color: 'var(--text-faint)' }}>
           New user?{' '}
           <Link href="/signup" className="text-indigo-400 hover:underline">
