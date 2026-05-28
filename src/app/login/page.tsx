@@ -36,7 +36,7 @@ function LoginForm() {
       return
     }
 
-    router.replace(next)
+    window.location.href = next
   }
 
   return (
