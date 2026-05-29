@@ -59,6 +59,7 @@ export async function createCalendarEvent({
           ? { dateTime: endDateTime, timeZone: 'Asia/Manila' }
           : { date: endDateTime },
         colorId: '2', // Green = confirmed booking
+        visibility: 'public',
       },
     })
 
@@ -123,6 +124,7 @@ export async function updateCalendarEvent({
         end: time
           ? { dateTime: endDateTime, timeZone: 'Asia/Manila' }
           : { date: endDateTime },
+        visibility: 'public',
       },
     })
   } catch (err) {
