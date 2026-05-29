@@ -59,7 +59,7 @@ export default function ChatWidget() {
       {/* Floating button — sits above bottom nav on mobile */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
+        className="print:hidden fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
         title="Ask Craft AI"
       >
         {open ? '✕' : '🤖'}

@@ -58,6 +58,38 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [saving, setSaving] = useState(false)
   const [togglingCrafty, setTogglingCrafty] = useState(false)
 
+  // Edit lead
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<Lead>>({})
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  function startEdit() {
+    if (!lead) return
+    setEditForm({
+      name: lead.name,
+      phone: lead.phone,
+      email: lead.email,
+      facebook: lead.facebook,
+      source: lead.source,
+      event_type: lead.event_type,
+      event_date: lead.event_date,
+      venue: lead.venue,
+      guest_count: lead.guest_count,
+      package: lead.package,
+      budget: lead.budget,
+      notes: lead.notes,
+    })
+    setEditing(true)
+  }
+
+  async function saveEdit() {
+    setSavingEdit(true)
+    await db.from('leads').update(editForm).eq('id', id)
+    setSavingEdit(false)
+    setEditing(false)
+    reload()
+  }
+
   // Activity form
   const [actType, setActType] = useState<ActivityType>('note')
   const [actContent, setActContent] = useState('')
@@ -209,25 +241,73 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Lead Info */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Details</p>
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-          <Info label="Phone" value={lead.phone} />
-          <Info label="Email" value={lead.email} />
-          <Info label="Facebook" value={lead.facebook} />
-          <Info label="Source" value={lead.source} />
-          <Info label="Event Type" value={lead.event_type?.replace('_', ' ')} />
-          <Info label="Event Date" value={lead.event_date ? fmt(lead.event_date) : null} />
-          <Info label="Venue" value={lead.venue} />
-          <Info label="Guests" value={lead.guest_count?.toString()} />
-          <Info label="Package" value={lead.package} />
-          <Info label="Budget" value={lead.budget ? `₱${lead.budget.toLocaleString()}` : null} />
-          {lead.notes && (
-            <div className="col-span-2">
-              <dt className="text-gray-400 text-xs mb-1">Notes</dt>
-              <dd className="text-gray-700 whitespace-pre-line">{lead.notes}</dd>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Details</p>
+          {!editing ? (
+            <button onClick={startEdit} className="text-xs text-indigo-600 hover:underline font-medium">Edit</button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(false)} className="text-xs text-gray-400 hover:underline">Cancel</button>
+              <button onClick={saveEdit} disabled={savingEdit} className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg font-medium disabled:opacity-50">
+                {savingEdit ? 'Saving…' : 'Save'}
+              </button>
             </div>
           )}
-        </dl>
+        </div>
+
+        {!editing ? (
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+            <Info label="Phone" value={lead.phone} />
+            <Info label="Email" value={lead.email} />
+            <Info label="Facebook" value={lead.facebook} />
+            <Info label="Source" value={lead.source} />
+            <Info label="Event Type" value={lead.event_type?.replace('_', ' ')} />
+            <Info label="Event Date" value={lead.event_date ? fmt(lead.event_date) : null} />
+            <Info label="Venue" value={lead.venue} />
+            <Info label="Guests" value={lead.guest_count?.toString()} />
+            <Info label="Package" value={lead.package} />
+            <Info label="Budget" value={lead.budget ? `₱${lead.budget.toLocaleString()}` : null} />
+            {lead.notes && (
+              <div className="col-span-2">
+                <dt className="text-gray-400 text-xs mb-1">Notes</dt>
+                <dd className="text-gray-700 whitespace-pre-line">{lead.notes}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {[
+              { label: 'Name', key: 'name', type: 'text' },
+              { label: 'Phone', key: 'phone', type: 'text' },
+              { label: 'Email', key: 'email', type: 'email' },
+              { label: 'Facebook', key: 'facebook', type: 'text' },
+              { label: 'Venue', key: 'venue', type: 'text' },
+              { label: 'Package', key: 'package', type: 'text' },
+              { label: 'Budget (₱)', key: 'budget', type: 'number' },
+              { label: 'Guests', key: 'guest_count', type: 'number' },
+              { label: 'Event Date', key: 'event_date', type: 'date' },
+            ].map(({ label, key, type }) => (
+              <div key={key}>
+                <label className="block text-xs text-gray-400 mb-1">{label}</label>
+                <input
+                  type={type}
+                  value={(editForm as Record<string, unknown>)[key] as string ?? ''}
+                  onChange={e => setEditForm(p => ({ ...p, [key]: type === 'number' ? (e.target.value ? parseFloat(e.target.value) : null) : e.target.value || null }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+            <div className="col-span-2">
+              <label className="block text-xs text-gray-400 mb-1">Notes</label>
+              <textarea
+                rows={3}
+                value={editForm.notes ?? ''}
+                onChange={e => setEditForm(p => ({ ...p, notes: e.target.value || null }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Crafty Takeover Toggle */}

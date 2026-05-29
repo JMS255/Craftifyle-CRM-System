@@ -127,7 +127,42 @@ select:focus {
   box-shadow: 0 0 0 2px var(--accent-glow) !important;
 }
 
-/* Light mode: keep text readable on white cards */
-[data-theme="light"] .text-white {
+/* Light mode: keep text readable on white cards — but NOT inside invoice header */
+[data-theme="light"] .text-white:not(.invoice-header *) {
   color: var(--text-heading) !important;
+}
+
+/* ─── Print styles ─── */
+@media print {
+  /* Hide everything except the invoice */
+  aside,
+  nav,
+  [data-sidebar],
+  .chat-widget,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Force background colors to print */
+  * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Remove layout margins so invoice fills the page */
+  body {
+    background: white !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: unset !important;
+  }
+
+  /* Invoice container fills full width */
+  .invoice-print-root {
+    padding: 0 !important;
+    background: white !important;
+  }
 }

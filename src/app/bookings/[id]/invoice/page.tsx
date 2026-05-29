@@ -38,7 +38,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const invoiceNumber = `CFY-${booking.created_at.slice(0, 10).replace(/-/g, '')}-${id.slice(0, 4).toUpperCase()}`
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="invoice-print-root min-h-screen bg-gray-50 p-4 md:p-8">
       {/* Actions (hidden on print) */}
       <div className="max-w-2xl mx-auto mb-4 flex gap-3 print:hidden">
         <Link
@@ -58,18 +58,18 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       {/* Invoice */}
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden print:shadow-none print:border-none print:rounded-none">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-8 py-8">
+        <div className="invoice-header bg-slate-900 px-8 py-8" style={{ color: '#ffffff' }}>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Craftifyle</h1>
-              <p className="text-slate-400 text-sm mt-1">Photobooth & Event Photography</p>
-              <p className="text-slate-400 text-sm">Zamboanga City, Philippines</p>
-              <p className="text-slate-400 text-sm">facebook.com/craftifylePH</p>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#ffffff' }}>Craftifyle</h1>
+              <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Photobooth & Event Photography</p>
+              <p className="text-sm" style={{ color: '#94a3b8' }}>Zamboanga City, Philippines</p>
+              <p className="text-sm" style={{ color: '#94a3b8' }}>facebook.com/craftifylePH</p>
             </div>
             <div className="text-right">
-              <p className="text-slate-400 text-xs uppercase tracking-wide">Invoice</p>
-              <p className="text-white font-bold text-lg mt-1">{invoiceNumber}</p>
-              <p className="text-slate-400 text-sm mt-1">Issued: {fmt(booking.created_at)}</p>
+              <p className="text-xs uppercase tracking-wide" style={{ color: '#94a3b8' }}>Invoice</p>
+              <p className="font-bold text-lg mt-1" style={{ color: '#ffffff' }}>{invoiceNumber}</p>
+              <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Issued: {fmt(booking.created_at)}</p>
             </div>
           </div>
         </div>

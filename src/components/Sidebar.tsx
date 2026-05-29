@@ -61,7 +61,8 @@ export default function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex flex-col shrink-0 w-56 min-h-screen border-r transition-colors"
+        data-sidebar
+        className="hidden md:flex flex-col shrink-0 w-56 min-h-screen border-r transition-colors print:hidden"
         style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
       >
         {/* Logo */}
@@ -165,7 +166,7 @@ export default function Sidebar() {
 
       {/* Mobile bottom nav */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
         style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
       >
         {nav.map(({ href, short, icon }) => {
