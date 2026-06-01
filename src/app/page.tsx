@@ -87,16 +87,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     const db = createClient()
-    const thisMonth = new Date().toISOString().slice(0, 7)
+    const now = new Date()
+    const thisMonth = now.toISOString().slice(0, 7)
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10)
     Promise.all([
       db.from('leads').select('*').order('created_at', { ascending: false }),
       db.from('bookings').select('*').eq('status', 'upcoming')
-        .gte('event_date', new Date().toISOString().slice(0, 10))
+        .gte('event_date', now.toISOString().slice(0, 10))
         .order('event_date').limit(6),
       db.from('bookings')
         .select('package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
         .gte('event_date', `${thisMonth}-01`)
-        .lte('event_date', `${thisMonth}-31`)
+        .lt('event_date', nextMonth)
         .neq('status', 'cancelled'),
     ]).then(([{ data: l }, { data: b }, { data: rev }]) => {
       setLeads(l ?? [])
