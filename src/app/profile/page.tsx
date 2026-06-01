@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useTheme } from '@/components/ThemeProvider'
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { theme, toggleTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -179,11 +181,35 @@ export default function ProfilePage() {
           type="submit"
           disabled={saving}
           className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+          style={{ background: 'var(--accent)' }}
         >
           {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Changes'}
         </button>
       </form>
+
+      {/* Mobile-only actions */}
+      <div className="mt-6 space-y-3 md:hidden">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium"
+          style={{ background: 'var(--card)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}
+        >
+          <span>{theme === 'dark' ? '☀️ Switch to Light mode' : '🌙 Switch to Dark mode'}</span>
+          <span style={{ color: 'var(--text-faint)' }}>→</span>
+        </button>
+        <button
+          onClick={async () => {
+            const db = createClient()
+            await db.auth.signOut()
+            router.replace('/login')
+          }}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium"
+          style={{ background: 'var(--danger-muted)', border: '1px solid rgba(248,113,113,0.2)', color: 'var(--danger)' }}
+        >
+          <span>Sign out</span>
+          <span>→</span>
+        </button>
+      </div>
     </div>
   )
 }
