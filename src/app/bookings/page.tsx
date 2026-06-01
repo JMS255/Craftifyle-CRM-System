@@ -224,7 +224,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
       {months.map((month) => {
         const isOpen = open === month.yearMonth
         return (
-          <div key={month.yearMonth} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div key={month.yearMonth} className="card overflow-hidden">
             {/* Accordion header */}
             <button
               onClick={() => setOpen(isOpen ? null : month.yearMonth)}
@@ -344,15 +344,15 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color: 'indigo' | 'green' | 'blue' | 'purple' }) {
   const colors = {
-    indigo: 'bg-indigo-50 text-indigo-700',
-    green: 'bg-green-50 text-green-700',
-    blue: 'bg-blue-50 text-blue-700',
-    purple: 'bg-purple-50 text-purple-700',
+    indigo: { bg: 'rgba(124,111,247,0.1)', text: '#a5b4fc' },
+    green:  { bg: 'rgba(16,185,129,0.1)',  text: '#34d399' },
+    blue:   { bg: 'rgba(59,130,246,0.1)',  text: '#60a5fa' },
+    purple: { bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa' },
   }
   return (
-    <div className={`rounded-xl p-4 ${colors[color]}`}>
-      <p className="text-xl font-bold">{value}</p>
-      <p className="text-sm mt-1 opacity-80">{label}</p>
+    <div className="rounded-xl p-4" style={{ background: colors[color].bg }}>
+      <p className="text-xl font-bold" style={{ color: colors[color].text }}>{value}</p>
+      <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
     </div>
   )
 }
@@ -370,13 +370,14 @@ function PayCell({ amount, paid }: { amount: number; paid: boolean }) {
 }
 
 function StatusBadge({ status }: { status: BookingStatus }) {
-  const styles: Record<BookingStatus, string> = {
-    upcoming: 'bg-blue-100 text-blue-700',
-    completed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
+  const styles: Record<BookingStatus, { bg: string; color: string }> = {
+    upcoming:  { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa' },
+    completed: { bg: 'rgba(16,185,129,0.12)',  color: '#34d399' },
+    cancelled: { bg: 'rgba(239,68,68,0.12)',   color: '#f87171' },
   }
   return (
-    <span className={`text-xs px-2 py-1 rounded-full font-medium ${styles[status]}`}>
+    <span className="text-xs px-2 py-1 rounded-full font-medium"
+      style={{ background: styles[status].bg, color: styles[status].color }}>
       {status}
     </span>
   )

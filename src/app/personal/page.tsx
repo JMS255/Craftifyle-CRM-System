@@ -295,7 +295,7 @@ export default function PersonalPage() {
             const isOpen = openMonth === month.yearMonth
             const hasData = month.income.length > 0 || month.expenses.length > 0
             return (
-              <div key={month.yearMonth} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div key={month.yearMonth} className="card overflow-hidden">
                 {/* Month header */}
                 <button
                   onClick={() => hasData && setOpenMonth(isOpen ? null : month.yearMonth)}

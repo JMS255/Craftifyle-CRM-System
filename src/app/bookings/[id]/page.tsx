@@ -175,15 +175,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               {fmt(booking.event_date)}{booking.event_time ? ` · ${booking.event_time}` : ''}
             </p>
           </div>
-          <span
-            className={`text-sm px-3 py-1 rounded-full font-medium border ${
-              booking.status === 'upcoming'
-                ? 'bg-blue-100 text-blue-700 border-blue-200'
-                : booking.status === 'completed'
-                ? 'bg-green-100 text-green-700 border-green-200'
-                : 'bg-red-100 text-red-700 border-red-200'
-            }`}
-          >
+          <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
+              background: booking.status === 'upcoming' ? 'rgba(59,130,246,0.12)' : booking.status === 'completed' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+              color: booking.status === 'upcoming' ? '#60a5fa' : booking.status === 'completed' ? '#34d399' : '#f87171',
+            }}>
             {booking.status}
           </span>
         </div>
@@ -205,8 +200,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Event Details */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Event Info</p>
+      <div className="card p-5 mb-5">
+        <p className="section-label mb-3">Event Info</p>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
           {booking.venue && <Info label="Venue" value={booking.venue} />}
           {booking.package_name && <Info label="Package" value={booking.package_name} />}
@@ -233,8 +228,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Payment Tracking */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Payment</p>
+      <div className="card p-5 mb-5">
+        <p className="section-label mb-4">Payment</p>
         <div className="space-y-4">
           <div className="flex items-center justify-between py-3 border-b border-gray-100">
             <div>
@@ -289,8 +284,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Craftifyle Income */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Craftifyle Income</p>
+      <div className="card p-5 mb-5">
+        <p className="section-label mb-1">Craftifyle Income</p>
         <p className="text-xs text-gray-400 mb-4">How much of this booking counts as Craftifyle business income.</p>
 
         <div className="bg-blue-50 rounded-lg p-4 mb-4 text-center">
@@ -322,23 +317,19 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Status Actions */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Event Status</p>
+      <div className="card p-5">
+        <p className="section-label mb-3">Event Status</p>
         <div className="flex gap-2">
           {(['upcoming', 'completed', 'cancelled'] as BookingStatus[]).map((s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
               disabled={saving || booking.status === s}
-              className={`text-sm px-4 py-2 rounded-lg border font-medium transition-colors capitalize ${
-                booking.status === s
-                  ? s === 'upcoming'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : s === 'completed'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-red-600 text-white border-red-600'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-400 disabled:opacity-50'
-              }`}
+              className="text-sm px-4 py-2 rounded-lg font-medium transition-all capitalize"
+              style={booking.status === s
+                ? { background: s === 'upcoming' ? '#3b82f6' : s === 'completed' ? '#10b981' : '#ef4444', color: '#fff', border: 'none' }
+                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }
+              }
             >
               {s}
             </button>

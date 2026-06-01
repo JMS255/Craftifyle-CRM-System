@@ -100,7 +100,7 @@ export default function AdsPage() {
       {loading ? (
         <p className="text-gray-400 text-sm">Loading…</p>
       ) : stats.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <div className="card p-8 text-center">
           <p className="text-gray-500 font-medium mb-2">No ad-tagged leads yet</p>
           <p className="text-gray-400 text-sm mb-4">
             To track ads, share this link instead of your regular page link:
@@ -113,7 +113,7 @@ export default function AdsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>

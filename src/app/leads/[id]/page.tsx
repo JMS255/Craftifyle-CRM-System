@@ -11,14 +11,14 @@ const PIPELINE: LeadStatus[] = [
   'new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost',
 ]
 
-const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: 'bg-blue-100 text-blue-700 border-blue-200',
-  contacted: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  quoted: 'bg-orange-100 text-orange-700 border-orange-200',
-  negotiating: 'bg-purple-100 text-purple-700 border-purple-200',
-  booked: 'bg-green-100 text-green-700 border-green-200',
-  lost: 'bg-red-100 text-red-700 border-red-200',
-  completed: 'bg-gray-100 text-gray-600 border-gray-200',
+const STATUS_COLORS: Record<LeadStatus, { bg: string; color: string; border: string }> = {
+  new:         { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa', border: 'rgba(59,130,246,0.25)' },
+  contacted:   { bg: 'rgba(234,179,8,0.12)',   color: '#fbbf24', border: 'rgba(234,179,8,0.25)' },
+  quoted:      { bg: 'rgba(249,115,22,0.12)',  color: '#fb923c', border: 'rgba(249,115,22,0.25)' },
+  negotiating: { bg: 'rgba(139,92,246,0.12)',  color: '#a78bfa', border: 'rgba(139,92,246,0.25)' },
+  booked:      { bg: 'rgba(16,185,129,0.12)',  color: '#34d399', border: 'rgba(16,185,129,0.25)' },
+  lost:        { bg: 'rgba(239,68,68,0.12)',   color: '#f87171', border: 'rgba(239,68,68,0.25)' },
+  completed:   { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.25)' },
 }
 
 const ACTIVITY_ICONS: Record<ActivityType, string> = {
@@ -213,26 +213,27 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <h1 className="text-2xl font-bold text-gray-900">{lead.name}</h1>
             <p className="text-gray-400 text-sm mt-1">Added {fmt(lead.created_at)}</p>
           </div>
-          <span className={`text-sm px-3 py-1 rounded-full font-medium border ${STATUS_COLORS[lead.status]}`}>
+          <span className="text-xs px-3 py-1 rounded-full font-medium capitalize"
+            style={{ background: STATUS_COLORS[lead.status].bg, color: STATUS_COLORS[lead.status].color, border: `1px solid ${STATUS_COLORS[lead.status].border}` }}>
             {lead.status}
           </span>
         </div>
       </div>
 
       {/* Status Pipeline */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Pipeline Stage</p>
+      <div className="rounded-2xl p-5 mb-5 card">
+        <p className="section-label mb-3">Pipeline Stage</p>
         <div className="flex gap-2 flex-wrap">
           {PIPELINE.map((s) => (
             <button
               key={s}
               onClick={() => updateStatus(s)}
               disabled={saving}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors capitalize ${
-                lead.status === s
-                  ? STATUS_COLORS[s]
-                  : 'border-gray-200 text-gray-500 hover:border-gray-400'
-              }`}
+              className="text-xs px-3 py-1.5 rounded-full font-medium transition-all capitalize"
+              style={lead.status === s
+                ? { background: STATUS_COLORS[s].bg, color: STATUS_COLORS[s].color, border: `1px solid ${STATUS_COLORS[s].border}` }
+                : { background: 'transparent', color: 'var(--text-faint)', border: '1px solid var(--card-border)' }
+              }
             >
               {s}
             </button>
@@ -241,9 +242,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Lead Info */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+      <div className="rounded-2xl p-5 mb-5 card">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Details</p>
+          <p className="section-label">Details</p>
           {!editing ? (
             <button onClick={startEdit} className="text-xs text-indigo-600 hover:underline font-medium">Edit</button>
           ) : (
@@ -313,7 +314,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Crafty Takeover Toggle */}
       {lead.messenger_sender_id && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5 flex items-center justify-between">
+        <div className="rounded-2xl p-5 mb-5 card flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-800">Crafty AI</p>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -340,8 +341,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Messenger Conversation Viewer */}
       {conversation.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
+        <div className="rounded-2xl p-5 mb-5 card">
+          <p className="section-label mb-4">
             💬 Messenger Conversation
           </p>
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -410,8 +411,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       <FollowUpTemplates lead={lead} />
 
       {/* Activities */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Activity Log</p>
+      <div className="rounded-2xl p-5 card">
+        <p className="section-label mb-4">Activity Log</p>
 
         {/* Add activity */}
         <form onSubmit={addActivity} className="mb-5 bg-gray-50 rounded-lg p-4 space-y-3">
@@ -608,10 +609,10 @@ function AiReply({ lead }: { lead: Lead }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+    <div className="rounded-2xl p-5 mb-5 card">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-base">🤖</span>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">AI Reply Draft</p>
+        <p className="section-label">AI Reply Draft</p>
       </div>
       <p className="text-xs text-gray-400 mb-4">
         Paste what the client sent you on Facebook or Instagram — get a ready-to-send reply.
@@ -670,8 +671,8 @@ function Info({ label, value }: { label: string; value: string | null | undefine
   if (!value) return null
   return (
     <div>
-      <dt className="text-xs text-gray-400">{label}</dt>
-      <dd className="text-gray-800 font-medium capitalize">{value}</dd>
+      <dt className="section-label mb-0.5">{label}</dt>
+      <dd className="text-sm font-medium capitalize" style={{ color: 'var(--text-heading)' }}>{value}</dd>
     </div>
   )
 }
@@ -683,13 +684,13 @@ function BookField({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
       />
     </div>
   )

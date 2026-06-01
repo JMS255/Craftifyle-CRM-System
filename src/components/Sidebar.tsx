@@ -92,11 +92,13 @@ export default function Sidebar() {
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
                 style={{
                   background: active ? 'var(--accent-subtle)' : 'transparent',
-                  color: active ? 'var(--accent-text)' : 'var(--text-muted)',
+                  color: active ? 'var(--text-heading)' : 'var(--text-muted)',
+                  fontWeight: active ? 500 : 400,
                   borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
+                  marginLeft: '-1px',
                 }}
               >
                 <span className="text-base leading-none w-5 text-center">{icon}</span>

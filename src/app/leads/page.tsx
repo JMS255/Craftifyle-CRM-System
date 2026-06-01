@@ -10,14 +10,14 @@ const STATUSES: LeadStatus[] = [
   'new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed',
 ]
 
-const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  quoted: 'bg-orange-100 text-orange-700',
-  negotiating: 'bg-purple-100 text-purple-700',
-  booked: 'bg-green-100 text-green-700',
-  lost: 'bg-red-100 text-red-700',
-  completed: 'bg-gray-100 text-gray-600',
+const STATUS_COLORS: Record<LeadStatus, { bg: string; color: string }> = {
+  new:         { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa' },
+  contacted:   { bg: 'rgba(234,179,8,0.12)',   color: '#fbbf24' },
+  quoted:      { bg: 'rgba(249,115,22,0.12)',  color: '#fb923c' },
+  negotiating: { bg: 'rgba(139,92,246,0.12)',  color: '#a78bfa' },
+  booked:      { bg: 'rgba(16,185,129,0.12)',  color: '#34d399' },
+  lost:        { bg: 'rgba(239,68,68,0.12)',   color: '#f87171' },
+  completed:   { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af' },
 }
 
 function fmt(date: string) {
@@ -222,11 +222,11 @@ export default function LeadsPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors capitalize ${
-                filterStatus === s
-                  ? STATUS_COLORS[s] + ' border-current'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-400'
-              }`}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-all capitalize"
+              style={filterStatus === s
+                ? { background: STATUS_COLORS[s].bg, color: STATUS_COLORS[s].color, border: `1px solid ${STATUS_COLORS[s].color}40` }
+                : { background: 'transparent', color: 'var(--text-faint)', border: '1px solid var(--card-border)' }
+              }
             >
               {s}
               <span className={`text-xs font-bold ${filterStatus === s ? '' : 'text-gray-400'}`}>
@@ -408,7 +408,7 @@ export default function LeadsPage() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="hidden md:block card overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500 uppercase tracking-wide">
@@ -444,7 +444,8 @@ export default function LeadsPage() {
                     <td className="px-5 py-3 text-gray-600 capitalize">{lead.source}</td>
                     <td className="px-5 py-3 text-gray-400 text-xs">{fmt(lead.created_at)}</td>
                     <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[lead.status]}`}>
+                      <span className="text-xs px-2 py-1 rounded-full font-medium capitalize"
+                        style={{ background: STATUS_COLORS[lead.status].bg, color: STATUS_COLORS[lead.status].color }}>
                         {lead.status}
                       </span>
                     </td>
@@ -463,14 +464,15 @@ export default function LeadsPage() {
               <Link
                 key={lead.id}
                 href={`/leads/${lead.id}`}
-                className="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-indigo-300 transition-colors"
+                className="block card px-4 py-3 hover:border-indigo-300 transition-colors"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
                     {lead.phone && <p className="text-xs text-gray-400">{lead.phone}</p>}
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${STATUS_COLORS[lead.status]}`}>
+                  <span className="text-xs px-2 py-1 rounded-full font-medium shrink-0 capitalize"
+                    style={{ background: STATUS_COLORS[lead.status].bg, color: STATUS_COLORS[lead.status].color }}>
                     {lead.status}
                   </span>
                 </div>
