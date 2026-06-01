@@ -7,12 +7,12 @@ import { createClient } from '@/lib/supabase'
 import { useTheme } from './ThemeProvider'
 
 const nav = [
-  { href: '/', label: 'Dashboard', short: 'Home', icon: '⊞' },
-  { href: '/leads', label: 'Leads', short: 'Leads', icon: '◎' },
-  { href: '/bookings', label: 'Bookings', short: 'Events', icon: '◈' },
-  { href: '/ads', label: 'Ad Performance', short: 'Ads', icon: '◉' },
-  { href: '/personal', label: 'Finances', short: 'Money', icon: '◇' },
-  { href: '/settings', label: 'Packages', short: 'Packages', icon: '⚙' },
+  { href: '/', label: 'Dashboard', short: 'Home', icon: '🏠' },
+  { href: '/leads', label: 'Leads', short: 'Leads', icon: '📋' },
+  { href: '/bookings', label: 'Bookings', short: 'Bookings', icon: '📅' },
+  { href: '/ads', label: 'Ad Performance', short: 'Ads', icon: '📊' },
+  { href: '/personal', label: 'Finances', short: 'Money', icon: '💰' },
+  { href: '/settings', label: 'Packages', short: 'Packages', icon: '⚙️' },
 ]
 
 interface Profile {
@@ -203,43 +203,45 @@ export default function Sidebar() {
         className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
         style={{ background: 'rgba(15,15,23,0.85)', borderColor: 'var(--sidebar-border)' }}
       >
+        {/* Home + Leads */}
         {nav.slice(0, 2).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
               className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-              style={{ color: active ? '#818cf8' : 'var(--text-faint)' }}>
-              <span className="text-lg leading-none">{icon}</span>
+              style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+              <span className="text-xl leading-none">{icon}</span>
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
           )
         })}
 
-        {/* Centre + Quick Add button */}
+        {/* Centre + Quick Add */}
         <button onClick={() => setQuickAdd(true)}
           className="flex-1 flex flex-col items-center pt-1.5 pb-3 gap-0.5">
           <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xl font-bold"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>+</span>
+            style={{ background: 'var(--accent)', boxShadow: '0 0 16px var(--accent-glow)' }}>+</span>
           <span className="text-[10px] font-medium leading-tight" style={{ color: 'var(--text-faint)' }}>Add</span>
         </button>
 
-        {nav.slice(2, 4).map(({ href, short, icon }) => {
+        {/* Bookings only */}
+        {nav.slice(2, 3).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
               className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-              style={{ color: active ? '#818cf8' : 'var(--text-faint)' }}>
-              <span className="text-lg leading-none">{icon}</span>
+              style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+              <span className="text-xl leading-none">{icon}</span>
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
           )
         })}
 
-        {/* Profile tab */}
+        {/* Profile */}
         <Link href="/profile"
           className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-          style={{ color: pathname === '/profile' ? '#818cf8' : 'var(--text-faint)' }}>
-          <span className="text-lg leading-none">👤</span>
+          style={{ color: pathname === '/profile' ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+          <span className="text-xl leading-none">👤</span>
           <span className="text-[10px] font-medium leading-tight">Profile</span>
         </Link>
       </nav>
