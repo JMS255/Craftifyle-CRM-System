@@ -6,13 +6,16 @@ import { createClient } from '@/lib/supabase'
 import type { Booking, BookingStatus } from '@/types'
 
 function fmt(date: string) {
-  return new Date(date).toLocaleDateString('en-PH', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  })
+  return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 }
-
 function peso(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 })
+}
+
+const STATUS_STYLE: Record<BookingStatus, { color: string; bg: string }> = {
+  upcoming:  { color: '#60a5fa', bg: 'rgba(59,130,246,0.12)' },
+  completed: { color: '#34d399', bg: 'rgba(16,185,129,0.12)' },
+  cancelled: { color: '#f87171', bg: 'rgba(239,68,68,0.12)' },
 }
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,15 +26,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [msg, setMsg] = useState('')
   const [copied, setCopied] = useState(false)
   const [justPaid, setJustPaid] = useState<'deposit' | 'balance' | null>(null)
-
-  function copyConfirmLink() {
-    const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-    const url = `${window.location.origin}/confirm/${token}`
-    navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const [craftifyleIncome, setCraftifyleIncome] = useState('')
   const [savingIncome, setSavingIncome] = useState(false)
   const [syncingCal, setSyncingCal] = useState(false)
@@ -39,318 +33,268 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const db = createClient()
 
+  function copyConfirmLink() {
+    const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    navigator.clipboard.writeText(`${window.location.origin}/confirm/${token}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   useEffect(() => {
     db.from('bookings').select('*').eq('id', id).single().then(({ data }) => {
       setBooking(data)
-      if (data) {
-        setCraftifyleIncome(data.craftifyle_income > 0 ? String(data.craftifyle_income) : '')
-      }
+      if (data) setCraftifyleIncome(data.craftifyle_income > 0 ? String(data.craftifyle_income) : '')
       setLoading(false)
     })
   }, [id])
 
   async function patch(updates: Partial<Booking>) {
-    setSaving(true)
-    setMsg('')
-    const { data, error } = await db
-      .from('bookings')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) {
-      setMsg('Error: ' + error.message)
-    } else {
-      setBooking(data)
-      setMsg('Saved!')
-      setTimeout(() => setMsg(''), 2000)
-    }
+    setSaving(true); setMsg('')
+    const { data, error } = await db.from('bookings').update(updates).eq('id', id).select().single()
+    if (error) { setMsg('Error: ' + error.message) }
+    else { setBooking(data); setMsg('Saved!'); setTimeout(() => setMsg(''), 2000) }
     setSaving(false)
   }
 
   async function markDepositPaid() {
     await patch({ deposit_paid: true, deposit_paid_date: new Date().toISOString().slice(0, 10) })
-    setJustPaid('deposit')
-    setTimeout(() => setJustPaid(null), 2500)
+    setJustPaid('deposit'); setTimeout(() => setJustPaid(null), 2500)
   }
-
   async function markBalancePaid() {
     await patch({ balance_paid: true, balance_paid_date: new Date().toISOString().slice(0, 10) })
-    setJustPaid('balance')
-    setTimeout(() => setJustPaid(null), 2500)
+    setJustPaid('balance'); setTimeout(() => setJustPaid(null), 2500)
   }
-
-  async function setStatus(status: BookingStatus) {
-    await patch({ status })
-  }
-
+  async function setStatus(status: BookingStatus) { await patch({ status }) }
   async function saveIncome(e: React.FormEvent) {
-    e.preventDefault()
-    setSavingIncome(true)
-    setMsg('')
-    const { data, error } = await db
-      .from('bookings')
-      .update({
-        craftifyle_income: craftifyleIncome ? parseFloat(craftifyleIncome) : 0,
-      })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) {
-      setMsg('Error: ' + error.message)
-    } else {
-      setBooking(data)
-      setMsg('Income saved!')
-      setTimeout(() => setMsg(''), 2000)
-    }
+    e.preventDefault(); setSavingIncome(true); setMsg('')
+    const { data, error } = await db.from('bookings').update({ craftifyle_income: craftifyleIncome ? parseFloat(craftifyleIncome) : 0 }).eq('id', id).select().single()
+    if (error) { setMsg('Error: ' + error.message) }
+    else { setBooking(data); setMsg('Income saved!'); setTimeout(() => setMsg(''), 2000) }
     setSavingIncome(false)
   }
-
   async function syncCalendar() {
-    setSyncingCal(true)
-    setCalMsg('')
-    const res = await fetch('/api/bookings/sync-calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingId: id }),
-    })
+    setSyncingCal(true); setCalMsg('')
+    const res = await fetch('/api/bookings/sync-calendar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) })
     const data = await res.json()
     if (data.ok) {
       setCalMsg(booking?.gcal_event_id ? '✅ Calendar updated!' : '✅ Added to Google Calendar!')
-      // Refresh booking to get gcal_event_id
-      db.from('bookings').select('*').eq('id', id).single().then(({ data: b }) => {
-        if (b) setBooking(b)
-      })
-    } else {
-      setCalMsg('❌ Sync failed — check env vars')
-    }
-    setSyncingCal(false)
-    setTimeout(() => setCalMsg(''), 3000)
+      db.from('bookings').select('*').eq('id', id).single().then(({ data: b }) => { if (b) setBooking(b) })
+    } else { setCalMsg('❌ Sync failed') }
+    setSyncingCal(false); setTimeout(() => setCalMsg(''), 3000)
   }
 
   if (loading) return (
     <div className="p-4 md:p-8 max-w-3xl space-y-4">
       <div className="skeleton h-8 w-52" />
+      <div className="skeleton h-32 w-full rounded-2xl" />
       <div className="card p-6 space-y-3"><div className="skeleton h-5 w-64" /><div className="skeleton h-4 w-40" /><div className="skeleton h-4 w-56" /></div>
       <div className="card p-6 space-y-3"><div className="skeleton h-4 w-full" /><div className="skeleton h-4 w-3/4" /></div>
     </div>
   )
-  if (!booking) return <div className="p-8 text-red-500 text-sm">Booking not found.</div>
+  if (!booking) return <div className="p-8 text-sm" style={{ color: 'var(--danger)' }}>Booking not found.</div>
 
-  const totalPaid =
-    (booking.deposit_paid ? booking.deposit_amount : 0) +
-    (booking.balance_paid ? booking.balance_amount : 0)
+  const totalPaid = (booking.deposit_paid ? booking.deposit_amount : 0) + (booking.balance_paid ? booking.balance_amount : 0)
   const totalPrice = booking.package_price ?? 0
   const outstanding = totalPrice - totalPaid
+  const paidPct = totalPrice > 0 ? Math.round((totalPaid / totalPrice) * 100) : 0
+  const ss = STATUS_STYLE[booking.status]
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <Link href="/bookings" className="text-sm text-indigo-600 hover:underline">
-            ← Back to Bookings
+    <div className="p-4 md:p-8 max-w-3xl">
+
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <Link href="/bookings" className="text-sm" style={{ color: 'var(--accent-text)' }}>← Bookings</Link>
+        <span style={{ color: 'var(--text-faint)' }}>/</span>
+        <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{booking.event_name}</span>
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          {calMsg && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{calMsg}</span>}
+          <button onClick={syncCalendar} disabled={syncingCal}
+            className="text-xs px-3 py-1.5 rounded-[10px] font-medium text-white disabled:opacity-50"
+            style={{ background: 'var(--success)' }}>
+            {syncingCal ? 'Syncing…' : booking.gcal_event_id ? '📅 Update Cal' : '📅 Add to Cal'}
+          </button>
+          <button onClick={copyConfirmLink}
+            className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
+            style={{ background: copied ? 'var(--success-muted)' : 'var(--subtle-bg)', color: copied ? 'var(--success)' : 'var(--text-muted)', border: '1px solid var(--card-border)' }}>
+            {copied ? '✓ Copied!' : '🔗 Share Link'}
+          </button>
+          <Link href={`/bookings/${id}/invoice`}
+            className="text-xs px-3 py-1.5 rounded-[10px] font-medium text-white"
+            style={{ background: 'var(--accent)' }}>
+            🧾 Invoice
           </Link>
-          <div className="flex gap-2 items-center">
-            {calMsg && <span className="text-xs text-gray-500">{calMsg}</span>}
-            <button
-              onClick={syncCalendar}
-              disabled={syncingCal}
-              className="text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium"
-            >
-              {syncingCal ? 'Syncing…' : booking?.gcal_event_id ? '📅 Update Calendar' : '📅 Add to Calendar'}
-            </button>
-            <button
-              onClick={copyConfirmLink}
-              className="text-sm px-3 py-1.5 rounded-lg font-medium transition-colors"
-              style={{ background: copied ? 'rgba(16,185,129,0.15)' : 'var(--subtle-bg)', color: copied ? '#34d399' : 'var(--text-muted)', border: '1px solid var(--card-border)' }}
-            >
-              {copied ? '✓ Copied!' : '🔗 Share Link'}
-            </button>
-            <Link
-              href={`/bookings/${id}/invoice`}
-              className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-medium"
-            >
-              🧾 Invoice
-            </Link>
-          </div>
-        </div>
-        <div className="flex items-start justify-between mt-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{booking.event_name}</h1>
-            <p className="text-gray-400 text-sm mt-1">
-              {fmt(booking.event_date)}{booking.event_time ? ` · ${booking.event_time}` : ''}
-            </p>
-          </div>
-          <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
-              background: booking.status === 'upcoming' ? 'rgba(59,130,246,0.12)' : booking.status === 'completed' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-              color: booking.status === 'upcoming' ? '#60a5fa' : booking.status === 'completed' ? '#34d399' : '#f87171',
-            }}>
-            {booking.status}
-          </span>
         </div>
       </div>
 
+      {/* ── Event header card ── */}
+      <div className="card p-5 mb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>{booking.event_name}</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>
+              {fmt(booking.event_date)}{booking.event_time ? ` · ${booking.event_time}` : ''}
+              {booking.venue ? ` · ${booking.venue}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span className="badge capitalize font-semibold px-3 py-1" style={{ background: ss.bg, color: ss.color }}>{booking.status}</span>
+            {booking.package_name && (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{booking.package_name}</p>
+            )}
+          </div>
+        </div>
+        {booking.lead_id && (
+          <Link href={`/leads/${booking.lead_id}`} className="inline-flex items-center gap-1 mt-3 text-xs font-medium"
+            style={{ color: 'var(--accent-text)' }}>
+            View lead →
+          </Link>
+        )}
+        {booking.notes && (
+          <p className="text-sm mt-3 pt-3 whitespace-pre-line" style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border-secondary)' }}>
+            {booking.notes}
+          </p>
+        )}
+      </div>
+
+      {/* ── Just paid flash ── */}
       {justPaid && (
-        <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-xl animate-pulse"
-          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)' }}>
+        <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-xl"
+          style={{ background: 'var(--success-muted)', border: '1px solid rgba(74,222,128,0.2)' }}>
           <span className="text-xl">✅</span>
-          <p className="text-sm font-semibold" style={{ color: '#34d399' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--success)' }}>
             {justPaid === 'deposit' ? 'Deposit marked as paid!' : 'Balance marked as paid! Fully settled ✓'}
           </p>
         </div>
       )}
       {msg && !justPaid && (
-        <p className={`text-sm mb-4 ${msg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
+        <p className="text-sm mb-4 font-medium" style={{ color: msg.startsWith('Error') ? 'var(--danger)' : 'var(--success)' }}>
           {msg}
         </p>
       )}
 
-      {/* Event Details */}
+      {/* ── Payment card ── */}
       <div className="card p-5 mb-5">
-        <p className="section-label mb-3">Event Info</p>
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-          {booking.venue && <Info label="Venue" value={booking.venue} />}
-          {booking.package_name && <Info label="Package" value={booking.package_name} />}
-          {booking.package_price != null && (
-            <Info label="Package Price" value={peso(booking.package_price)} />
+        <div className="flex items-center justify-between mb-4">
+          <p className="section-label">Payment</p>
+          {totalPrice > 0 && (
+            <span className="text-xs font-bold tabular" style={{ color: outstanding === 0 ? 'var(--success)' : 'var(--warning)' }}>
+              {outstanding === 0 ? 'Fully Paid ✓' : `${peso(outstanding)} outstanding`}
+            </span>
           )}
-          {booking.lead_id && (
-            <div>
-              <dt className="text-xs text-gray-400">Source Lead</dt>
-              <dd>
-                <Link href={`/leads/${booking.lead_id}`} className="text-indigo-600 hover:underline text-sm">
-                  View Lead →
-                </Link>
-              </dd>
-            </div>
-          )}
-          {booking.notes && (
-            <div className="col-span-2">
-              <dt className="text-xs text-gray-400 mb-1">Notes</dt>
-              <dd className="text-gray-700 whitespace-pre-line">{booking.notes}</dd>
-            </div>
-          )}
-        </dl>
-      </div>
+        </div>
 
-      {/* Payment Tracking */}
-      <div className="card p-5 mb-5">
-        <p className="section-label mb-4">Payment</p>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Deposit</p>
-              <p className="text-lg font-bold text-gray-900">{peso(booking.deposit_amount)}</p>
-              {booking.deposit_paid_date && (
-                <p className="text-xs text-gray-400">Paid {fmt(booking.deposit_paid_date)}</p>
-              )}
+        {/* Payment progress bar */}
+        {totalPrice > 0 && (
+          <div className="mb-5">
+            <div className="flex justify-between text-xs mb-1.5" style={{ color: 'var(--text-faint)' }}>
+              <span>{peso(totalPaid)} paid</span>
+              <span>{paidPct}% of {peso(totalPrice)}</span>
             </div>
-            {booking.deposit_paid ? (
-              <span className="text-green-600 text-sm font-medium">✓ Paid</span>
-            ) : (
-              <button
-                onClick={markDepositPaid}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Mark Paid
-              </button>
-            )}
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--subtle-bg)' }}>
+              <div className="h-full rounded-full transition-all"
+                style={{ width: `${paidPct}%`, background: paidPct === 100 ? 'var(--success)' : 'var(--accent)' }} />
+            </div>
           </div>
+        )}
 
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Balance</p>
-              <p className="text-lg font-bold text-gray-900">{peso(booking.balance_amount)}</p>
-              {booking.balance_paid_date && (
-                <p className="text-xs text-gray-400">Paid {fmt(booking.balance_paid_date)}</p>
-              )}
-            </div>
-            {booking.balance_paid ? (
-              <span className="text-green-600 text-sm font-medium">✓ Paid</span>
-            ) : (
-              <button
-                onClick={markBalancePaid}
-                disabled={saving || !booking.deposit_paid}
-                title={!booking.deposit_paid ? 'Mark deposit paid first' : ''}
-                className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Mark Paid
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-sm text-gray-600">Outstanding</p>
-            <p className={`text-lg font-bold ${outstanding > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-              {outstanding > 0 ? peso(outstanding) : 'Fully Paid ✓'}
+        {/* Deposit row */}
+        <div className="flex items-center justify-between py-3.5"
+          style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>Deposit</p>
+            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--text-heading)' }}>
+              {peso(booking.deposit_amount)}
             </p>
+            {booking.deposit_paid_date && (
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>Paid {fmt(booking.deposit_paid_date)}</p>
+            )}
           </div>
+          {booking.deposit_paid ? (
+            <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--success)' }}>
+              <span>✓</span> Paid
+            </div>
+          ) : (
+            <button onClick={markDepositPaid} disabled={saving}
+              className="text-sm font-semibold px-4 py-2 rounded-[10px] text-white disabled:opacity-50"
+              style={{ background: 'var(--success)' }}>
+              Mark Paid
+            </button>
+          )}
+        </div>
+
+        {/* Balance row */}
+        <div className="flex items-center justify-between py-3.5">
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>Balance</p>
+            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--text-heading)' }}>
+              {peso(booking.balance_amount)}
+            </p>
+            {booking.balance_paid_date && (
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>Paid {fmt(booking.balance_paid_date)}</p>
+            )}
+          </div>
+          {booking.balance_paid ? (
+            <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--success)' }}>
+              <span>✓</span> Paid
+            </div>
+          ) : (
+            <button onClick={markBalancePaid} disabled={saving || !booking.deposit_paid}
+              title={!booking.deposit_paid ? 'Mark deposit paid first' : ''}
+              className="text-sm font-semibold px-4 py-2 rounded-[10px] text-white disabled:opacity-40"
+              style={{ background: 'var(--success)' }}>
+              Mark Paid
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Craftifyle Income */}
+      {/* ── Craftifyle Income ── */}
       <div className="card p-5 mb-5">
         <p className="section-label mb-1">Craftifyle Income</p>
-        <p className="text-xs text-gray-400 mb-4">How much of this booking counts as Craftifyle business income.</p>
-
-        <div className="bg-blue-50 rounded-lg p-4 mb-4 text-center">
-          <p className="text-xs text-blue-500 font-medium mb-1">Craftifyle Income</p>
-          <p className="text-2xl font-bold text-blue-700">
+        <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
+          Business income from this booking (separate from personal).
+        </p>
+        <div className="rounded-xl p-4 mb-4 text-center"
+          style={{ background: 'var(--accent-subtle)', border: '1px solid var(--card-border)' }}>
+          <p className="section-label mb-1">Craftifyle Income</p>
+          <p className="text-2xl font-bold tabular" style={{ color: 'var(--accent-text)' }}>
             {booking.craftifyle_income > 0 ? peso(booking.craftifyle_income) : '—'}
           </p>
         </div>
-
         <form onSubmit={saveIncome} className="flex gap-3 items-end">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Amount (₱)</label>
-            <input
-              type="number"
-              value={craftifyleIncome}
-              onChange={(e) => setCraftifyleIncome(e.target.value)}
-              placeholder="0"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Amount (₱)</label>
+            <input type="number" value={craftifyleIncome} onChange={e => setCraftifyleIncome(e.target.value)}
+              placeholder="0" className="w-full rounded-lg px-3 py-2 text-sm" />
           </div>
-          <button
-            type="submit"
-            disabled={savingIncome}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
+          <button type="submit" disabled={savingIncome}
+            className="text-sm font-semibold px-4 py-2 rounded-[10px] text-white disabled:opacity-50 whitespace-nowrap"
+            style={{ background: 'var(--accent)' }}>
             {savingIncome ? 'Saving…' : 'Save'}
           </button>
         </form>
       </div>
 
-      {/* Status Actions */}
+      {/* ── Event Status ── */}
       <div className="card p-5">
         <p className="section-label mb-3">Event Status</p>
-        <div className="flex gap-2">
-          {(['upcoming', 'completed', 'cancelled'] as BookingStatus[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatus(s)}
-              disabled={saving || booking.status === s}
-              className="text-sm px-4 py-2 rounded-lg font-medium transition-all capitalize"
-              style={booking.status === s
-                ? { background: s === 'upcoming' ? '#3b82f6' : s === 'completed' ? '#10b981' : '#ef4444', color: '#fff', border: 'none' }
-                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }
-              }
-            >
-              {s}
-            </button>
-          ))}
+        <div className="flex gap-2 flex-wrap">
+          {(['upcoming', 'completed', 'cancelled'] as BookingStatus[]).map(s => {
+            const active = booking.status === s
+            const st = STATUS_STYLE[s]
+            return (
+              <button key={s} onClick={() => setStatus(s)} disabled={saving || active}
+                className="text-sm px-4 py-2 rounded-[10px] font-medium capitalize"
+                style={active
+                  ? { background: st.bg, color: st.color, border: `1px solid ${st.color}40` }
+                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}>
+                {s}
+              </button>
+            )
+          })}
         </div>
       </div>
-    </div>
-  )
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-gray-400">{label}</dt>
-      <dd className="text-gray-800 font-medium">{value}</dd>
     </div>
   )
 }
