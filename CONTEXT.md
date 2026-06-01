@@ -96,14 +96,54 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ## What to Build Next
 
-1. **Fix any bugs James reports** — check after today's big push
-2. **Semaphore API key** — add to Vercel env vars (SEMAPHORE_API_KEY = 75a671289eda9b6b08a32fe272f80292)
-3. **PayMongo payment links** — when James can sign up for PayMongo
-4. **Crafty AI training UI** — configure packages/pricing from app, no code
-5. **Booking contracts + e-sign** — client agreement with timestamp
-6. **Client portal** — client views booking, downloads invoice
-7. **Facebook Login** as primary sign-in option
-8. **Optimistic UI** for common actions (offline resilience for provincial PH users)
+### Immediate
+1. **SEMAPHORE_API_KEY** — add to Vercel env vars (value: 75a671289eda9b6b08a32fe272f80292)
+2. **UI Redesign** — see full spec below. Start with Polish Pass (8 hrs) before committing to Full Redesign (22 hrs)
+3. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
+
+### After UI polish
+4. **PayMongo payment links** — when James can sign up
+5. **Crafty AI training UI** — configure packages/pricing from app
+6. **Booking contracts + e-sign**
+7. **Client portal**
+
+---
+
+## UI Redesign Spec (from June 1 research)
+
+**Core problem:** Token inconsistency (half app uses hardcoded `bg-white`/`text-gray-900`, other half uses CSS vars) + no design identity.
+
+**Accent shift:** `#6366f1` → `#7c6ff7` (slightly warmer violet, same family, looks intentional not default)
+
+**Dark surface ladder (no shadows — borders only):**
+- Page: `#09090f` · Card: `#0f0f17` · Sidebar: `#141420` · Hover: `#1a1a2a` · Active: `#1f1f33`
+
+**Border system (opacity-based):**
+- Subtle: `rgba(255,255,255,0.05)` · Default: `rgba(255,255,255,0.08)` · Strong: `rgba(255,255,255,0.14)`
+
+**Typography fixes:**
+- Body: 15px (not 16px) · Headings: weight 600, letter-spacing -0.015em
+- ALL CAPS labels: 11px weight 500 letter-spacing 0.08em
+- Add `font-feature-settings: "calt", "liga", "kern"` to base CSS
+
+**Border radius — 3 tiers only:**
+- 6px: badges, inputs · 10px: buttons · 14px: all cards · 9999px: pills
+- Kill `rounded-xl` (12px) and `rounded-2xl` (16px) — replace with 14px
+
+**Key micro-details:**
+- Inset top border on dark cards: `box-shadow: inset 0 1px 0 rgba(255,255,255,0.06)`
+- 150ms transitions on everything (not 300ms)
+- Primary text: `#f4f4f6` not pure `#ffffff`
+- 1px card lift on hover: `transform: translateY(-1px)`
+- Remove all vertical table borders
+- Skeleton loaders instead of spinners
+
+**Filipino context:**
+- Add amber `#f59e0b` as secondary accent (prosperity/craftsmanship associations)
+- Light mode warm white: `#fafaf8` not cold `#ffffff`
+- Minimum 12px text always
+
+**Full spec in craftycrm-website Research → UI Design tab**
 
 ---
 
