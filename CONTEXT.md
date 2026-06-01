@@ -147,6 +147,29 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ---
 
+## Market Position (from June 2 research)
+
+- PH CRM market: **$134.7M, growing 13.19% per year**
+- **Craftifyle is the only Filipino-built CRM for service solopreneurs** — zero direct competitors in this niche
+- 47–70% of CRM deployments in PH fail due to poor tool fit — Craftifyle's out-of-the-box setup is the fix
+- Real competition is NOT Zoho/HubSpot — it's **Messenger + Google Sheets** (inertia from below)
+- The #1 lost-lead cause in PH: response latency. Crafty AI + SMS directly solves this.
+- Eventchy (Metro Manila marketplace) is a **partner opportunity**, not a competitor
+- Positioning: "Filipino-built, peso-priced, pre-built for your business type"
+- Zamboanga/Visayas/Mindanao are completely underserved — every competitor is Metro Manila-focused
+- Full competitive analysis: craftycrm-website Research → Market Research tab
+
+## Target Market Expansion (not photobooth-only)
+
+The photobooth niche is the beachhead — but the real market is all Filipino service solopreneurs:
+- Photographers, videographers
+- Florists, caterers, event stylists
+- Wedding coordinators, hosts, emcees
+- Hair and makeup artists
+- Any solo service business managing leads + bookings + invoices via Messenger
+
+Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom bespoke builds (₱30K–₱80K)
+
 ## Business Context
 
 - GCash number: 0993-632-4512
