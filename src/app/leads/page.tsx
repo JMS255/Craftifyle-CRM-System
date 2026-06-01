@@ -61,6 +61,7 @@ export default function LeadsPage() {
   const [filterStatus, setFilterStatus] = useState<LeadStatus | 'all'>('all')
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [view, setView] = useState<'list' | 'kanban'>('list')
+  const [kanbanCol, setKanbanCol] = useState<LeadStatus>('new')
 
   useEffect(() => {
     const saved = localStorage.getItem('leads-view') as 'list' | 'kanban'
@@ -258,8 +259,27 @@ export default function LeadsPage() {
 
       {/* Kanban Board */}
       {!loading && view === 'kanban' && (
+        <>
+        {/* Mobile: stage tab selector */}
+        <div className="md:hidden flex gap-1 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
+          {KANBAN_COLS.map(col => {
+            const count = kanbanGroups[col].length
+            const colDot: Record<LeadStatus, string> = { new:'#3b82f6', contacted:'#eab308', quoted:'#f97316', negotiating:'#8b5cf6', booked:'#10b981', lost:'#ef4444', completed:'#6b7280' }
+            return (
+              <button key={col} onClick={() => setKanbanCol(col)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all capitalize"
+                style={{ background: kanbanCol === col ? colDot[col] + '20' : 'var(--subtle-bg)', border: `1px solid ${kanbanCol === col ? colDot[col] : 'var(--card-border)'}`, color: kanbanCol === col ? colDot[col] : 'var(--text-faint)' }}>
+                {col} <span className="opacity-70">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+        </>
+      )}
+      {!loading && view === 'kanban' && (
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-6 -mx-1 px-1">
+          {/* Desktop: all columns side by side */}
+          <div className="hidden md:flex gap-3 overflow-x-auto pb-6 -mx-1 px-1">
             {KANBAN_COLS.map(col => {
               const colColors: Record<LeadStatus, { bg: string; text: string; dot: string }> = {
                 new:         { bg: 'rgba(59,130,246,0.12)',  text: '#60a5fa', dot: '#3b82f6' },
@@ -323,22 +343,66 @@ export default function LeadsPage() {
               )
             })}
           </div>
+          {/* Mobile: single column */}
+          <div className="md:hidden space-y-2">
+            {kanbanGroups[kanbanCol].map((lead, i) => {
+              const a = getNextAction(lead)
+              return (
+                <div key={lead.id} className="rounded-xl p-3" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+                  <Link href={`/leads/${lead.id}`}>
+                    <p className="font-semibold text-sm mb-1" style={{ color: 'var(--text-heading)' }}>{lead.name}</p>
+                  </Link>
+                  {lead.event_type && <p className="text-xs capitalize" style={{ color: 'var(--text-faint)' }}>{lead.event_type.replace('_', ' ')}</p>}
+                  {lead.event_date && <p className="text-xs" style={{ color: 'var(--text-faint)' }}>📅 {fmtShort(lead.event_date)}</p>}
+                  {lead.budget && <p className="text-xs" style={{ color: 'var(--text-faint)' }}>₱{lead.budget.toLocaleString()}</p>}
+                  {a && <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full" style={{ background: a.bg, color: a.color }}>{a.label}</span>}
+                  <div className="mt-2 flex gap-1 flex-wrap">
+                    {KANBAN_COLS.filter(c => c !== kanbanCol).map(c => (
+                      <button key={c} onClick={() => onDragEnd({ draggableId: lead.id, destination: { droppableId: c, index: 0 }, source: { droppableId: kanbanCol, index: i }, type: 'DEFAULT', mode: 'FLUID', reason: 'DROP', combine: null })}
+                        className="text-xs px-2 py-1 rounded-lg capitalize transition-colors"
+                        style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-faint)' }}>
+                        → {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            {kanbanGroups[kanbanCol].length === 0 && (
+              <p className="text-center py-8 text-sm" style={{ color: 'var(--text-faint)' }}>No leads in this stage</p>
+            )}
+          </div>
         </DragDropContext>
       )}
 
       {!loading && view === 'kanban' ? null : loading ? (
         <p className="text-gray-400 text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <p className="text-gray-400">
-            {yearLeads.length === 0
-              ? `No leads for ${selectedYear} yet.`
-              : 'No leads match your search.'}
+        <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <div className="text-4xl mb-3">◎</div>
+          <p className="font-semibold mb-1" style={{ color: 'var(--text-heading)' }}>
+            {yearLeads.length === 0 ? `No leads for ${selectedYear} yet.` : 'No leads match your search.'}
           </p>
           {leads.length === 0 && (
-            <Link href="/leads/new" className="mt-3 inline-block text-indigo-600 text-sm hover:underline">
-              Add your first lead →
-            </Link>
+            <>
+              <p className="text-sm mb-5" style={{ color: 'var(--text-faint)' }}>
+                Got a Messenger DM? Paste it — Crafty will extract the details and create the lead instantly.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } }))}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                >
+                  📋 Paste a Messenger Inquiry
+                </button>
+                <Link href="/leads/new"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
+                  + Add manually
+                </Link>
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -367,8 +431,9 @@ export default function LeadsPage() {
                       {lead.phone && <p className="text-xs text-gray-400">{lead.phone}</p>}
                       {(() => { const a = getNextAction(lead); return a ? <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: a.bg, color: a.color }}>{a.label}</span> : null })()}
                     </td>
-                    <td className="px-5 py-3 text-gray-600 capitalize">
-                      {lead.event_type?.replace('_', ' ') ?? '—'}
+                    <td className="px-5 py-3">
+                      <p style={{ color: 'var(--text-secondary)' }} className="capitalize">{lead.event_type?.replace('_', ' ') ?? '—'}</p>
+                      {lead.package && <p className="text-xs mt-0.5 truncate max-w-[140px]" style={{ color: 'var(--text-faint)' }}>{lead.package}</p>}
                     </td>
                     <td className="px-5 py-3 text-gray-600">
                       {lead.event_date ? fmt(lead.event_date) : '—'}

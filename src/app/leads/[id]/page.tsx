@@ -406,6 +406,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </details>
       )}
 
+      {/* Follow-up message templates */}
+      <FollowUpTemplates lead={lead} />
+
       {/* Activities */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Activity Log</p>
@@ -482,6 +485,80 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+function FollowUpTemplates({ lead }: { lead: Lead }) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const firstName = lead.name.split(' ')[0]
+  const eventStr = lead.event_date
+    ? new Date(lead.event_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric' })
+    : 'your event'
+
+  const templates = [
+    {
+      id: 'gentle',
+      label: 'Gentle check-in',
+      text: `Hi ${firstName}! 😊 This is Craftifyle. Just checking in — interested pa po ba sa aming serbisyo para sa ${eventStr}? Feel free to ask kung may questions kayo! 📸`,
+    },
+    {
+      id: 'slot',
+      label: 'Slot urgency',
+      text: `Hi ${firstName}! Nag-follow up lang po kami para sa ${eventStr}. Naghahawak pa kami ng slot for you, pero baka ma-release na namin sa ibang client if walang confirmation. Okay pa ba kayo? 😊`,
+    },
+    {
+      id: 'closing',
+      label: 'Final follow-up',
+      text: `Hi ${firstName}! Last follow-up na po ito para sa ${eventStr}. If hindi na kayo interested, okay lang — just let us know para ma-release na namin ang slot. Salamat po! 🙏`,
+    },
+  ]
+
+  function copy(text: string, id: string) {
+    navigator.clipboard.writeText(text)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <div className="rounded-xl border mb-5 overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+      <button onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors"
+        style={{ background: 'transparent' }}>
+        <div className="flex items-center gap-2">
+          <span>💬</span>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-faint)' }}>Follow-up Templates</p>
+        </div>
+        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-5 pb-4 space-y-3 border-t" style={{ borderColor: 'var(--card-border)' }}>
+          <p className="text-xs pt-3" style={{ color: 'var(--text-faint)' }}>
+            Ready-to-send Taglish messages. Copy and paste to Messenger. ✍️
+          </p>
+          {templates.map(t => (
+            <div key={t.id} className="rounded-xl p-4 relative" style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.label}</p>
+              <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-heading)' }}>{t.text}</p>
+              <div className="flex gap-2">
+                <button onClick={() => copy(t.text, t.id)}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                  style={{ background: copied === t.id ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)', color: copied === t.id ? '#34d399' : '#818cf8' }}>
+                  {copied === t.id ? '✓ Copied!' : 'Copy message'}
+                </button>
+                {lead.facebook && (
+                  <a href={`https://m.me/${lead.facebook.replace(/^.*\//, '')}`} target="_blank" rel="noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                    style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
+                    Open Messenger →
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

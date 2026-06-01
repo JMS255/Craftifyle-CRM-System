@@ -184,9 +184,25 @@ export default function BookingsPage() {
       {loading ? (
         <p className="text-gray-400 text-sm">Loading…</p>
       ) : months.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <p className="text-gray-400">No bookings for {selectedYear}.</p>
-          <p className="text-gray-400 text-sm mt-2">Convert a lead to create a booking.</p>
+        <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <div className="text-4xl mb-3">◈</div>
+          <p className="font-semibold mb-1" style={{ color: 'var(--text-heading)' }}>No bookings for {selectedYear} yet.</p>
+          <p className="text-sm mb-5" style={{ color: 'var(--text-faint)' }}>
+            When a lead confirms, convert them to a booking from their lead page — or ask Crafty to do it.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Convert a lead to a booking: ', mode: 'crm' } }))}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+            >
+              ⚡ Ask Crafty to convert a lead
+            </button>
+            <Link href="/leads" className="px-5 py-2.5 rounded-xl text-sm font-medium"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
+              View Leads →
+            </Link>
+          </div>
         </div>
       ) : (
         <MonthAccordion months={months} year={selectedYear} />

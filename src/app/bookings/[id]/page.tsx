@@ -22,6 +22,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [copied, setCopied] = useState(false)
+  const [justPaid, setJustPaid] = useState<'deposit' | 'balance' | null>(null)
 
   function copyConfirmLink() {
     const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
@@ -68,17 +69,15 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function markDepositPaid() {
-    await patch({
-      deposit_paid: true,
-      deposit_paid_date: new Date().toISOString().slice(0, 10),
-    })
+    await patch({ deposit_paid: true, deposit_paid_date: new Date().toISOString().slice(0, 10) })
+    setJustPaid('deposit')
+    setTimeout(() => setJustPaid(null), 2500)
   }
 
   async function markBalancePaid() {
-    await patch({
-      balance_paid: true,
-      balance_paid_date: new Date().toISOString().slice(0, 10),
-    })
+    await patch({ balance_paid: true, balance_paid_date: new Date().toISOString().slice(0, 10) })
+    setJustPaid('balance')
+    setTimeout(() => setJustPaid(null), 2500)
   }
 
   async function setStatus(status: BookingStatus) {
@@ -190,7 +189,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {msg && (
+      {justPaid && (
+        <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-xl animate-pulse"
+          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)' }}>
+          <span className="text-xl">✅</span>
+          <p className="text-sm font-semibold" style={{ color: '#34d399' }}>
+            {justPaid === 'deposit' ? 'Deposit marked as paid!' : 'Balance marked as paid! Fully settled ✓'}
+          </p>
+        </div>
+      )}
+      {msg && !justPaid && (
         <p className={`text-sm mb-4 ${msg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
           {msg}
         </p>

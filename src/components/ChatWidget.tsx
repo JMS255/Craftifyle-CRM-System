@@ -30,6 +30,8 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
+  const [showPulse, setShowPulse] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const messages = mode === 'advisor' ? advisorMessages : crmMessages
@@ -38,6 +40,33 @@ export default function ChatWidget() {
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
+
+  // Pulse + tooltip for discoverability
+  useEffect(() => {
+    const seen = parseInt(localStorage.getItem('crafty-seen') || '0')
+    if (seen < 3) setShowPulse(true)
+    if (seen === 0) setShowTooltip(true)
+  }, [])
+
+  // Listen for external prompt triggers (from dashboard chips)
+  useEffect(() => {
+    function onPrompt(e: Event) {
+      const { prompt, mode: m } = (e as CustomEvent).detail
+      setOpen(true)
+      if (m) setMode(m)
+      setInput(prompt)
+    }
+    window.addEventListener('crafty-prompt', onPrompt)
+    return () => window.removeEventListener('crafty-prompt', onPrompt)
+  }, [])
+
+  function handleOpen() {
+    setOpen(v => !v)
+    setShowTooltip(false)
+    const seen = parseInt(localStorage.getItem('crafty-seen') || '0')
+    localStorage.setItem('crafty-seen', String(seen + 1))
+    if (seen >= 2) setShowPulse(false)
+  }
 
   async function send(text?: string) {
     const content = (text ?? input).trim()
@@ -94,15 +123,33 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="print:hidden fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
-        style={{ background: isCrm && open ? 'linear-gradient(135deg, #7c3aed, #6366f1)' : '#4f46e5' }}
-        title="Ask Craft AI"
-      >
-        {open ? '✕' : '🤖'}
-      </button>
+      {/* Floating button + pulse + tooltip */}
+      <div className="print:hidden fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex flex-col items-end gap-2">
+        {/* Tooltip bubble */}
+        {showTooltip && !open && (
+          <div className="relative max-w-[200px] rounded-2xl px-4 py-3 text-xs shadow-xl"
+            style={{ background: '#1e1e30', border: '1px solid #6366f1', color: '#e2e2f0' }}>
+            <p className="font-semibold mb-1" style={{ color: '#a5b4fc' }}>Hi! I'm Crafty 👋</p>
+            <p>Try: <em>"Add lead: Juan Santos, birthday June 28"</em></p>
+            <button onClick={() => setShowTooltip(false)} className="absolute top-2 right-2 text-xs opacity-40 hover:opacity-100">✕</button>
+            <div className="absolute -bottom-1.5 right-6 w-3 h-3 rotate-45" style={{ background: '#1e1e30', borderRight: '1px solid #6366f1', borderBottom: '1px solid #6366f1' }} />
+          </div>
+        )}
+        {/* Button with pulse ring */}
+        <div className="relative">
+          {showPulse && !open && (
+            <span className="absolute inset-0 rounded-full animate-ping opacity-40" style={{ background: '#6366f1' }} />
+          )}
+          <button
+            onClick={handleOpen}
+            className="relative w-12 h-12 md:w-14 md:h-14 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
+            style={{ background: isCrm && open ? 'linear-gradient(135deg, #7c3aed, #6366f1)' : '#4f46e5' }}
+            title="Ask Craft AI"
+          >
+            {open ? '✕' : '🤖'}
+          </button>
+        </div>
+      </div>
 
       {/* Chat window */}
       {open && (

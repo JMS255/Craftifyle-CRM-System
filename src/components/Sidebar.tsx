@@ -26,6 +26,7 @@ export default function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [email, setEmail] = useState('')
+  const [quickAdd, setQuickAdd] = useState(false)
 
   async function loadProfile() {
     const db = createClient()
@@ -164,41 +165,77 @@ export default function Sidebar() {
         </div>
       </aside>
 
+      {/* Quick Add bottom sheet */}
+      {quickAdd && (
+        <div className="md:hidden fixed inset-0 z-50" onClick={() => setQuickAdd(false)}>
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl p-5 space-y-3"
+            style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
+            onClick={e => e.stopPropagation()}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Quick Add</p>
+            <Link href="/leads/new" onClick={() => setQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+              <span>◎</span> Add New Lead
+            </Link>
+            <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+              <span>📋</span> Paste Messenger DM
+            </button>
+            <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Log a payment: ', mode: 'crm' } })) }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+              <span>💰</span> Log a Payment
+            </button>
+            <button onClick={() => setQuickAdd(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium mt-1"
+              style={{ color: 'var(--text-faint)' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {/* Mobile bottom nav */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
         style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
       >
-        {nav.map(({ href, short, icon }) => {
+        {nav.slice(0, 2).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
-            <Link
-              key={href}
-              href={href}
+            <Link key={href} href={href}
               className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-              style={{ color: active ? '#818cf8' : 'var(--text-faint)' }}
-            >
+              style={{ color: active ? '#818cf8' : 'var(--text-faint)' }}>
               <span className="text-lg leading-none">{icon}</span>
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
           )
         })}
-        {/* Theme toggle on mobile */}
-        <button
-          onClick={toggleTheme}
-          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-          style={{ color: 'var(--text-faint)' }}
-        >
-          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
-          <span className="text-[10px] font-medium leading-tight">Theme</span>
+
+        {/* Centre + Quick Add button */}
+        <button onClick={() => setQuickAdd(true)}
+          className="flex-1 flex flex-col items-center pt-1.5 pb-3 gap-0.5">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xl font-bold"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>+</span>
+          <span className="text-[10px] font-medium leading-tight" style={{ color: 'var(--text-faint)' }}>Add</span>
         </button>
 
-        {/* Profile tab on mobile */}
-        <Link
-          href="/profile"
+        {nav.slice(2, 4).map(({ href, short, icon }) => {
+          const active = isActive(href)
+          return (
+            <Link key={href} href={href}
+              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
+              style={{ color: active ? '#818cf8' : 'var(--text-faint)' }}>
+              <span className="text-lg leading-none">{icon}</span>
+              <span className="text-[10px] font-medium leading-tight">{short}</span>
+            </Link>
+          )
+        })}
+
+        {/* Profile tab */}
+        <Link href="/profile"
           className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
-          style={{ color: pathname === '/profile' ? '#818cf8' : 'var(--text-faint)' }}
-        >
+          style={{ color: pathname === '/profile' ? '#818cf8' : 'var(--text-faint)' }}>
           <span className="text-lg leading-none">👤</span>
           <span className="text-[10px] font-medium leading-tight">Profile</span>
         </Link>

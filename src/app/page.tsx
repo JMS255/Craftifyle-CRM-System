@@ -126,6 +126,26 @@ export default function Dashboard() {
   const yearLost = yearLeads.filter((l) => l.status === 'lost').length
   const yearConvRate = yearLeads.length > 0 ? Math.round((yearBooked / yearLeads.length) * 100) : 0
 
+  // Today's Actions — top 3 urgent items
+  const now = Date.now()
+  const todayActions = leads
+    .filter(l => !['booked', 'completed', 'lost'].includes(l.status))
+    .map(l => {
+      const eventMs = l.event_date ? new Date(l.event_date).getTime() : null
+      const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
+      const daysSilent = Math.floor((now - new Date(l.updated_at).getTime()) / 86400000)
+      let urgency = 0; let action = ''; let color = '#6b7280'
+      if (daysToEvent != null && daysToEvent < 0) { urgency = 100; action = 'Event passed — close it'; color = '#f87171' }
+      else if (daysToEvent != null && daysToEvent <= 3) { urgency = 90; action = `Event in ${daysToEvent}d — confirm now!`; color = '#fb923c' }
+      else if (daysToEvent != null && daysToEvent <= 7) { urgency = 75; action = `Event in ${daysToEvent}d — follow up`; color = '#fbbf24' }
+      else if (['quoted', 'negotiating'].includes(l.status) && daysSilent >= 7) { urgency = 60; action = `${daysSilent}d quiet — send follow-up`; color = '#a78bfa' }
+      else if (l.status === 'new' && daysSilent >= 3) { urgency = 40; action = `${daysSilent}d old — first contact needed`; color = '#818cf8' }
+      return { ...l, urgency, action, color }
+    })
+    .filter(l => l.urgency >= 40)
+    .sort((a, b) => b.urgency - a.urgency)
+    .slice(0, 3)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -155,6 +175,53 @@ export default function Dashboard() {
           + New Lead
         </Link>
       </div>
+
+      {/* Onboarding checklist — shown only when no leads yet */}
+      {leads.length === 0 && <OnboardingChecklist />}
+
+      {/* Quick-prompt Crafty chips */}
+      <div className="flex gap-2 flex-wrap mb-6 -mt-2">
+        {[
+          { label: '📋 Paste DM inquiry', prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' },
+          { label: '⚡ What needs attention?', prompt: 'What needs my attention today?', mode: 'crm' },
+          { label: '💰 Revenue this month', prompt: 'How much revenue do I have this month?', mode: 'crm' },
+          { label: '✍️ Draft follow-up message', prompt: 'Help me draft a follow-up message for a client who went quiet', mode: 'advisor' },
+        ].map(chip => (
+          <button key={chip.label}
+            onClick={() => window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: chip }))}
+            className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
+            style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Today's Actions */}
+      {todayActions.length > 0 && (
+        <div className="rounded-2xl p-4 mb-6" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
+            Today's Actions
+          </p>
+          <div className="space-y-2">
+            {todayActions.map(l => (
+              <Link key={l.id} href={`/leads/${l.id}`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = l.color)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: l.color }} />
+                  <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{l.name}</span>
+                  <span className="text-xs hidden sm:inline capitalize" style={{ color: 'var(--text-faint)' }}>{l.status}</span>
+                </div>
+                <span className="text-xs font-medium shrink-0 ml-2" style={{ color: l.color }}>{l.action} →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Year selector */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -460,6 +527,66 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-xs font-bold ml-auto" style={{ color: 'var(--text-heading)' }}>{value}</span>
+    </div>
+  )
+}
+
+function OnboardingChecklist() {
+  const steps = [
+    { id: 'lead', label: 'Add your first lead', desc: 'Paste a Messenger DM or add manually', href: '/leads/new', icon: '◎' },
+    { id: 'crafty', label: 'Try Crafty AI', desc: 'Click the 🤖 button and ask anything', href: null, icon: '🤖' },
+    { id: 'profile', label: 'Set up your profile', desc: 'Add your business name and photo', href: '/profile', icon: '👤' },
+  ]
+  const [done, setDone] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('onboarding-done') || '[]') } catch { return [] }
+  })
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem('onboarding-dismissed') === '1')
+
+  function markDone(id: string) {
+    const next = [...new Set([...done, id])]
+    setDone(next)
+    localStorage.setItem('onboarding-done', JSON.stringify(next))
+  }
+
+  function dismiss() {
+    setDismissed(true)
+    localStorage.setItem('onboarding-dismissed', '1')
+  }
+
+  if (dismissed) return null
+  const allDone = steps.every(s => done.includes(s.id))
+
+  return (
+    <div className="rounded-2xl p-5 mb-6 relative" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08))', border: '1px solid rgba(99,102,241,0.25)' }}>
+      <button onClick={dismiss} className="absolute top-4 right-4 text-xs opacity-40 hover:opacity-100" style={{ color: 'var(--text-faint)' }}>✕</button>
+      <p className="text-sm font-bold mb-1" style={{ color: 'var(--text-heading)' }}>
+        {allDone ? '🎉 You\'re all set!' : 'Welcome to Crafty CRM — let\'s get started!'}
+      </p>
+      <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
+        {allDone ? 'Your CRM is ready. Start adding leads!' : 'Complete these 3 steps to get the most out of Crafty.'}
+      </p>
+      {/* Progress bar */}
+      <div className="h-1 rounded-full mb-4 overflow-hidden" style={{ background: 'var(--subtle-bg)' }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${(done.length / steps.length) * 100}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }} />
+      </div>
+      <div className="space-y-2">
+        {steps.map(s => {
+          const isDone = done.includes(s.id)
+          const content = (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+              style={{ background: isDone ? 'rgba(16,185,129,0.08)' : 'var(--card)', border: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : 'var(--card-border)'}` }}>
+              <span className="text-lg shrink-0">{isDone ? '✅' : s.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium" style={{ color: isDone ? '#34d399' : 'var(--text-heading)', textDecoration: isDone ? 'line-through' : 'none', opacity: isDone ? 0.7 : 1 }}>{s.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{s.desc}</p>
+              </div>
+              {!isDone && <span className="text-xs shrink-0" style={{ color: '#6366f1' }}>→</span>}
+            </div>
+          )
+          if (s.href) return <Link key={s.id} href={s.href} onClick={() => markDone(s.id)}>{content}</Link>
+          return <button key={s.id} className="w-full text-left" onClick={() => { markDone(s.id); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Hi Crafty!', mode: 'advisor' } })) }}>{content}</button>
+        })}
+      </div>
     </div>
   )
 }

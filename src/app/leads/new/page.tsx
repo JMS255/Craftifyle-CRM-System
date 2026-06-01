@@ -19,6 +19,7 @@ export default function NewLeadPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showMore, setShowMore] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -89,104 +90,76 @@ export default function NewLeadPage() {
         <h1 className="text-2xl font-bold text-gray-900 mt-3">New Lead</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-        {/* Contact Info */}
-        <fieldset>
-          <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Contact Info
-          </legend>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => set('name', e.target.value)}
-                placeholder="e.g. Maria Santos"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <Field label="Phone" value={form.phone} onChange={(v) => set('phone', v)} placeholder="09XXXXXXXXX" />
-            <Field label="Email" value={form.email} onChange={(v) => set('email', v)} placeholder="maria@email.com" type="email" />
-            <div className="col-span-2">
-              <Field label="Facebook" value={form.facebook} onChange={(v) => set('facebook', v)} placeholder="facebook.com/maria or @mariaS" />
-            </div>
-          </div>
-        </fieldset>
-
-        {/* Event Info */}
-        <fieldset>
-          <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Event Details
-          </legend>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-              <select
-                value={form.event_type}
-                onChange={(e) => set('event_type', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Select…</option>
-                {EVENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Field label="Event Date" value={form.event_date} onChange={(v) => set('event_date', v)} type="date" />
-            <div className="col-span-2">
-              <Field label="Venue" value={form.venue} onChange={(v) => set('venue', v)} placeholder="e.g. Grand Astoria Hotel" />
-            </div>
-            <Field label="Guest Count" value={form.guest_count} onChange={(v) => set('guest_count', v)} placeholder="150" type="number" />
-            <Field label="Package" value={form.package} onChange={(v) => set('package', v)} placeholder="e.g. Premium 3 Hours" />
-            <Field label="Budget (₱)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="15000" type="number" />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-              <select
-                value={form.source}
-                onChange={(e) => set('source', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {SOURCES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </fieldset>
-
-        {/* Notes */}
+      <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-4" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+        {/* Core fields — always visible */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-          <textarea
-            value={form.notes}
-            onChange={(e) => set('notes', e.target.value)}
-            rows={3}
-            placeholder="Any extra details about this lead…"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-          />
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
+            Name <span className="text-red-400">*</span>
+          </label>
+          <input type="text" value={form.name} onChange={(e) => set('name', e.target.value)}
+            placeholder="e.g. Maria Santos" autoFocus
+            className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }} />
         </div>
+        <Field label="Phone / Contact" value={form.phone} onChange={(v) => set('phone', v)} placeholder="09XXXXXXXXX or Facebook name" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Event Type</label>
+            <select value={form.event_type} onChange={(e) => set('event_type', e.target.value)}
+              className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+              <option value="">Select…</option>
+              {EVENT_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+            </select>
+          </div>
+          <Field label="Event Date" value={form.event_date} onChange={(v) => set('event_date', v)} type="date" />
+        </div>
+
+        {/* Expandable extra fields */}
+        {showMore && (
+          <div className="space-y-4 pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
+            <Field label="Email" value={form.email} onChange={(v) => set('email', v)} placeholder="maria@email.com" type="email" />
+            <Field label="Facebook" value={form.facebook} onChange={(v) => set('facebook', v)} placeholder="@mariaS or facebook.com/maria" />
+            <Field label="Venue" value={form.venue} onChange={(v) => set('venue', v)} placeholder="e.g. Grand Astoria Hotel" />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Guest Count" value={form.guest_count} onChange={(v) => set('guest_count', v)} placeholder="150" type="number" />
+              <Field label="Budget (₱)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="6500" type="number" />
+            </div>
+            <Field label="Package Interest" value={form.package} onChange={(v) => set('package', v)} placeholder="e.g. Photobooth + Photography" />
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Source</label>
+              <select value={form.source} onChange={(e) => set('source', e.target.value)}
+                className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+                {SOURCES.map(s => <option key={s} value={s}>{s.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Notes</label>
+              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={3}
+                placeholder="Any extra details…" className="w-full rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }} />
+            </div>
+          </div>
+        )}
+
+        <button type="button" onClick={() => setShowMore(v => !v)}
+          className="text-xs flex items-center gap-1.5 transition-colors"
+          style={{ color: 'var(--text-faint)' }}>
+          <span className="text-sm">{showMore ? '▲' : '▼'}</span>
+          {showMore ? 'Show less' : '+ Add more details (email, venue, package, notes)'}
+        </button>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save Lead'}
+        <div className="flex gap-3 pt-1">
+          <button type="submit" disabled={saving}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            {saving ? 'Saving…' : 'Save Lead →'}
           </button>
-          <Link
-            href="/leads"
-            className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
-          >
+          <Link href="/leads" className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
             Cancel
           </Link>
         </div>
@@ -195,29 +168,15 @@ export default function NewLeadPage() {
   )
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder = '',
-  type = 'text',
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  type?: string
+function Field({ label, value, onChange, placeholder = '', type = 'text' }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+      <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }} />
     </div>
   )
 }
