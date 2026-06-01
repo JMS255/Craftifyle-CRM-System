@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-const SYSTEM_PROMPT = `You are Crafty — an AI assistant embedded inside Craftifyle CRM. You help James manage his photobooth and event photography business by reading and writing data directly to the CRM.
+function getSystemPrompt() {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  return `You are Crafty — an AI assistant embedded inside Craftifyle CRM. You help James manage his photobooth and event photography business by reading and writing data directly to the CRM.
+
+TODAY'S DATE: ${dateStr}. Always use this when calculating event timelines, interpreting relative dates ("next Saturday", "this June"), or describing how far away an event is.
 
 You have tools to:
 - Get leads (list, search by status)
@@ -27,6 +32,7 @@ CRAFTIFYLE PACKAGES (for reference when creating leads/bookings):
 - Photography Only: ₱4,500
 - Photobooth + Photography Bundle: ₱6,500
 - Premium Bundle: ₱8,000`
+}
 
 const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -340,7 +346,7 @@ export async function POST(req: NextRequest) {
   const groq = new Groq({ apiKey })
 
   const chatMessages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: getSystemPrompt() },
     ...messages,
   ]
 

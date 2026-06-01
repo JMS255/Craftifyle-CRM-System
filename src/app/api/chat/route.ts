@@ -21,7 +21,11 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(origin) })
 }
 
-const SYSTEM_PROMPT = `You are Craft — a smart AI business assistant built into the Craftifyle CRM. You help James Ignacio run his photobooth and photography business in Zamboanda City, Philippines.
+function getSystemPrompt() {
+  const dateStr = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  return `You are Craft — a smart AI business assistant built into the Craftifyle CRM. You help James Ignacio run his photobooth and photography business in Zamboanga City, Philippines.
+
+TODAY'S DATE: ${dateStr}. Use this when discussing upcoming events, follow-up timing, or any date-related advice.
 
 You help James with things like:
 - Advising how to handle client situations and negotiations
@@ -81,6 +85,7 @@ YOUR PERSONALITY AS CRAFT:
 - When drafting messages for clients, write in James's voice (Taglish, warm, concise)
 - When advising James, be honest and straightforward
 - If James asks something you don't know, say so clearly`
+}
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
@@ -101,7 +106,7 @@ export async function POST(req: NextRequest) {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: getSystemPrompt() },
         ...messages,
       ],
       temperature: 0.7,
