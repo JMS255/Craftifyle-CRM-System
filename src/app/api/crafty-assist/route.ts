@@ -1,0 +1,380 @@
+import Groq from 'groq-sdk'
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+const SYSTEM_PROMPT = `You are Crafty — an AI assistant embedded inside Craftifyle CRM. You help James manage his photobooth and event photography business by reading and writing data directly to the CRM.
+
+You have tools to:
+- Get leads (list, search by status)
+- Create new leads
+- Update existing leads (status, notes, contact info, event details)
+- Get bookings
+- Create new bookings
+- Log payments (mark deposit or balance as paid)
+- Get revenue summary
+
+IMPORTANT RULES:
+- When creating or updating data, always confirm what you did in plain language with the key details (amounts in ₱, dates, names).
+- For dates, accept natural language like "June 28", "next Saturday", "June 28 2026" — always convert to YYYY-MM-DD format.
+- For amounts, strip ₱ and commas before storing — store as plain numbers.
+- If something is unclear, ask one short clarifying question before acting.
+- Keep replies short and direct — no fluff.
+- When you complete a DB action, start your reply with "Done —" so James knows it worked.
+
+CRAFTIFYLE PACKAGES (for reference when creating leads/bookings):
+- Photobooth Only: ₱3,500
+- Photography Only: ₱4,500
+- Photobooth + Photography Bundle: ₱6,500
+- Premium Bundle: ₱8,000`
+
+const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_leads',
+      description: 'Get leads from the CRM. Can filter by status and limit results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'],
+            description: 'Filter by lead status. Omit to get all leads.',
+          },
+          limit: { type: 'number', description: 'Max number of leads to return. Default 10.' },
+          search: { type: 'string', description: 'Search by name or phone number.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_lead',
+      description: 'Create a new lead in the CRM.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Client full name.' },
+          phone: { type: 'string', description: 'Phone number.' },
+          email: { type: 'string', description: 'Email address.' },
+          facebook: { type: 'string', description: 'Facebook profile name or link.' },
+          event_type: {
+            type: 'string',
+            enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'],
+          },
+          event_date: { type: 'string', description: 'Event date in YYYY-MM-DD format.' },
+          venue: { type: 'string' },
+          guest_count: { type: 'number' },
+          package: { type: 'string', description: 'Package name or description.' },
+          budget: { type: 'number', description: 'Budget in PHP, no peso sign.' },
+          source: {
+            type: 'string',
+            enum: ['facebook', 'instagram', 'referral', 'walk-in', 'website', 'tiktok', 'other'],
+            description: 'Where the lead came from. Default: other.',
+          },
+          notes: { type: 'string' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_lead',
+      description: 'Update an existing lead by ID. Can update status, notes, contact info, event details.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Lead UUID.' },
+          status: {
+            type: 'string',
+            enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'],
+          },
+          name: { type: 'string' },
+          phone: { type: 'string' },
+          email: { type: 'string' },
+          event_type: {
+            type: 'string',
+            enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'],
+          },
+          event_date: { type: 'string', description: 'YYYY-MM-DD' },
+          venue: { type: 'string' },
+          guest_count: { type: 'number' },
+          package: { type: 'string' },
+          budget: { type: 'number' },
+          notes: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_bookings',
+      description: 'Get bookings from the CRM.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['upcoming', 'completed', 'cancelled'],
+            description: 'Filter by status. Default: upcoming.',
+          },
+          limit: { type: 'number', description: 'Max results. Default 10.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_booking',
+      description: 'Create a new confirmed booking.',
+      parameters: {
+        type: 'object',
+        properties: {
+          event_name: { type: 'string', description: 'Name of the event, e.g. "Santos Wedding".' },
+          event_date: { type: 'string', description: 'YYYY-MM-DD' },
+          event_time: { type: 'string', description: 'HH:MM format, e.g. "14:00".' },
+          venue: { type: 'string' },
+          package_name: { type: 'string' },
+          package_price: { type: 'number', description: 'Total package price in PHP.' },
+          deposit_amount: { type: 'number', description: 'Deposit amount in PHP.' },
+          deposit_paid: { type: 'boolean', description: 'Whether deposit has been paid. Default false.' },
+          balance_amount: { type: 'number', description: 'Balance amount in PHP.' },
+          notes: { type: 'string' },
+          lead_id: { type: 'string', description: 'Link to an existing lead by UUID.' },
+        },
+        required: ['event_name', 'event_date', 'deposit_amount', 'balance_amount'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_payment',
+      description: 'Mark a deposit or balance as paid on a booking.',
+      parameters: {
+        type: 'object',
+        properties: {
+          booking_id: { type: 'string', description: 'Booking UUID.' },
+          payment_type: {
+            type: 'string',
+            enum: ['deposit', 'balance'],
+            description: 'Which payment to mark as paid.',
+          },
+          paid_date: { type: 'string', description: 'Date payment was received, YYYY-MM-DD. Defaults to today.' },
+        },
+        required: ['booking_id', 'payment_type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_revenue_summary',
+      description: 'Get total revenue summary from bookings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          month: { type: 'string', description: 'Filter by month in YYYY-MM format. Omit for all-time.' },
+        },
+      },
+    },
+  },
+]
+
+async function runTool(
+  name: string,
+  args: Record<string, unknown>,
+  db: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<string> {
+  try {
+    if (name === 'get_leads') {
+      let query = db.from('leads').select('id, name, phone, event_type, event_date, package, budget, status, source, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit((args.limit as number) ?? 10)
+      if (args.status) query = query.eq('status', args.status as string)
+      if (args.search) query = query.ilike('name', `%${args.search}%`)
+      const { data, error } = await query
+      if (error) return `Error: ${error.message}`
+      if (!data?.length) return 'No leads found.'
+      return JSON.stringify(data)
+    }
+
+    if (name === 'create_lead') {
+      const { data, error } = await db.from('leads').insert({
+        user_id: userId,
+        name: args.name,
+        phone: args.phone ?? null,
+        email: args.email ?? null,
+        facebook: args.facebook ?? null,
+        event_type: args.event_type ?? null,
+        event_date: args.event_date ?? null,
+        venue: args.venue ?? null,
+        guest_count: args.guest_count ?? null,
+        package: args.package ?? null,
+        budget: args.budget ?? null,
+        source: (args.source as string) ?? 'other',
+        notes: args.notes ?? null,
+        status: 'new',
+      }).select('id, name').single()
+      if (error) return `Error: ${error.message}`
+      return `Created lead: ${data.name} (ID: ${data.id})`
+    }
+
+    if (name === 'update_lead') {
+      const { id, ...fields } = args
+      const updates: Record<string, unknown> = {}
+      const allowed = ['status', 'name', 'phone', 'email', 'event_type', 'event_date', 'venue', 'guest_count', 'package', 'budget', 'notes']
+      for (const key of allowed) {
+        if (fields[key] !== undefined) updates[key] = fields[key]
+      }
+      updates.updated_at = new Date().toISOString()
+      const { data, error } = await db.from('leads').update(updates)
+        .eq('id', id as string).eq('user_id', userId).select('id, name').single()
+      if (error) return `Error: ${error.message}`
+      return `Updated lead: ${data.name} (ID: ${data.id})`
+    }
+
+    if (name === 'get_bookings') {
+      const { data, error } = await db.from('bookings')
+        .select('id, event_name, event_date, package_name, package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
+        .eq('user_id', userId)
+        .eq('status', (args.status as string) ?? 'upcoming')
+        .order('event_date')
+        .limit((args.limit as number) ?? 10)
+      if (error) return `Error: ${error.message}`
+      if (!data?.length) return 'No bookings found.'
+      return JSON.stringify(data)
+    }
+
+    if (name === 'create_booking') {
+      const packagePrice = (args.package_price as number) ?? 0
+      const depositAmount = args.deposit_amount as number
+      const balanceAmount = args.balance_amount as number
+      const { data, error } = await db.from('bookings').insert({
+        user_id: userId,
+        event_name: args.event_name,
+        event_date: args.event_date,
+        event_time: args.event_time ?? null,
+        venue: args.venue ?? null,
+        package_name: args.package_name ?? null,
+        package_price: packagePrice,
+        deposit_amount: depositAmount,
+        deposit_paid: (args.deposit_paid as boolean) ?? false,
+        deposit_paid_date: (args.deposit_paid as boolean) ? (args.paid_date ?? new Date().toISOString().slice(0, 10)) : null,
+        balance_amount: balanceAmount,
+        balance_paid: false,
+        balance_paid_date: null,
+        status: 'upcoming',
+        craftifyle_income: packagePrice,
+        personal_income: 0,
+        notes: args.notes ?? null,
+        lead_id: args.lead_id ?? null,
+        gcal_event_id: null,
+      }).select('id, event_name').single()
+      if (error) return `Error: ${error.message}`
+      return `Created booking: ${data.event_name} (ID: ${data.id})`
+    }
+
+    if (name === 'log_payment') {
+      const today = new Date().toISOString().slice(0, 10)
+      const paidDate = (args.paid_date as string) ?? today
+      const field = args.payment_type === 'deposit'
+        ? { deposit_paid: true, deposit_paid_date: paidDate }
+        : { balance_paid: true, balance_paid_date: paidDate }
+      const { data, error } = await db.from('bookings').update(field)
+        .eq('id', args.booking_id as string).eq('user_id', userId).select('id, event_name').single()
+      if (error) return `Error: ${error.message}`
+      return `Marked ${args.payment_type} as paid for booking: ${data.event_name}`
+    }
+
+    if (name === 'get_revenue_summary') {
+      let query = db.from('bookings').select('craftifyle_income, package_price, deposit_paid, balance_paid, event_date')
+        .eq('user_id', userId)
+        .neq('status', 'cancelled')
+      if (args.month) {
+        const [y, m] = (args.month as string).split('-')
+        const start = `${y}-${m}-01`
+        const end = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10)
+        query = query.gte('event_date', start).lte('event_date', end)
+      }
+      const { data, error } = await query
+      if (error) return `Error: ${error.message}`
+      const total = data?.reduce((sum, b) => sum + (b.package_price ?? 0), 0) ?? 0
+      const collected = data?.reduce((sum, b) => {
+        let s = 0
+        const booking = b as { deposit_paid: boolean; balance_paid: boolean; package_price: number | null; craftifyle_income: number }
+        if (booking.deposit_paid) s += booking.craftifyle_income * 0.15
+        if (booking.balance_paid) s += booking.craftifyle_income
+        return sum + s
+      }, 0) ?? 0
+      return JSON.stringify({ total_bookings: data?.length ?? 0, total_revenue: total, bookings: data })
+    }
+
+    return `Unknown tool: ${name}`
+  } catch (err) {
+    return `Tool error: ${err instanceof Error ? err.message : String(err)}`
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { messages } = await req.json()
+  if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
+
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'Groq API key not configured.' }, { status: 500 })
+
+  const db = createAdminClient()
+  const groq = new Groq({ apiKey })
+
+  const chatMessages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...messages,
+  ]
+
+  // Tool-calling loop — max 3 rounds
+  for (let round = 0; round < 3; round++) {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: chatMessages,
+      tools: TOOLS,
+      tool_choice: 'auto',
+      temperature: 0.3,
+      max_tokens: 1024,
+    })
+
+    const choice = completion.choices[0]
+    const msg = choice.message
+
+    if (!msg.tool_calls?.length) {
+      return NextResponse.json({ reply: msg.content ?? '' })
+    }
+
+    // Execute each tool call
+    chatMessages.push({ role: 'assistant', tool_calls: msg.tool_calls, content: msg.content ?? '' })
+
+    for (const call of msg.tool_calls) {
+      const args = JSON.parse(call.function.arguments) as Record<string, unknown>
+      const result = await runTool(call.function.name, args, db, user.id)
+      chatMessages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: result,
+      })
+    }
+  }
+
+  return NextResponse.json({ reply: 'Done processing your request.' })
+}
