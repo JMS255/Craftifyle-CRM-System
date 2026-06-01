@@ -248,9 +248,9 @@ function SignupForm() {
           </div>
         )}
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--card-border)' }}>
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
           Already have an account?{' '}
-          <Link href="/login" className="text-indigo-400 hover:underline">Sign in</Link>
+          <Link href="/login" style={{ color: 'var(--accent-text)' }} className="hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

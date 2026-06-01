@@ -152,9 +152,9 @@ function LoginForm() {
           </button>
         </div>
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-faint)' }}>
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
           New user?{' '}
-          <Link href="/signup" className="text-indigo-400 hover:underline">
+          <Link href="/signup" style={{ color: 'var(--accent-text)' }} className="hover:underline">
             Sign up with invite code
           </Link>
         </p>

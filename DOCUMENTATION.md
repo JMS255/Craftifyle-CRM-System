@@ -1,8 +1,8 @@
 # Craftifyle CRM — Documentation
-**Version:** 1.1.0  
-**Last Updated:** May 27, 2026  
+**Version:** 1.3.0  
+**Last Updated:** June 2, 2026  
 **Built by:** James Ignacio + Claude AI  
-**Stack:** Next.js 16, TypeScript, Tailwind CSS v4, Supabase, Groq, Vercel
+**Stack:** Next.js App Router, TypeScript, Tailwind CSS v4, Supabase, Groq, Vercel
 
 ---
 
@@ -24,21 +24,26 @@
 
 ## What This CRM Does
 
-Craftifyle CRM is a full-stack business management system built specifically for **Craftifyle** — a photobooth and event photography business in Zamboanga City, Philippines.
+Craftifyle CRM is a full-stack business management system built for Filipino service solopreneurs — starting with Craftifyle, a photobooth and event photography business in Zamboanga City, Philippines.
 
 It handles:
-- Facebook Messenger inquiries via **Crafty AI** (automated sales bot)
-- Auto-creating leads from Messenger conversations
-- Tracking leads through a sales pipeline
+- Tracking leads through a sales pipeline (kanban + list view)
+- Crafty AI — chat assistant that reads/writes the CRM in plain English
+- Paste DM — paste a raw Messenger inquiry, Crafty creates the lead instantly
+- Facebook Messenger auto-reply bot (Crafty AI, currently pending BIR for Meta approval)
 - Managing confirmed bookings and payments
-- Generating invoices
-- Tracking personal and business income/expenses
-- Tracking ad performance via Messenger ref links
-- Auto follow-up messages for quiet leads
-- Booking reminders 3 days before events
+- Invoice generation (printable PDF)
+- Public booking confirmation smart link (no login required)
+- Google Calendar sync on bookings
+- SMS follow-up via Semaphore PH
+- Auto follow-up messages for quiet leads (cron)
+- 3-day booking reminders (cron)
+- Ad performance tracking via Messenger ref links
+- Personal and business income/expense tracking
 
 **Live URL:** https://craftifyle-crm-system.vercel.app  
-**GitHub:** https://github.com/JMS255/Craftifyle-CRM-System
+**GitHub:** https://github.com/JMS255/Craftifyle-CRM-System  
+**Marketing site:** craftycrm-website (separate folder)
 
 ---
 
@@ -46,12 +51,18 @@ It handles:
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 16.2.6 App Router, TypeScript, Tailwind CSS v4 |
+| Frontend | Next.js App Router, TypeScript, Tailwind CSS v4 |
 | Database | Supabase (PostgreSQL) |
-| AI (sales bot) | Groq API — llama-3.3-70b-versatile |
-| AI (extraction) | Groq API — llama-3.1-8b-instant |
-| Hosting | Vercel (auto-deploy from GitHub) |
-| Messenger | Meta Messenger Platform API (Graph API v19.0) |
+| AI — Advisor | Groq API — llama-3.1-8b-instant |
+| AI — CRM Actions | Groq API — llama-3.3-70b-versatile (tool calling) |
+| AI — Messenger bot | Groq API — llama-3.3-70b-versatile |
+| AI — Lead extraction | Groq API — llama-3.1-8b-instant |
+| Hosting | Vercel (auto-deploy from GitHub master) |
+| Messenger | Meta Messenger Platform API (Graph API v19.0) — blocked pending BIR |
+| SMS | Semaphore PH |
+| Calendar | Google Calendar API |
+| Charts | recharts |
+| Drag-and-drop | @hello-pangea/dnd |
 | Cron Jobs | Vercel Cron |
 
 ---
@@ -62,93 +73,111 @@ It handles:
 craftifyle-crm/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                        # Dashboard
+│   │   ├── page.tsx                        # Dashboard — revenue card, charts, today's actions
 │   │   ├── layout.tsx                      # Root layout with sidebar
+│   │   ├── globals.css                     # Design system — tokens, card/table/button styles
 │   │   ├── leads/
-│   │   │   ├── page.tsx                    # Leads list
-│   │   │   ├── new/page.tsx                # Add new lead manually
-│   │   │   └── [id]/page.tsx               # Lead detail + Crafty toggle + conversation
+│   │   │   ├── page.tsx                    # Leads — list + kanban, cold alerts, AI badges
+│   │   │   ├── new/page.tsx                # Progressive add lead form
+│   │   │   └── [id]/page.tsx               # Lead detail, follow-up templates, activity log
 │   │   ├── bookings/
-│   │   │   ├── page.tsx                    # Bookings list (grouped by month)
+│   │   │   ├── page.tsx                    # Bookings — overdue alert, payment status badges
 │   │   │   └── [id]/
-│   │   │       ├── page.tsx                # Booking detail
-│   │   │       └── invoice/page.tsx        # Printable invoice
+│   │   │       ├── page.tsx                # Booking detail — mark paid, share link
+│   │   │       └── invoice/page.tsx        # Printable PDF invoice with add-ons
+│   │   ├── confirm/
+│   │   │   └── [token]/page.tsx            # Public booking confirmation page (no login)
 │   │   ├── ads/
 │   │   │   └── page.tsx                    # Ad performance dashboard
 │   │   ├── personal/
 │   │   │   └── page.tsx                    # Personal income & expenses
+│   │   ├── profile/
+│   │   │   └── page.tsx                    # User profile — name, business, city
+│   │   ├── login/
+│   │   │   └── page.tsx                    # Login page
+│   │   ├── signup/
+│   │   │   └── page.tsx                    # Signup — invite code (or open beta)
 │   │   ├── privacy/
 │   │   │   └── page.tsx                    # Privacy policy (for Meta App Review)
 │   │   └── api/
-│   │       ├── chat/route.ts               # AI chat for portfolio website widget
+│   │       ├── chat/route.ts               # Crafty Advisor (llama-3.1-8b, no DB)
+│   │       ├── crafty-assist/route.ts      # Crafty CRM Actions (tool calling, writes DB)
 │   │       ├── reply/route.ts              # AI reply draft generator
-│   │       ├── messenger/route.ts          # Crafty AI webhook (main bot)
+│   │       ├── messenger/route.ts          # Crafty Messenger webhook (Meta bot)
+│   │       ├── auth/
+│   │       │   └── check-invite/route.ts   # Invite code validator
+│   │       ├── bookings/
+│   │       │   └── sync-calendar/route.ts  # Google Calendar sync endpoint
 │   │       └── cron/
-│   │           ├── follow-up/route.ts      # Daily auto follow-up for quiet leads
+│   │           ├── follow-up/route.ts      # Daily auto follow-up (Messenger + SMS)
 │   │           └── reminders/route.ts      # 3-day booking reminders
 │   ├── components/
-│   │   ├── Sidebar.tsx                     # Desktop sidebar + mobile bottom nav
-│   │   └── ChatWidget.tsx                  # Floating chat widget
+│   │   ├── Sidebar.tsx                     # Desktop sidebar + mobile bottom nav + Quick Add sheet
+│   │   ├── ChatWidget.tsx                  # Floating AI chat — Advisor + CRM Actions + Paste DM
+│   │   ├── PackagePicker.tsx               # Package + add-on selector, auto-calculates total
+│   │   ├── OnboardingModal.tsx             # First-run onboarding checklist
+│   │   └── ThemeProvider.tsx               # Dark/light mode provider
 │   ├── lib/
-│   │   └── supabase.ts                     # Supabase client
+│   │   ├── supabase.ts                     # Supabase browser client
+│   │   ├── supabase-server.ts              # Supabase server client (SSR)
+│   │   ├── supabase-admin.ts               # Supabase admin client (service role)
+│   │   └── google-calendar.ts             # Google Calendar API helpers
+│   ├── middleware.ts                       # Auth middleware — route protection
 │   └── types/
-│       └── index.ts                        # TypeScript interfaces
+│       └── index.ts                        # All TypeScript interfaces — check here first
 ├── vercel.json                             # Cron job schedules
 ├── .env.local                              # Environment variables (not in git)
 ├── DOCUMENTATION.md                        # This file
-├── supabase-schema.sql                     # Initial DB schema
-├── supabase-migration-income.sql           # Income table migration
-├── supabase-migration-personal-income.sql  # Personal income migration
-├── supabase-migration-personal-expenses.sql
-├── supabase-migration-messenger.sql        # Messenger conversations table
-├── supabase-migration-leads-messenger.sql  # messenger_sender_id + ad_ref on leads
-└── supabase-migration-features.sql        # crafty_active + last_followup_sent
+├── CLAUDE.md / CLAUDE_RULES.md            # AI coding rules
+└── supabase-*.sql                          # DB migration files
 ```
 
 ---
 
 ## Database Schema
 
+All tables include a `user_id uuid` column (FK to `auth.users`) for multi-tenant data isolation. All queries filter by `user_id`.
+
 ### `leads`
-Stores every inquiry that comes in.
 
 | Column | Type | Description |
 |---|---|---|
 | id | uuid | Primary key |
+| user_id | uuid | FK to auth.users |
 | name | text | Client full name |
 | phone | text | Phone number |
 | email | text | Email address |
-| facebook | text | Facebook profile or messenger:senderId |
-| event_type | text | wedding, birthday, debut, corporate, etc. |
+| facebook | text | Facebook profile or messenger sender ID |
+| event_type | text | wedding, birthday, debut, corporate, christmas_party, reunion, baptism, other |
 | event_date | date | Event date |
 | venue | text | Event venue |
 | guest_count | integer | Number of guests |
-| package | text | Recommended package |
+| package | text | Package interest or name |
 | budget | numeric | Client budget |
-| status | text | new, contacted, quoted, negotiating, booked, lost, completed |
+| status | text | new → contacted → quoted → negotiating → booked → lost → completed |
 | source | text | facebook, instagram, referral, walk-in, website, tiktok, other |
 | notes | text | Free notes |
 | messenger_sender_id | text | Facebook Messenger sender ID (unique) |
 | ad_ref | text | Ad source tag from m.me/?ref= |
-| crafty_active | boolean | Whether Crafty AI is handling this lead (default: true) |
+| crafty_active | boolean | Whether Crafty Messenger bot is handling this lead (default: true) |
 | last_followup_sent | timestamptz | When last auto follow-up was sent |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
 ### `bookings`
-Confirmed events converted from leads.
 
 | Column | Type | Description |
 |---|---|---|
 | id | uuid | Primary key |
-| lead_id | uuid | FK to leads |
+| user_id | uuid | FK to auth.users |
+| lead_id | uuid | FK to leads (nullable) |
 | event_name | text | e.g. "Maria's Debut" |
 | event_date | date | |
 | event_time | text | e.g. "6:00 PM" |
 | venue | text | |
-| package_name | text | e.g. "Bundle 50 pax" |
+| package_name | text | e.g. "Photobooth + Photography + Magnet prints" |
 | package_price | numeric | Total price |
-| deposit_amount | numeric | Deposit paid |
+| deposit_amount | numeric | Deposit amount |
 | deposit_paid | boolean | |
 | deposit_paid_date | date | |
 | balance_amount | numeric | Remaining balance |
@@ -157,10 +186,12 @@ Confirmed events converted from leads.
 | status | text | upcoming, completed, cancelled |
 | craftifyle_income | numeric | Business income from this booking |
 | personal_income | numeric | Personal income |
+| gcal_event_id | text | Google Calendar event ID (for sync/update) |
 | notes | text | |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
 
 ### `activities`
-Timeline of notes, calls, messages per lead.
 
 | Column | Type | Description |
 |---|---|---|
@@ -170,9 +201,9 @@ Timeline of notes, calls, messages per lead.
 | content | text | Activity description |
 | follow_up_date | date | For follow_up type |
 | completed | boolean | |
+| created_at | timestamptz | |
 
 ### `messenger_conversations`
-Stores Messenger chat history per sender for Crafty AI memory.
 
 | Column | Type | Description |
 |---|---|---|
@@ -182,115 +213,164 @@ Stores Messenger chat history per sender for Crafty AI memory.
 | content | text | Message content |
 | created_at | timestamptz | |
 
+### `personal_income` / `personal_expenses`
+
+Personal finance tracker — separate from booking revenue.
+
+| Column | Type |
+|---|---|
+| id | uuid |
+| user_id | uuid |
+| description | text |
+| amount | numeric |
+| income_date / expense_date | date |
+| category | text |
+| notes | text |
+| created_at | timestamptz |
+
 ---
 
 ## Environment Variables
 
-Stored in `.env.local` (never committed to git) and Vercel Environment Variables.
+Stored in `.env.local` (never committed) and Vercel Environment Variables.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=          # Supabase project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Supabase service role key
-GEMINI_API_KEY=                    # Google Gemini (backup AI)
-GROQ_API_KEY=                      # Groq API key for Crafty AI
+NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Supabase anon key
+GROQ_API_KEY=                      # Groq API key (Crafty AI)
 MESSENGER_APP_SECRET=              # Meta app secret for webhook verification
 MESSENGER_VERIFY_TOKEN=            # craftifyle_webhook_2026
 MESSENGER_PAGE_ACCESS_TOKEN=       # Facebook Page access token
 CRON_SECRET=                       # craftifyle_cron_2026 (protects cron endpoints)
+SEMAPHORE_API_KEY=                 # 75a671289eda9b6b08a32fe272f80292 (SMS PH)
+GOOGLE_CLIENT_ID=                  # Google OAuth client ID (Calendar)
+GOOGLE_CLIENT_SECRET=              # Google OAuth client secret
+GOOGLE_REFRESH_TOKEN=              # Google OAuth refresh token
+INVITE_CODE=                       # Delete this var to enable open beta signups
 ```
 
 ---
 
 ## Features
 
-### 1. Dashboard (`/`)
-- Total leads, bookings, revenue at a glance
-- Recent leads and upcoming bookings
-- Monthly revenue summary
+### Dashboard (`/`)
+- Revenue card: Confirmed / Collected / Outstanding for current month
+- Today's Actions card — top 3 urgent leads, click to navigate
+- Quick-prompt chips: Paste DM · What needs attention · Revenue · Draft follow-up
+- Onboarding checklist for new users (progress bar, dismissible)
+- Charts: bookings/month bar chart + lead source donut (recharts)
 
-### 2. Leads (`/leads`)
-- List of all inquiries
-- Filter by status and source
-- Search by name
-- Mobile: card view. Desktop: table view
-- Click any lead → Lead Detail page
+### Leads (`/leads`)
+- List view: table (desktop) + cards (mobile) with AI next-action badges
+- Board view: kanban — 6 columns, drag-and-drop on desktop, tab + single-column on mobile
+- Cold lead alerts banner — leads silent 5+ days, color-coded warm/cold/very cold
+- Search by name, filter by status and source
+- Mobile Quick Add "+" in bottom nav → sheet: Add Lead, Paste DM, Log Payment
 
-### 3. Lead Detail (`/leads/[id]`)
-- Full client info (name, phone, email, event details)
-- Pipeline stage selector (new → contacted → quoted → negotiating → booked → lost)
-- **Crafty AI toggle** — mute Crafty for this lead so James can handle manually
-- **Messenger conversation viewer** — full chat thread in bubble UI
-- AI Reply Draft — paste client message, get a suggested reply
+### Lead Detail (`/leads/[id]`)
+- Full client info — event details, source, budget
+- Pipeline stage selector (click to update)
+- Crafty AI toggle — mute Messenger bot for this lead
+- Follow-up templates: 3 Taglish messages + "Open Messenger" deep link
+- Activity log: notes, calls, messages, follow-ups with dates
 - Convert to Booking form
-- Activity log (notes, calls, messages, follow-ups)
+- Messenger conversation viewer (bubble UI, from `messenger_conversations`)
 
-### 4. Bookings (`/bookings`)
-- All confirmed bookings grouped by month
-- Accordion per month
-- Mobile: cards. Desktop: table
-- Summary: upcoming count, total revenue, outstanding balance
+### Bookings (`/bookings`)
+- Grouped by month with accordion
+- Overdue alert banner — event passed, balance unpaid
+- Payment status badge per row: Unpaid / Deposit Paid / Fully Paid / Overdue
 
-### 5. Booking Detail (`/bookings/[id]`)
-- Full booking info
-- Mark deposit/balance as paid
-- Set booking status
-- Log craftifyle income separately
-- **🧾 View Invoice button** → goes to invoice page
+### Booking Detail (`/bookings/[id]`)
+- Mark deposit/balance paid — green flash micro-animation on confirm
+- Set booking status (upcoming/completed/cancelled)
+- "🔗 Share Link" — copies public confirmation URL
+- Google Calendar add/update sync button
+- Log craftifyle income vs personal income separately
 
-### 6. Invoice (`/bookings/[id]/invoice`)
-- Clean printable invoice
-- Business header (Craftifyle, James Ignacio, Zamboanga City)
-- Client info, event details, package price, deposit paid, balance due
-- GCash payment details
-- Print / Save PDF button
+### Invoice (`/bookings/[id]/invoice`)
+- Printable PDF — business header, client info, package price, add-ons as line items
+- Deposit paid, balance due, GCash 0993-632-4512
+- Print/Save PDF button
 
-### 7. Ad Performance (`/ads`)
-- Table showing leads, bookings, conversion rate, revenue per ad_ref tag
-- Organic leads (no tag) shown separately
-- Instructions on how to tag ads using m.me ref links
-- Summary cards: total leads, booked, conversion %, revenue
+### Public Confirmation (`/confirm/[token]`)
+- No login required — shareable link for clients
+- Shows: event name, date, venue, package breakdown, GCash info, cancellation terms
 
-### 8. Personal Finance (`/personal`)
-- Personal income and expenses tracker
-- Separate from business income
-- Categories, dates, notes
+### Ad Performance (`/ads`)
+- Leads / bookings / conversion % / revenue per `ad_ref` tag
+- Organic (no tag) shown separately
+- Instructions for m.me ref link setup
+
+### Personal Finance (`/personal`)
+- Income and expenses tracker, separate from business
+- Categories, dates, notes — grouped by month with net summary
+
+### Profile (`/profile`)
+- Set full name, business name, city — shown throughout the CRM
+
+### PackagePicker component
+- 4 package cards + toggleable add-ons, auto-calculates total
+- Add-ons appended to `package_name` (e.g. "Photobooth + Photography + Magnet prints")
+- Invoice renders add-ons as separate line items
 
 ---
 
 ## Crafty AI
 
-Crafty AI is an automated Facebook Messenger sales bot for Craftifyle.
+Crafty has two independent modes inside the ChatWidget floating button.
 
-**Model:** llama-3.3-70b-versatile (Groq)  
-**Webhook:** `POST /api/messenger`  
-**Memory:** Last 10 messages stored in `messenger_conversations` table
+### Mode 1 — Advisor (`/api/chat`)
+- Model: `llama-3.1-8b-instant`
+- Business advisor — no database access
+- Knows today's date (injected at request time)
 
-### How it works
-1. Client messages Craftifyle Facebook page
-2. Meta sends webhook to `POST /api/messenger`
-3. Signature verified with `MESSENGER_APP_SECRET`
-4. Conversation history fetched from Supabase
-5. Groq generates reply using system prompt + history
-6. Reply sent back via Graph API
-7. Messages saved to Supabase
-8. Background: llama-3.1-8b-instant extracts lead info and upserts to leads table
+### Mode 2 — CRM Actions (`/api/crafty-assist`)
+- Model: `llama-3.3-70b-versatile` with tool calling (temp 0.3, max 3 tool rounds)
+- Reads and writes Supabase directly
+- Auth: checks Supabase session, all queries filtered by `user_id`
+- Uses `createAdminClient()` (service role) with manual `user_id` filter
 
-### Crafty's sales flow
-1. **Discovery** — Collects: full name, event type, date, venue, start time, guest count
-2. **Recommendation** — Suggests package based on pax and event type
-3. **Objection handling** — Reframes price objections without discounting
-4. **Booking** — Sends GCash deposit details (0993-632-4512 · James Ignacio)
-5. **Confirmation** — Waits for client to say "PAID"
-6. **Details collection** — Gets email and phone for invoice
+**Available tools:**
 
-### Pricing Crafty knows
-- **Event Photography:** ₱3,000 (≤50 pax) / ₱4,000 (51-100) / ₱4,500 (101+)
-- **Photobooth only:** ₱3,500 fixed
-- **Bundle:** ₱5,000 (≤50 pax) / ₱6,500 (51+)
-- **Add-on:** Magnet prints ₱1,500 for 150pcs (not included in any package)
+| Tool | What it does |
+|---|---|
+| `get_leads` | List/search leads, filter by status |
+| `create_lead` | Insert new lead |
+| `update_lead` | Update any lead field |
+| `get_bookings` | List bookings by status |
+| `create_booking` | Insert new booking |
+| `log_payment` | Mark deposit or balance as paid |
+| `get_revenue_summary` | Total revenue, optionally by month |
+| `get_urgent_leads` | Scored by urgency — upcoming events, quiet leads, passed events |
+| `convert_lead_to_booking` | One message: finds lead, creates booking, updates lead status to booked |
 
-### Takeover toggle
-On any lead detail page, toggle **Crafty AI** off to silence the bot for that sender. Crafty checks `crafty_active` on the lead before responding.
+**Packages Crafty knows (exact names and prices):**
+- "Photobooth Only" → ₱3,500 (3 hrs, unlimited shots, custom backdrop)
+- "Photography Only" → ₱4,500 (3 hrs, 300+ edited photos)
+- "Photobooth + Photography" → ₱6,500 (3 hrs, both services) — most popular
+- "Premium Bundle" → ₱8,000 (4 hrs, photography + videography, 400+ photos, pre-event shoot)
+
+**Add-ons (appended to package name):**
+- "Extended coverage (+1 hr)" → +₱800
+- "Magnet prints (150 pcs)" → +₱1,500
+- "Custom template design" → FREE
+- "30-sec highlight video" → FREE
+
+### ChatWidget features
+- **Paste DM** — 📋 button opens panel, paste raw Messenger inquiry, Crafty extracts details and calls `create_lead`
+- Each tab (Advisor / CRM Actions) keeps its own separate message history
+- Pulse animation + tooltip on first 3 sessions (discoverability)
+- External trigger: `window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt, mode } }))`
+- Quick-prompt chips on dashboard fire prompts via this CustomEvent
+
+### Mode 3 — Messenger Bot (`/api/messenger`)
+- Model: `llama-3.3-70b-versatile` (sales flow) + `llama-3.1-8b-instant` (lead extraction)
+- **Status: BLOCKED** — pending Meta Business Verification (needs BIR registration)
+- Replies in Taglish, follows discovery → recommendation → objection → GCash deposit flow
+- Memory: last 10 messages stored in `messenger_conversations`
+- Checks `crafty_active` before responding — toggle per lead to take over manually
+- When client says "PAID": auto-creates booking, syncs to Google Calendar
 
 ---
 
@@ -298,10 +378,13 @@ On any lead detail page, toggle **Crafty AI** off to silence the bot for that se
 
 | Route | Method | Description |
 |---|---|---|
+| `/api/chat` | POST | Crafty Advisor (no DB, business advice) |
+| `/api/crafty-assist` | POST | Crafty CRM Actions (tool calling, writes DB) |
 | `/api/messenger` | GET | Facebook webhook verification |
 | `/api/messenger` | POST | Receive and process Messenger messages |
-| `/api/chat` | POST | Chat widget for portfolio website (CORS enabled) |
 | `/api/reply` | POST | Generate AI reply draft for a lead |
+| `/api/bookings/sync-calendar` | POST | Sync a booking to Google Calendar |
+| `/api/auth/check-invite` | POST | Validate invite code on signup |
 | `/api/cron/follow-up` | GET | Auto follow-up cron (protected by CRON_SECRET) |
 | `/api/cron/reminders` | GET | Booking reminder cron (protected by CRON_SECRET) |
 
@@ -311,9 +394,9 @@ On any lead detail page, toggle **Crafty AI** off to silence the bot for that se
 
 Configured in `vercel.json`. Run automatically on Vercel.
 
-| Job | Schedule | PH Time | What it does |
+| Job | Schedule (UTC) | PH Time | What it does |
 |---|---|---|---|
-| `/api/cron/follow-up` | `0 10 * * *` | 6:00 PM | Sends follow-up to leads quiet for 24h+ |
+| `/api/cron/follow-up` | `0 10 * * *` | 6:00 PM | Sends follow-up to leads quiet for 24h+ via Messenger or Semaphore SMS |
 | `/api/cron/reminders` | `0 9 * * *` | 5:00 PM | Sends reminder to clients 3 days before event |
 
 Both require `Authorization: Bearer craftifyle_cron_2026` header.
@@ -323,21 +406,16 @@ Both require `Authorization: Bearer craftifyle_cron_2026` header.
 ## Deployment
 
 **Platform:** Vercel  
-**Auto-deploy:** Every push to `master` branch on GitHub triggers a deploy  
+**Auto-deploy:** Every push to `master` branch  
 **URL:** https://craftifyle-crm-system.vercel.app
 
-### To deploy manually:
 ```bash
-git add -A
-git commit -m "your message"
+git add <files>
+git commit -m "message"
 git push origin master
 ```
 
-### Environment variables to set on Vercel:
-All variables from `.env.local` must be added in Vercel → Settings → Environment Variables.
-
-### Git checkpoints (tags):
-- `v1.0-crafty-working` — Crafty AI working with memory, discovery, GCash, booking confirmation
+**Open beta:** Delete `INVITE_CODE` from Vercel env → anyone can sign up without an invite code.
 
 ---
 
@@ -345,42 +423,53 @@ All variables from `.env.local` must be added in Vercel → Settings → Environ
 
 | Issue | Status |
 |---|---|
-| Meta Business Verification needed for public Crafty access | ⚠️ Needs Barangay Certificate |
-| Groq free tier daily limits hit during heavy testing | ⚠️ Upgrade to paid or reduce history |
-| Ad ref tracking doesn't work with Meta Chat Builder campaigns | ⚠️ Use Traffic campaign objective instead |
+| Meta Business Verification — Crafty Messenger bot blocked | ⚠️ Needs BIR registration |
+| SEMAPHORE_API_KEY not yet added to Vercel env vars | ⚠️ Add value: 75a671289eda9b6b08a32fe272f80292 |
+| Ad ref tracking doesn't work with Meta Chat Builder campaigns | ⚠️ Use Traffic campaign objective |
 | SQL migrations must be run manually in Supabase SQL Editor | ⚠️ Manual step |
-| CRON_SECRET must be added to Vercel env vars | ⚠️ Manual step |
 
-### SQL migrations not yet run (run these in Supabase SQL Editor):
-```sql
--- From supabase-migration-leads-messenger.sql
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS messenger_sender_id text UNIQUE;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS ad_ref text;
-CREATE INDEX IF NOT EXISTS idx_leads_messenger_sender ON leads(messenger_sender_id);
+---
 
--- From supabase-migration-features.sql
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS crafty_active boolean DEFAULT true;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_followup_sent timestamptz;
-```
+## UI Design System (as of June 2, 2026)
+
+**Accent:** `#7c6ff7` (warm violet)  
+**Dark surface ladder:** Page `#09090f` · Card `#0f0f17` · Sidebar `#141420` · Hover `#1a1a2a` · Active `#1f1f33`  
+**Border system:** Subtle `rgba(255,255,255,0.05)` · Default `rgba(255,255,255,0.08)` · Strong `rgba(255,255,255,0.14)`  
+**Typography:** Body 15px · Headings weight 600, letter-spacing -0.015em · ALL CAPS labels 11px weight 500  
+**Border radius:** 6px badges/inputs · 10px buttons · 14px cards · 9999px pills  
+**Transitions:** 150ms on all interactive elements  
+**Card detail:** `box-shadow: inset 0 1px 0 rgba(255,255,255,0.06)`
+
+**Phase 1 ✅** — Token unification, new accent, card inset shadow, `.card` + `.section-label` classes, sidebar active state  
+**Phase 2 ✅** — Global table system, typography letter-spacing, button press scale + focus ring, mobile nav backdrop-blur, `.tabular` number class  
+**Phase 3 ✅** — `ads/page.tsx`, `personal/page.tsx`, `login/page.tsx`, `signup/page.tsx` full token pass. All pages now use CSS vars exclusively. `profile/page.tsx` was already clean.  
+**Phase 4 — Next** — Skeleton loaders only (replace `Loading…` text across all pages with animated pulsing shapes)
 
 ---
 
 ## Roadmap
 
-### Next up
-- [ ] Google Calendar integration — sync bookings to Google Calendar, auto-block dates on portfolio website
-- [ ] Review requests — auto-send Google/Facebook review request after booking completed
-- [ ] Manual ad_ref field on lead detail page
-- [ ] Calendar view page for bookings
+### Immediate
+- Add `SEMAPHORE_API_KEY` to Vercel env vars
+- UI Redesign Phase 4 — skeleton loaders (only remaining item)
 
-### Future (productization phase)
-- [ ] Multi-tenant support (each business sees only their data)
-- [ ] Auth / login system
-- [ ] Business onboarding flow (auto-configure AI system prompt per industry)
-- [ ] Configurable pipeline stages per business
-- [ ] Dynamic service/product catalog
-- [ ] Subscription billing
+### Sprint 2 (July 2026)
+- Custom package builder in UI — configure from app without code
+- Crafty AI training UI — set packages, pricing, personality from app
+
+### Sprint 3 (August 2026)
+- GCash / PayMongo payment links — auto-generate per booking, webhook marks deposit paid
+- Unified conversations inbox — all Messenger threads in one place
+- Booking contracts + e-sign
+
+### Future
+- Client portal — clients view booking, download invoice, see payment status
+- Instagram DM bot — alternative intake while Messenger API is pending
+- Facebook Ads API integration — real spend, CPC, ROI per campaign
+- Mobile app (React Native)
+- White-label SaaS — resell Crafty CRM under your own brand
 
 ### Vision
-Turn Craftifyle CRM into a white-label SaaS for Filipino service businesses —
-events, salons, restaurants, tutorial centers, etc. Target: ₱800-1,500/month per business.
+Turn Craftifyle CRM into a white-label SaaS for Filipino service solopreneurs —
+photographers, videographers, florists, caterers, hair & makeup, event stylists, hosts.
+Target: ₱800/mo Starter → ₱1,200/mo Pro → Custom bespoke builds (₱30K–₱80K).

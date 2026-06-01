@@ -184,19 +184,21 @@ export default function PersonalPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Personal Finance</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Your income and expenses, separate from Craftifyle</p>
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Personal Finance</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Your income and expenses, separate from Craftifyle</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setFormMode(formMode === 'income' ? null : 'income')}
-            className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex-1 sm:flex-none text-white text-sm font-medium px-4 py-2 rounded-[10px]"
+            style={{ background: 'var(--accent)' }}
           >
             {formMode === 'income' ? 'Cancel' : '+ Add Income'}
           </button>
           <button
             onClick={() => setFormMode(formMode === 'expense' ? null : 'expense')}
-            className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex-1 sm:flex-none text-sm font-medium px-4 py-2 rounded-[10px]"
+            style={{ background: 'var(--danger-muted)', color: 'var(--danger)', border: '1px solid var(--danger-muted)' }}
           >
             {formMode === 'expense' ? 'Cancel' : '+ Add Expense'}
           </button>
@@ -205,7 +207,7 @@ export default function PersonalPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-xl px-5 py-3 text-sm" style={{ background: 'var(--danger-muted)', border: '1px solid var(--danger-muted)', color: 'var(--danger)' }}>
           {error}
         </div>
       )}
@@ -250,7 +252,7 @@ export default function PersonalPage() {
 
       {/* Year selector */}
       <div className="flex items-center gap-2 mb-5">
-        <span className="text-sm text-gray-500 font-medium mr-1">Year:</span>
+        <span className="text-sm font-medium mr-1" style={{ color: 'var(--text-muted)' }}>Year:</span>
         {years.map((y) => (
           <button
             key={y}
@@ -258,11 +260,10 @@ export default function PersonalPage() {
               setSelectedYear(y)
               setOpenMonth(y === currentYear ? new Date().toISOString().slice(0, 7) : null)
             }}
-            className={`text-sm px-4 py-1.5 rounded-full border font-semibold transition-colors ${
-              selectedYear === y
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'border-gray-200 text-gray-500 hover:border-purple-400 hover:text-purple-600'
-            }`}
+            className="text-sm px-4 py-1.5 rounded-full font-semibold"
+            style={selectedYear === y
+              ? { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' }
+              : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
           >
             {y}
           </button>
@@ -288,7 +289,7 @@ export default function PersonalPage() {
 
       {/* Monthly accordion */}
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>
       ) : (
         <div className="space-y-2">
           {months.map((month) => {
@@ -301,27 +302,30 @@ export default function PersonalPage() {
                   onClick={() => hasData && setOpenMonth(isOpen ? null : month.yearMonth)}
                   disabled={!hasData}
                   className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors ${
-                    hasData ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default opacity-40'
+                    hasData ? 'cursor-pointer' : 'cursor-default opacity-40'
                   }`}
+                  style={hasData ? { ['--hover-c' as string]: 'var(--hover-bg)' } : {}}
+                  onMouseEnter={e => hasData && ((e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '')}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs text-gray-400 inline-block transition-transform ${isOpen ? 'rotate-90' : ''}`}>
+                    <span className={`text-xs inline-block transition-transform ${isOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--text-faint)' }}>
                       {hasData ? '▶' : '—'}
                     </span>
-                    <span className="font-semibold text-gray-800 w-24">{month.monthLabel}</span>
+                    <span className="font-semibold w-24" style={{ color: 'var(--text-heading)' }}>{month.monthLabel}</span>
                     {hasData ? (
                       <div className="flex gap-3 text-xs">
-                        <span className="text-purple-600 font-medium">+{peso(month.totalIncome)}</span>
+                        <span className="font-medium" style={{ color: 'var(--accent-text)' }}>+{peso(month.totalIncome)}</span>
                         {month.totalExpenses > 0 && (
-                          <span className="text-red-500 font-medium">−{peso(month.totalExpenses)}</span>
+                          <span className="font-medium" style={{ color: 'var(--danger)' }}>−{peso(month.totalExpenses)}</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">No entries</span>
+                      <span className="text-xs" style={{ color: 'var(--text-faint)' }}>No entries</span>
                     )}
                   </div>
                   {hasData && (
-                    <span className={`text-sm font-bold ${month.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className="text-sm font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                       {month.net >= 0 ? '+' : ''}{peso(month.net)} net
                     </span>
                   )}
@@ -329,31 +333,31 @@ export default function PersonalPage() {
 
                 {/* Expanded content */}
                 {isOpen && hasData && (
-                  <div className="border-t border-gray-100">
+                  <div style={{ borderTop: '1px solid var(--card-border)' }}>
                     {/* Income section */}
                     {month.income.length > 0 && (
                       <div>
-                        <div className="px-5 py-2 bg-purple-50 border-b border-purple-100">
-                          <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                        <div className="px-5 py-2" style={{ background: 'var(--accent-subtle)', borderBottom: '1px solid var(--card-border)' }}>
+                          <span className="section-label" style={{ color: 'var(--accent-text)' }}>
                             Income — {peso(month.totalIncome)}
                           </span>
                         </div>
                         <table className="w-full text-sm">
-                          <tbody className="divide-y divide-gray-50">
+                          <tbody>
                             {month.income.map((e) => (
-                              <tr key={e.id} className="hover:bg-gray-50">
-                                <td className="px-5 py-2.5 font-medium text-gray-900">{e.description}</td>
-                                <td className="px-5 py-2.5 text-gray-400 text-xs">{fmtDate(e.income_date)}</td>
+                              <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                                <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
+                                <td className="px-5 py-2.5 text-xs" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.income_date)}</td>
                                 <td className="px-5 py-2.5">
-                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full capitalize">
+                                  <span className="badge capitalize" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)' }}>
                                     {e.category.replace('_', ' ')}
                                   </span>
                                 </td>
-                                <td className="px-5 py-2.5 text-gray-400 text-xs">{e.notes ?? ''}</td>
-                                <td className="px-5 py-2.5 text-right font-bold text-purple-700">{peso(e.amount)}</td>
+                                <td className="px-5 py-2.5 text-xs" style={{ color: 'var(--text-faint)' }}>{e.notes ?? ''}</td>
+                                <td className="px-5 py-2.5 tabular text-right font-bold" style={{ color: 'var(--accent-text)' }}>{peso(e.amount)}</td>
                                 <td className="px-5 py-2.5">
                                   <button onClick={() => deleteIncome(e.id)} disabled={deletingId === e.id}
-                                    className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50">
+                                    className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
                                     {deletingId === e.id ? '…' : 'Del'}
                                   </button>
                                 </td>
@@ -367,27 +371,27 @@ export default function PersonalPage() {
                     {/* Expenses section */}
                     {month.expenses.length > 0 && (
                       <div>
-                        <div className="px-5 py-2 bg-red-50 border-y border-red-100">
-                          <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">
+                        <div className="px-5 py-2" style={{ background: 'var(--danger-muted)', borderTop: '1px solid var(--card-border)', borderBottom: '1px solid var(--card-border)' }}>
+                          <span className="section-label" style={{ color: 'var(--danger)' }}>
                             Expenses — {peso(month.totalExpenses)}
                           </span>
                         </div>
                         <table className="w-full text-sm">
-                          <tbody className="divide-y divide-gray-50">
+                          <tbody>
                             {month.expenses.map((e) => (
-                              <tr key={e.id} className="hover:bg-gray-50">
-                                <td className="px-5 py-2.5 font-medium text-gray-900">{e.description}</td>
-                                <td className="px-5 py-2.5 text-gray-400 text-xs">{fmtDate(e.expense_date)}</td>
+                              <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                                <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
+                                <td className="px-5 py-2.5 text-xs" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.expense_date)}</td>
                                 <td className="px-5 py-2.5">
-                                  <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full capitalize">
+                                  <span className="badge capitalize" style={{ background: 'var(--danger-muted)', color: 'var(--danger)' }}>
                                     {e.category}
                                   </span>
                                 </td>
-                                <td className="px-5 py-2.5 text-gray-400 text-xs">{e.notes ?? ''}</td>
-                                <td className="px-5 py-2.5 text-right font-bold text-red-600">−{peso(e.amount)}</td>
+                                <td className="px-5 py-2.5 text-xs" style={{ color: 'var(--text-faint)' }}>{e.notes ?? ''}</td>
+                                <td className="px-5 py-2.5 tabular text-right font-bold" style={{ color: 'var(--danger)' }}>−{peso(e.amount)}</td>
                                 <td className="px-5 py-2.5">
                                   <button onClick={() => deleteExpense(e.id)} disabled={deletingId === e.id}
-                                    className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50">
+                                    className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
                                     {deletingId === e.id ? '…' : 'Del'}
                                   </button>
                                 </td>
@@ -399,9 +403,9 @@ export default function PersonalPage() {
                     )}
 
                     {/* Month net total */}
-                    <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-200">
-                      <span className="text-xs font-semibold text-gray-500">{month.monthLabel} Net</span>
-                      <span className={`font-bold ${month.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--card-elevated)', borderTop: '1px solid var(--card-border)' }}>
+                      <span className="section-label">{month.monthLabel} Net</span>
+                      <span className="font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                         {month.net >= 0 ? '+' : ''}{peso(month.net)}
                       </span>
                     </div>
@@ -421,17 +425,18 @@ function SummaryCard({
 }: {
   label: string; value: string; color: 'purple' | 'red' | 'green' | 'indigo'; sub?: string
 }) {
-  const colors = {
-    purple: 'bg-purple-50 text-purple-700',
-    red: 'bg-red-50 text-red-600',
-    green: 'bg-green-50 text-green-700',
-    indigo: 'bg-indigo-50 text-indigo-700',
+  const vars = {
+    purple: { bg: 'var(--accent-subtle)',  text: 'var(--accent-text)' },
+    red:    { bg: 'var(--danger-muted)',   text: 'var(--danger)' },
+    green:  { bg: 'var(--success-muted)',  text: 'var(--success)' },
+    indigo: { bg: 'var(--accent-subtle2)', text: 'var(--accent-text)' },
   }
+  const v = vars[color]
   return (
-    <div className={`rounded-xl p-4 ${colors[color]}`}>
-      <p className="text-xl font-bold">{value}</p>
-      {sub && <p className="text-xs opacity-70 mt-0.5">{sub}</p>}
-      <p className="text-sm mt-1 opacity-80">{label}</p>
+    <div className="rounded-xl p-4" style={{ background: v.bg, border: '1px solid var(--card-border)' }}>
+      <p className="text-xl font-bold tabular" style={{ color: v.text }}>{value}</p>
+      {sub && <p className="text-xs mt-0.5" style={{ color: v.text, opacity: 0.7 }}>{sub}</p>}
+      <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
     </div>
   )
 }
@@ -448,35 +453,35 @@ function EntryForm({
   onSubmit: (e: React.FormEvent) => void
   saving: boolean
 }) {
-  const bg = color === 'purple' ? 'bg-purple-50 border-purple-200' : 'bg-red-50 border-red-200'
-  const ring = color === 'purple' ? 'focus:ring-purple-500' : 'focus:ring-red-400'
-  const btn = color === 'purple' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-500 hover:bg-red-600'
-  const heading = color === 'purple' ? 'text-purple-900' : 'text-red-800'
+  const isIncome = color === 'purple'
+  const accentBg  = isIncome ? 'var(--accent-subtle)'  : 'var(--danger-muted)'
+  const accentText = isIncome ? 'var(--accent-text)'   : 'var(--danger)'
+  const btnBg     = isIncome ? 'var(--accent)'         : 'var(--danger)'
 
   return (
-    <div className={`border rounded-xl p-5 mb-6 ${bg}`}>
-      <h2 className={`font-semibold mb-4 ${heading}`}>{title}</h2>
+    <div className="rounded-xl p-5 mb-6" style={{ background: accentBg, border: `1px solid var(--card-border)` }}>
+      <h2 className="font-semibold mb-4" style={{ color: accentText }}>{title}</h2>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           {fields.map((f) => (
             <div key={f.key} className={f.key === 'description' ? 'col-span-2' : ''}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
               <input
                 type={f.type ?? 'text'}
                 required={f.key === 'description' || f.key === 'amount'}
                 value={values[f.key] ?? ''}
                 onChange={(e) => onChange(f.key, e.target.value)}
                 placeholder={f.placeholder}
-                className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${ring}`}
+                className="w-full rounded-lg px-3 py-2 text-sm"
               />
             </div>
           ))}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{selectField.label}</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{selectField.label}</label>
             <select
               value={values[selectField.key] ?? ''}
               onChange={(e) => onChange(selectField.key, e.target.value)}
-              className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${ring}`}
+              className="w-full rounded-lg px-3 py-2 text-sm"
             >
               {selectField.options.map((o) => (
                 <option key={o} value={o}>
@@ -489,7 +494,8 @@ function EntryForm({
         <button
           type="submit"
           disabled={saving}
-          className={`${btn} disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors`}
+          className="disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-[10px]"
+          style={{ background: btnBg }}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

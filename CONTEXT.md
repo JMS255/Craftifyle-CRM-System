@@ -109,6 +109,16 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ---
 
+## UI Redesign Progress (as of June 2)
+
+**Phase 1 ✅ Done** — Token unification, global gray overrides, new accent `#7c6ff7`, card inset shadow, 150ms transitions, font-feature-settings, muted status badges, `.card` + `.section-label` classes, sidebar active nav item.
+
+**Phase 2 ✅ Done** — Global table system (no vertical borders, clean headers, row hover), typography (h1-h4 letter-spacing), button press scale + focus ring, mobile nav backdrop-blur + safe area, `.tabular` number class, PayCell CSS vars.
+
+**Phase 3 ✅ Done** — Ads page, Personal Finance page, Login/Signup footer. All hardcoded grays replaced with CSS vars. SummaryCards, tables, accordion, EntryForm, badges all now token-consistent.
+
+**Phase 4 — Next** — Skeleton loaders only. Replace all `Loading…` text across ads, personal, leads, bookings, dashboard with animated pulsing shapes matching real layout.
+
 ## UI Redesign Spec (from June 1 research)
 
 **Core problem:** Token inconsistency (half app uses hardcoded `bg-white`/`text-gray-900`, other half uses CSS vars) + no design identity.

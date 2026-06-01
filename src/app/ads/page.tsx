@@ -79,8 +79,8 @@ export default function AdsPage() {
   return (
     <div className="p-4 md:p-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ad Performance</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Ad Performance</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           Leads tagged with ad sources via m.me/craftifylePH?ref=your_ad_name
         </p>
       </div>
@@ -98,55 +98,55 @@ export default function AdsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>
       ) : stats.length === 0 ? (
         <div className="card p-8 text-center">
-          <p className="text-gray-500 font-medium mb-2">No ad-tagged leads yet</p>
-          <p className="text-gray-400 text-sm mb-4">
+          <p className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>No ad-tagged leads yet</p>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
             To track ads, share this link instead of your regular page link:
           </p>
-          <code className="bg-gray-100 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-mono">
+          <code className="px-3 py-1.5 rounded-lg text-sm font-mono" style={{ background: 'var(--subtle-bg)', color: 'var(--accent-text)', border: '1px solid var(--card-border)' }}>
             m.me/craftifylePH?ref=your_ad_name
           </code>
-          <p className="text-gray-400 text-xs mt-3">
+          <p className="text-xs mt-3" style={{ color: 'var(--text-faint)' }}>
             e.g. ?ref=summer_debut_ad or ?ref=fb_story_june
           </p>
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead style={{ background: 'var(--card-elevated)', borderBottom: '1px solid var(--card-border)' }}>
               <tr>
-                <th className="text-left text-xs text-gray-400 uppercase px-5 py-3">Ad / Source</th>
-                <th className="text-right text-xs text-gray-400 uppercase px-5 py-3">Leads</th>
-                <th className="text-right text-xs text-gray-400 uppercase px-5 py-3">Booked</th>
-                <th className="text-right text-xs text-gray-400 uppercase px-5 py-3">Conv. Rate</th>
-                <th className="text-right text-xs text-gray-400 uppercase px-5 py-3">Revenue</th>
+                <th className="section-label text-left px-5 py-3">Ad / Source</th>
+                <th className="section-label text-right px-5 py-3">Leads</th>
+                <th className="section-label text-right px-5 py-3">Booked</th>
+                <th className="section-label text-right px-5 py-3">Conv. Rate</th>
+                <th className="section-label text-right px-5 py-3">Revenue</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody>
               {stats.map((row) => (
-                <tr key={row.ad_ref} className="hover:bg-gray-50">
+                <tr key={row.ad_ref} style={{ borderTop: '1px solid var(--border-secondary)' }} className="transition-colors hover:bg-[var(--hover-bg)]">
                   <td className="px-5 py-4">
-                    <span className="font-medium text-gray-800">{row.ad_ref}</span>
+                    <span className="font-medium" style={{ color: 'var(--text-heading)' }}>{row.ad_ref}</span>
                   </td>
-                  <td className="px-5 py-4 text-right text-gray-600">{row.leads}</td>
-                  <td className="px-5 py-4 text-right text-green-600 font-medium">{row.booked}</td>
-                  <td className="px-5 py-4 text-right text-purple-600 font-medium">
+                  <td className="px-5 py-4 tabular text-right" style={{ color: 'var(--text-secondary)' }}>{row.leads}</td>
+                  <td className="px-5 py-4 tabular text-right font-medium" style={{ color: 'var(--success)' }}>{row.booked}</td>
+                  <td className="px-5 py-4 tabular text-right font-medium" style={{ color: 'var(--accent-text)' }}>
                     {row.leads > 0 ? `${Math.round((row.booked / row.leads) * 100)}%` : '—'}
                   </td>
-                  <td className="px-5 py-4 text-right font-semibold text-gray-800">
+                  <td className="px-5 py-4 tabular text-right font-semibold" style={{ color: 'var(--text-heading)' }}>
                     ₱{row.revenue.toLocaleString()}
                   </td>
                 </tr>
               ))}
               {organicLeads > 0 && (
-                <tr className="bg-gray-50">
-                  <td className="px-5 py-4 text-gray-400 italic">Organic / No ref tag</td>
-                  <td className="px-5 py-4 text-right text-gray-400">{organicLeads}</td>
-                  <td className="px-5 py-4 text-right text-gray-400">—</td>
-                  <td className="px-5 py-4 text-right text-gray-400">—</td>
-                  <td className="px-5 py-4 text-right text-gray-400">—</td>
+                <tr style={{ borderTop: '1px solid var(--border-secondary)', background: 'var(--subtle-bg)' }}>
+                  <td className="px-5 py-4 italic" style={{ color: 'var(--text-faint)' }}>Organic / No ref tag</td>
+                  <td className="px-5 py-4 tabular text-right" style={{ color: 'var(--text-faint)' }}>{organicLeads}</td>
+                  <td className="px-5 py-4 text-right" style={{ color: 'var(--text-faint)' }}>—</td>
+                  <td className="px-5 py-4 text-right" style={{ color: 'var(--text-faint)' }}>—</td>
+                  <td className="px-5 py-4 text-right" style={{ color: 'var(--text-faint)' }}>—</td>
                 </tr>
               )}
             </tbody>
@@ -154,13 +154,13 @@ export default function AdsPage() {
         </div>
       )}
 
-      <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-700">
+      <div className="mt-6 rounded-xl p-4 text-sm" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--accent-subtle2)', color: 'var(--accent-text)' }}>
         <p className="font-semibold mb-1">💡 How to tag your ads</p>
-        <p>When boosting a post or running an ad, set the destination URL to:</p>
-        <code className="block mt-2 bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs font-mono">
+        <p style={{ color: 'var(--text-secondary)' }}>When boosting a post or running an ad, set the destination URL to:</p>
+        <code className="block mt-2 rounded-lg px-3 py-2 text-xs font-mono" style={{ background: 'var(--card)', border: '1px solid var(--card-border)', color: 'var(--accent-text)' }}>
           m.me/craftifylePH?ref=name_of_your_ad
         </code>
-        <p className="text-xs text-indigo-500 mt-2">
+        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
           Every client who clicks that link and messages you will be tagged with that ad source automatically.
         </p>
       </div>
@@ -169,16 +169,17 @@ export default function AdsPage() {
 }
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color: string }) {
-  const colors: Record<string, string> = {
-    indigo: 'bg-indigo-50 text-indigo-700',
-    green: 'bg-green-50 text-green-700',
-    purple: 'bg-purple-50 text-purple-700',
-    amber: 'bg-amber-50 text-amber-700',
+  const vars: Record<string, { bg: string; text: string }> = {
+    indigo: { bg: 'var(--accent-subtle)', text: 'var(--accent-text)' },
+    green:  { bg: 'var(--success-muted)', text: 'var(--success)' },
+    purple: { bg: 'var(--accent-subtle)', text: 'var(--accent-text)' },
+    amber:  { bg: 'var(--warning-muted)', text: 'var(--warning)' },
   }
+  const v = vars[color] ?? vars.indigo
   return (
-    <div className={`rounded-xl p-4 ${colors[color]}`}>
-      <p className="text-xs font-medium opacity-70 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+    <div className="rounded-xl p-4" style={{ background: v.bg, border: '1px solid var(--card-border)' }}>
+      <p className="section-label">{label}</p>
+      <p className="text-2xl font-bold mt-1 tabular" style={{ color: v.text }}>{value}</p>
     </div>
   )
 }
