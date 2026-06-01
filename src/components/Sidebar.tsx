@@ -199,8 +199,8 @@ export default function Sidebar() {
 
       {/* Mobile bottom nav */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+        className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
+        style={{ background: 'rgba(15,15,23,0.85)', borderColor: 'var(--sidebar-border)' }}
       >
         {nav.slice(0, 2).map(({ href, short, icon }) => {
           const active = isActive(href)

@@ -228,10 +228,14 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
             {/* Accordion header */}
             <button
               onClick={() => setOpen(isOpen ? null : month.yearMonth)}
-              className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center justify-between px-4 py-4 text-left transition-colors"
+              style={{ background: 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className={`text-xs text-gray-400 transition-transform inline-block shrink-0 ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+                <span className={`text-xs transition-transform inline-block shrink-0 ${isOpen ? 'rotate-90' : ''}`}
+                style={{ color: 'var(--text-faint)' }}>▶</span>
                 <span className="font-semibold text-gray-800 shrink-0">{fmtMonthLabel(month.yearMonth)} {year}</span>
                 <span className="text-xs text-gray-400 hidden sm:inline">
                   {month.bookings.filter((b) => b.status !== 'cancelled').length} event
@@ -251,21 +255,21 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                 {/* Desktop table */}
                 <table className="hidden md:table w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-                      <th className="px-5 py-3">Event</th>
-                      <th className="px-5 py-3">Date</th>
-                      <th className="px-5 py-3">Package</th>
-                      <th className="px-5 py-3">Deposit</th>
-                      <th className="px-5 py-3">Balance</th>
-                      <th className="px-5 py-3">Craftifyle</th>
-                      <th className="px-5 py-3">Status</th>
+                    <tr>
+                      <th>Event</th>
+                      <th>Date</th>
+                      <th>Package</th>
+                      <th>Deposit</th>
+                      <th>Balance</th>
+                      <th>Craftifyle</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {month.bookings.map((b) => (
                       <tr
                         key={b.id}
-                        className={`hover:bg-gray-50 transition-colors ${b.status === 'cancelled' ? 'opacity-40' : ''}`}
+                        className={b.status === 'cancelled' ? 'opacity-40' : ''}
                       >
                         <td className="px-5 py-3">
                           <Link href={`/bookings/${b.id}`} className="font-medium text-gray-900 hover:text-indigo-600">
@@ -358,13 +362,11 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
 }
 
 function PayCell({ amount, paid }: { amount: number; paid: boolean }) {
-  if (amount <= 0) return <span className="text-gray-300 text-xs">—</span>
+  if (amount <= 0) return <span className="text-xs" style={{ color: 'var(--text-faint)' }}>—</span>
   return (
     <div>
-      <p className="text-gray-800">{peso(amount)}</p>
-      <p className={`text-xs ${paid ? 'text-green-600' : 'text-orange-500'}`}>
-        {paid ? '✓ Paid' : 'Pending'}
-      </p>
+      <p className="tabular" style={{ color: 'var(--text-heading)' }}>{peso(amount)}</p>
+      <p className="text-xs" style={{ color: paid ? '#34d399' : '#f59e0b' }}>{paid ? '✓ Paid' : 'Pending'}</p>
     </div>
   )
 }

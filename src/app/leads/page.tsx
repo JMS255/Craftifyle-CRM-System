@@ -140,8 +140,8 @@ export default function LeadsPage() {
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-500 text-sm mt-0.5">All inquiries in one place</p>
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Leads</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-faint)' }}>All inquiries in one place</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--card-border)' }}>
@@ -411,19 +411,19 @@ export default function LeadsPage() {
           <div className="hidden md:block card overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Event</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Budget</th>
-                  <th className="px-5 py-3">Source</th>
-                  <th className="px-5 py-3">Added</th>
-                  <th className="px-5 py-3">Status</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Budget</th>
+                  <th>Source</th>
+                  <th>Added</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={lead.id}>
                     <td className="px-5 py-3">
                       <Link href={`/leads/${lead.id}`} className="font-medium text-gray-900 hover:text-indigo-600">
                         {lead.name}
@@ -453,7 +453,7 @@ export default function LeadsPage() {
                 ))}
               </tbody>
             </table>
-            <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+            <div className="px-5 py-3 border-t text-xs" style={{ borderColor: 'var(--border-secondary)', color: 'var(--text-faint)' }}>
               {filtered.length} lead{filtered.length !== 1 ? 's' : ''} shown
             </div>
           </div>
