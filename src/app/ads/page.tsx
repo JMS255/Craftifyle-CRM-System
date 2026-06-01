@@ -77,7 +77,7 @@ export default function AdsPage() {
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0)
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl">
+    <div className="p-4 md:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Ad Performance</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>

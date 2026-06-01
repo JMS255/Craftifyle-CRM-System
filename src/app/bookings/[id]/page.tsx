@@ -84,7 +84,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }
 
   if (loading) return (
-    <div className="p-4 md:p-8 max-w-3xl space-y-4">
+    <div className="p-4 md:p-8 max-w-3xl md:max-w-none space-y-4">
       <div className="skeleton h-8 w-52" />
       <div className="skeleton h-32 w-full rounded-2xl" />
       <div className="card p-6 space-y-3"><div className="skeleton h-5 w-64" /><div className="skeleton h-4 w-40" /><div className="skeleton h-4 w-56" /></div>
@@ -100,7 +100,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const ss = STATUS_STYLE[booking.status]
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl md:max-w-none">
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">

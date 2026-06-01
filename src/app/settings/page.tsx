@@ -119,7 +119,7 @@ export default function SettingsPage() {
   }
 
   if (loading) return (
-    <div className="p-4 md:p-8 max-w-3xl space-y-4">
+    <div className="p-4 md:p-8 max-w-3xl md:max-w-none space-y-4">
       <div className="skeleton h-8 w-40" />
       <div className="card p-6 space-y-3">
         {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 w-full" />)}
@@ -128,7 +128,7 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl md:max-w-none">
       <div className="mb-8">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Packages & Pricing</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>

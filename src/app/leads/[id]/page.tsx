@@ -133,7 +133,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   if (loading) return (
-    <div className="p-4 md:p-8 max-w-5xl space-y-4">
+    <div className="p-4 md:p-8 space-y-4">
       <div className="skeleton h-8 w-52" />
       <div className="skeleton h-14 w-full rounded-2xl" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -154,7 +154,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const canConvert = !['booked', 'completed', 'lost'].includes(lead.status)
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl">
+    <div className="p-4 md:p-8">
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">

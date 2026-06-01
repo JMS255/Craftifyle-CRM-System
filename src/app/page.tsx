@@ -134,7 +134,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-8 space-y-5 max-w-5xl">
+      <div className="p-4 md:p-8 space-y-5">
         <div className="skeleton h-10 w-56 mb-2" />
         <div className="skeleton h-28 rounded-2xl" />
         <div className="skeleton h-32 rounded-2xl" />
