@@ -6,13 +6,27 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from './ThemeProvider'
 
+function Icon({ d, size = 18 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  )
+}
+function HomeIcon()     { return <Icon d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z M9 21V12h6v9" /> }
+function LeadsIcon()    { return <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75" /> }
+function BookingsIcon() { return <Icon d="M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z M9 14l2 2 4-4" /> }
+function AdsIcon()      { return <Icon d="M18 20V10 M12 20V4 M6 20v-6" /> }
+function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
+function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
+
 const nav = [
-  { href: '/', label: 'Dashboard', short: 'Home', icon: '🏠' },
-  { href: '/leads', label: 'Leads', short: 'Leads', icon: '📋' },
-  { href: '/bookings', label: 'Bookings', short: 'Bookings', icon: '📅' },
-  { href: '/ads', label: 'Ad Performance', short: 'Ads', icon: '📊' },
-  { href: '/personal', label: 'Finances', short: 'Money', icon: '💰' },
-  { href: '/settings', label: 'Packages', short: 'Packages', icon: '⚙️' },
+  { href: '/',         label: 'Dashboard',     short: 'Home',     icon: <HomeIcon /> },
+  { href: '/leads',    label: 'Leads',          short: 'Leads',    icon: <LeadsIcon /> },
+  { href: '/bookings', label: 'Bookings',       short: 'Bookings', icon: <BookingsIcon /> },
+  { href: '/ads',      label: 'Ad Performance', short: 'Ads',      icon: <AdsIcon /> },
+  { href: '/personal', label: 'Finances',       short: 'Money',    icon: <FinanceIcon /> },
+  { href: '/settings', label: 'Packages',       short: 'Packages', icon: <PackagesIcon /> },
 ]
 
 interface Profile {
@@ -90,9 +104,7 @@ export default function Sidebar() {
           {nav.map(({ href, label, icon }) => {
             const active = isActive(href)
             return (
-              <Link
-                key={href}
-                href={href}
+              <Link key={href} href={href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
                 style={{
                   background: active ? 'var(--accent-subtle)' : 'transparent',
@@ -100,9 +112,8 @@ export default function Sidebar() {
                   fontWeight: active ? 500 : 400,
                   borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
                   marginLeft: '-1px',
-                }}
-              >
-                <span className="text-base leading-none w-5 text-center">{icon}</span>
+                }}>
+                <span className="w-5 flex items-center justify-center shrink-0">{icon}</span>
                 {label}
               </Link>
             )
@@ -208,9 +219,9 @@ export default function Sidebar() {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
-              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
+              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
               style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
-              <span className="text-xl leading-none">{icon}</span>
+              {icon}
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
           )
@@ -229,9 +240,9 @@ export default function Sidebar() {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
-              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
+              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
               style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
-              <span className="text-xl leading-none">{icon}</span>
+              {icon}
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
           )
@@ -239,9 +250,11 @@ export default function Sidebar() {
 
         {/* Profile */}
         <Link href="/profile"
-          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors"
+          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
           style={{ color: pathname === '/profile' ? 'var(--accent-text)' : 'var(--text-faint)' }}>
-          <span className="text-xl leading-none">👤</span>
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z" />
+          </svg>
           <span className="text-[10px] font-medium leading-tight">Profile</span>
         </Link>
       </nav>

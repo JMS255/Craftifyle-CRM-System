@@ -84,10 +84,10 @@ export default function NewLeadPage() {
   return (
     <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6">
-        <Link href="/leads" className="text-sm text-indigo-600 hover:underline">
+        <Link href="/leads" className="text-sm" style={{ color: 'var(--accent-text)' }}>
           ← Back to Leads
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900 mt-3">New Lead</h1>
+        <h1 className="text-2xl font-bold mt-3" style={{ color: 'var(--text-heading)' }}>New Lead</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-4" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
@@ -150,12 +150,12 @@ export default function NewLeadPage() {
           {showMore ? 'Show less' : '+ Add more details (email, venue, package, notes)'}
         </button>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
 
         <div className="flex gap-3 pt-1">
           <button type="submit" disabled={saving}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            style={{ background: 'var(--accent)' }}>
             {saving ? 'Saving…' : 'Save Lead →'}
           </button>
           <Link href="/leads" className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"

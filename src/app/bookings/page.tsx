@@ -113,23 +113,19 @@ export default function BookingsPage() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-5">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Bookings</h1>
-        <p className="text-gray-500 text-sm mt-0.5">All confirmed events</p>
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Bookings</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>All confirmed events</p>
       </div>
 
       {/* Year selector */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-sm text-gray-500 font-medium mr-1">Year:</span>
+        <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-muted)' }}>Year:</span>
         {years.map((y) => (
-          <button
-            key={y}
-            onClick={() => setSelectedYear(y)}
-            className={`text-sm px-4 py-1.5 rounded-full border font-semibold transition-colors ${
-              selectedYear === y
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'border-gray-200 text-gray-500 hover:border-indigo-400 hover:text-indigo-600'
-            }`}
-          >
+          <button key={y} onClick={() => setSelectedYear(y)}
+            className="text-xs px-3 py-1.5 rounded-full font-semibold"
+            style={selectedYear === y
+              ? { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' }
+              : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}>
             {y}
           </button>
         ))}
@@ -165,17 +161,13 @@ export default function BookingsPage() {
       </div>
 
       {/* Status filter */}
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="flex gap-1.5 mb-5 flex-wrap">
         {(['all', ...STATUSES] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`text-sm px-4 py-1.5 rounded-full border font-medium transition-colors capitalize ${
-              statusFilter === s
-                ? 'bg-slate-700 text-white border-slate-700'
-                : 'border-gray-200 text-gray-500 hover:border-gray-400'
-            }`}
-          >
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className="text-xs px-3 py-1.5 rounded-full font-medium capitalize"
+            style={statusFilter === s
+              ? { background: 'var(--card-elevated)', color: 'var(--text-heading)', border: '1px solid var(--card-border-active)' }
+              : { background: 'transparent', color: 'var(--text-faint)', border: '1px solid var(--card-border)' }}>
             {s}
           </button>
         ))}
@@ -209,8 +201,8 @@ export default function BookingsPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Convert a lead to a booking: ', mode: 'crm' } }))}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+              className="px-5 py-2.5 rounded-[10px] text-sm font-semibold text-white"
+              style={{ background: 'var(--accent)' }}
             >
               ⚡ Ask Crafty to convert a lead
             </button>
@@ -252,17 +244,17 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
               <div className="flex items-center gap-3 min-w-0">
                 <span className={`text-xs transition-transform inline-block shrink-0 ${isOpen ? 'rotate-90' : ''}`}
                 style={{ color: 'var(--text-faint)' }}>▶</span>
-                <span className="font-semibold text-gray-800 shrink-0">{fmtMonthLabel(month.yearMonth)} {year}</span>
-                <span className="text-xs text-gray-400 hidden sm:inline">
+                <span className="font-semibold shrink-0" style={{ color: 'var(--text-heading)' }}>{fmtMonthLabel(month.yearMonth)} {year}</span>
+                <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-faint)' }}>
                   {month.bookings.filter((b) => b.status !== 'cancelled').length} event
                   {month.bookings.filter((b) => b.status !== 'cancelled').length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-sm shrink-0">
-                <span className="text-blue-600 font-medium text-xs hidden sm:inline">
-                  {peso(month.craftifyleIncome)} <span className="text-blue-400 font-normal">Craftifyle</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs font-medium hidden sm:inline" style={{ color: 'var(--accent-text)' }}>
+                  {peso(month.craftifyleIncome)} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>income</span>
                 </span>
-                <span className="text-indigo-700 font-bold text-sm">{peso(month.totalRevenue)}</span>
+                <span className="text-sm font-bold tabular" style={{ color: 'var(--text-heading)' }}>{peso(month.totalRevenue)}</span>
               </div>
             </button>
 
@@ -288,7 +280,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                         className={b.status === 'cancelled' ? 'opacity-40' : ''}
                       >
                         <td className="px-5 py-3">
-                          <Link href={`/bookings/${b.id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                          <Link href={`/bookings/${b.id}`} className="font-medium hover:underline" style={{ color: 'var(--text-heading)' }}>
                             {b.event_name}
                           </Link>
                           {b.venue && <p className="text-xs text-gray-400">{b.venue}</p>}
@@ -303,8 +295,8 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                         </td>
                         <td className="px-5 py-3"><PayCell amount={b.deposit_amount} paid={b.deposit_paid} /></td>
                         <td className="px-5 py-3"><PayCell amount={b.balance_amount} paid={b.balance_paid} /></td>
-                        <td className="px-5 py-3 text-blue-700 font-medium">
-                          {b.craftifyle_income ? peso(b.craftifyle_income) : <span className="text-gray-300">—</span>}
+                        <td className="px-5 py-3 font-medium tabular" style={{ color: 'var(--accent-text)' }}>
+                          {b.craftifyle_income ? peso(b.craftifyle_income) : <span style={{ color: 'var(--text-faint)' }}>—</span>}
                         </td>
                         <td className="px-5 py-3">
                           <StatusBadge status={b.status} />
@@ -331,21 +323,21 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                             <span className="text-xs text-gray-500">{b.package_name}</span>
                           )}
                           {b.craftifyle_income ? (
-                            <span className="text-xs text-blue-600 font-medium">{peso(b.craftifyle_income)} Craftifyle</span>
+                            <span className="text-xs font-medium" style={{ color: 'var(--accent-text)' }}>{peso(b.craftifyle_income)} income</span>
                           ) : null}
                         </div>
                         <div className="flex items-center gap-2 mt-1 text-xs">
-                          <span className={b.deposit_paid ? 'text-green-600' : 'text-orange-500'}>
+                          <span style={{ color: b.deposit_paid ? 'var(--success)' : 'var(--warning)' }}>
                             Deposit {b.deposit_paid ? '✓' : '⋯'}
                           </span>
-                          <span className={b.balance_paid ? 'text-green-600' : 'text-orange-500'}>
+                          <span style={{ color: b.balance_paid ? 'var(--success)' : 'var(--warning)' }}>
                             Balance {b.balance_paid ? '✓' : '⋯'}
                           </span>
                         </div>
                       </div>
                       <div className="shrink-0 text-right ml-3">
                         {b.package_price != null && (
-                          <p className="text-sm font-bold text-indigo-700">{peso(b.package_price)}</p>
+                          <p className="text-sm font-bold tabular" style={{ color: 'var(--text-heading)' }}>{peso(b.package_price)}</p>
                         )}
                         <StatusBadge status={b.status} />
                         <div className="mt-1"><PaymentBadge booking={b} /></div>
