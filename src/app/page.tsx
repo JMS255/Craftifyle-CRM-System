@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { createClient } from '@/lib/supabase'
 import type { Lead, Booking } from '@/types'
 
@@ -206,6 +207,40 @@ export default function Dashboard() {
               {peso(revenue.pipeline)}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>balance due</p>
+          </div>
+        </div>
+      )}
+
+      {/* Trends charts */}
+      {yearLeads.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-faint)' }}>
+            {selectedYear} Trends
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Bar chart — booked per month */}
+            <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+              <p className="text-xs font-semibold mb-4" style={{ color: 'var(--text-muted)' }}>Bookings per Month</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={buildMonthStats(leads, selectedYear).reverse()} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickLine={false} axisLine={false}
+                    tickFormatter={v => v.slice(0, 3)} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--text-heading)', fontWeight: 600 }}
+                    itemStyle={{ color: '#10b981' }}
+                    formatter={(v) => [v, 'Booked']}
+                  />
+                  <Bar dataKey="booked" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Donut — lead source */}
+            <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+              <p className="text-xs font-semibold mb-4" style={{ color: 'var(--text-muted)' }}>Lead Sources</p>
+              <SourceDonut leads={yearLeads} />
+            </div>
           </div>
         </div>
       )}
@@ -426,5 +461,33 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-xs font-bold ml-auto" style={{ color: 'var(--text-heading)' }}>{value}</span>
     </div>
+  )
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  facebook: '#6366f1', instagram: '#ec4899', referral: '#10b981',
+  website: '#f59e0b', tiktok: '#06b6d4', 'walk-in': '#8b5cf6', other: '#6b7280',
+}
+
+function SourceDonut({ leads }: { leads: Lead[] }) {
+  const counts: Record<string, number> = {}
+  for (const l of leads) counts[l.source] = (counts[l.source] ?? 0) + 1
+  const data = Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  if (!data.length) return <p className="text-xs text-center py-12" style={{ color: 'var(--text-faint)' }}>No data yet</p>
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <PieChart>
+        <Pie data={data} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] ?? '#6b7280'} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
+          itemStyle={{ color: 'var(--text-heading)' }}
+          formatter={(v, name) => [v, name]}
+        />
+      </PieChart>
+    </ResponsiveContainer>
   )
 }

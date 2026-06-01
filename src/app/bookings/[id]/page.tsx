@@ -21,6 +21,15 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  function copyConfirmLink() {
+    const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    const url = `${window.location.origin}/confirm/${token}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const [craftifyleIncome, setCraftifyleIncome] = useState('')
   const [savingIncome, setSavingIncome] = useState(false)
@@ -144,6 +153,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               className="text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium"
             >
               {syncingCal ? 'Syncing…' : booking?.gcal_event_id ? '📅 Update Calendar' : '📅 Add to Calendar'}
+            </button>
+            <button
+              onClick={copyConfirmLink}
+              className="text-sm px-3 py-1.5 rounded-lg font-medium transition-colors"
+              style={{ background: copied ? 'rgba(16,185,129,0.15)' : 'var(--subtle-bg)', color: copied ? '#34d399' : 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+            >
+              {copied ? '✓ Copied!' : '🔗 Share Link'}
             </button>
             <Link
               href={`/bookings/${id}/invoice`}

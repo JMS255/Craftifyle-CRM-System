@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase'
 
+async function sendSms(phone: string, text: string) {
+  const apiKey = process.env.SEMAPHORE_API_KEY
+  if (!apiKey) return
+  // Normalize PH number: strip spaces/dashes, ensure starts with 09 or +63
+  const normalized = phone.replace(/[\s\-()]/g, '')
+  const number = normalized.startsWith('0') ? '63' + normalized.slice(1) : normalized.replace(/^\+/, '')
+  await fetch('https://api.semaphore.co/api/v4/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apikey: apiKey, number, message: text, sendername: 'Craftifyle' }),
+  })
+}
+
 async function sendMessage(recipientId: string, text: string) {
   const pageToken = process.env.MESSENGER_PAGE_ACCESS_TOKEN
   if (!pageToken) return
@@ -49,10 +62,8 @@ export async function GET(req: NextRequest) {
 
   const { data: leads } = await db
     .from('leads')
-    .select('id, name, event_date, messenger_sender_id, last_followup_sent, created_at')
+    .select('id, name, phone, event_date, messenger_sender_id, last_followup_sent, created_at')
     .in('status', ['contacted', 'quoted', 'negotiating'])
-    .eq('crafty_active', true)
-    .not('messenger_sender_id', 'is', null)
     .or(`last_followup_sent.is.null,last_followup_sent.lt.${oneDayAgo}`)
 
   let sent = 0
@@ -61,20 +72,36 @@ export async function GET(req: NextRequest) {
     const createdAt = new Date(lead.created_at)
     const daysQuiet = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Stop following up after 10 days
     if (daysQuiet > 10) continue
 
     const message = getFollowUpMessage(lead.name, daysQuiet, lead.event_date)
+    let didSend = false
 
-    try {
-      await sendMessage(lead.messenger_sender_id, message)
-      await db
-        .from('leads')
-        .update({ last_followup_sent: now.toISOString() })
-        .eq('id', lead.id)
+    // Messenger follow-up (existing — only if Crafty active + has Messenger)
+    if (lead.messenger_sender_id) {
+      try {
+        await sendMessage(lead.messenger_sender_id, message)
+        didSend = true
+      } catch (e) {
+        console.error(`Messenger follow-up failed for lead ${lead.id}:`, e)
+      }
+    }
+
+    // SMS follow-up — for leads with a phone number and no Messenger (or as backup)
+    if (!didSend && lead.phone) {
+      const firstName = lead.name.split(' ')[0]
+      const smsText = `Hi ${firstName}! Baka nalimutan lang. Available pa kami para sa iyong event. Interested ka pa po ba? — Craftifyle 📸`
+      try {
+        await sendSms(lead.phone, smsText)
+        didSend = true
+      } catch (e) {
+        console.error(`SMS follow-up failed for lead ${lead.id}:`, e)
+      }
+    }
+
+    if (didSend) {
+      await db.from('leads').update({ last_followup_sent: now.toISOString() }).eq('id', lead.id)
       sent++
-    } catch (e) {
-      console.error(`Follow-up failed for lead ${lead.id}:`, e)
     }
   }
 

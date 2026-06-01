@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { createClient } from '@/lib/supabase'
 import type { Lead, LeadStatus } from '@/types'
 
@@ -37,6 +38,12 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<LeadStatus | 'all'>('all')
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
+  const [view, setView] = useState<'list' | 'kanban'>('list')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('leads-view') as 'list' | 'kanban'
+    if (saved) setView(saved)
+  }, [])
 
   useEffect(() => {
     const db = createClient()
@@ -48,6 +55,32 @@ export default function LeadsPage() {
         setLoading(false)
       })
   }, [])
+
+  function toggleView(v: 'list' | 'kanban') {
+    setView(v)
+    localStorage.setItem('leads-view', v)
+  }
+
+  async function onDragEnd(result: DropResult) {
+    if (!result.destination) return
+    const newStatus = result.destination.droppableId as LeadStatus
+    if (newStatus === result.source.droppableId) return
+    const leadId = result.draggableId
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l))
+    const db = createClient()
+    await db.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId)
+  }
+
+  const KANBAN_COLS: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
+  const kanbanBase = leads.filter(l => {
+    const matchYear = l.created_at.startsWith(selectedYear)
+    const matchSearch = !search || l.name.toLowerCase().includes(search.toLowerCase()) || (l.phone ?? '').includes(search)
+    return matchYear && matchSearch
+  })
+  const kanbanGroups = KANBAN_COLS.reduce((acc, s) => {
+    acc[s] = kanbanBase.filter(l => l.status === s)
+    return acc
+  }, {} as Record<LeadStatus, Lead[]>)
 
   const now = Date.now()
   const coldLeads = leads.filter((l) => {
@@ -87,12 +120,21 @@ export default function LeadsPage() {
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-gray-500 text-sm mt-0.5">All inquiries in one place</p>
         </div>
-        <Link
-          href="/leads/new"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-        >
-          + New Lead
-        </Link>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--card-border)' }}>
+            <button onClick={() => toggleView('list')} className="text-xs px-3 py-1.5 font-medium transition-colors"
+              style={{ background: view === 'list' ? '#6366f1' : 'var(--subtle-bg)', color: view === 'list' ? '#fff' : 'var(--text-muted)' }}>
+              ☰ List
+            </button>
+            <button onClick={() => toggleView('kanban')} className="text-xs px-3 py-1.5 font-medium transition-colors"
+              style={{ background: view === 'kanban' ? '#6366f1' : 'var(--subtle-bg)', color: view === 'kanban' ? '#fff' : 'var(--text-muted)' }}>
+              ⬜ Board
+            </button>
+          </div>
+          <Link href="/leads/new" className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+            + New Lead
+          </Link>
+        </div>
       </div>
 
       {/* Cold Lead Alert */}
@@ -150,8 +192,8 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      {/* Status filter pills */}
-      {!loading && (
+      {/* Status filter pills — list mode only */}
+      {!loading && view === 'list' && (
         <div className="flex gap-2 mb-4 flex-wrap">
           {STATUSES.map((s) => (
             <button
@@ -188,10 +230,80 @@ export default function LeadsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          style={{ background: 'var(--card)', borderColor: 'var(--card-border)', color: 'var(--text-heading)' }}
         />
       </div>
 
-      {loading ? (
+      {/* Kanban Board */}
+      {!loading && view === 'kanban' && (
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex gap-3 overflow-x-auto pb-6 -mx-1 px-1">
+            {KANBAN_COLS.map(col => {
+              const colColors: Record<LeadStatus, { bg: string; text: string; dot: string }> = {
+                new:         { bg: 'rgba(59,130,246,0.12)',  text: '#60a5fa', dot: '#3b82f6' },
+                contacted:   { bg: 'rgba(234,179,8,0.12)',   text: '#facc15', dot: '#eab308' },
+                quoted:      { bg: 'rgba(249,115,22,0.12)',  text: '#fb923c', dot: '#f97316' },
+                negotiating: { bg: 'rgba(139,92,246,0.12)',  text: '#a78bfa', dot: '#8b5cf6' },
+                booked:      { bg: 'rgba(16,185,129,0.12)',  text: '#34d399', dot: '#10b981' },
+                lost:        { bg: 'rgba(239,68,68,0.12)',   text: '#f87171', dot: '#ef4444' },
+                completed:   { bg: 'rgba(107,114,128,0.12)', text: '#9ca3af', dot: '#6b7280' },
+              }
+              const c = colColors[col]
+              return (
+                <div key={col} className="flex-shrink-0 w-56">
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider capitalize" style={{ color: c.text }}>{col}</span>
+                    <span className="text-xs ml-auto font-medium" style={{ color: 'var(--text-faint)' }}>{kanbanGroups[col].length}</span>
+                  </div>
+                  <Droppable droppableId={col}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="min-h-32 rounded-xl p-2 space-y-2 transition-colors"
+                        style={{ background: snapshot.isDraggingOver ? c.bg : 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}
+                      >
+                        {kanbanGroups[col].map((lead, i) => (
+                          <Draggable key={lead.id} draggableId={lead.id} index={i}>
+                            {(prov, snap) => (
+                              <div
+                                ref={prov.innerRef}
+                                {...prov.draggableProps}
+                                {...prov.dragHandleProps}
+                                className="rounded-lg p-3 text-xs cursor-grab active:cursor-grabbing"
+                                style={{
+                                  background: snap.isDragging ? 'var(--accent-subtle)' : 'var(--card)',
+                                  border: '1px solid var(--card-border)',
+                                  boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.3)' : 'none',
+                                  ...prov.draggableProps.style,
+                                }}
+                              >
+                                <Link href={`/leads/${lead.id}`} onClick={e => e.stopPropagation()}>
+                                  <p className="font-semibold mb-1 truncate hover:text-indigo-400 transition-colors" style={{ color: 'var(--text-heading)' }}>{lead.name}</p>
+                                </Link>
+                                {lead.event_type && <p className="capitalize mb-0.5" style={{ color: 'var(--text-faint)' }}>{lead.event_type.replace('_', ' ')}</p>}
+                                {lead.event_date && <p style={{ color: 'var(--text-faint)' }}>📅 {fmtShort(lead.event_date)}</p>}
+                                {lead.budget && <p style={{ color: 'var(--text-faint)' }}>₱{lead.budget.toLocaleString()}</p>}
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        {kanbanGroups[col].length === 0 && (
+                          <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>empty</p>
+                        )}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              )
+            })}
+          </div>
+        </DragDropContext>
+      )}
+
+      {!loading && view === 'kanban' ? null : loading ? (
         <p className="text-gray-400 text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
