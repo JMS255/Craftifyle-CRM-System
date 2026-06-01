@@ -15,4 +15,4 @@ CREATE TABLE IF NOT EXISTS packages (
 
 CREATE INDEX IF NOT EXISTS idx_packages_user ON packages(user_id);
 ALTER TABLE packages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "users_manage_own_packages" ON packages FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "users_manage_own_packages" ON packages FOR ALL USING (auth.uid() = user_id);
