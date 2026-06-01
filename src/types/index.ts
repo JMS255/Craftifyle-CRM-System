@@ -96,6 +96,17 @@ export interface PersonalIncome {
   created_at: string
 }
 
+export interface Package {
+  id: string
+  name: string
+  price: number
+  description: string | null
+  is_addon: boolean
+  is_active: boolean
+  sort_order: number
+  created_at: string
+}
+
 export interface Activity {
   id: string
   lead_id: string

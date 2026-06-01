@@ -3,9 +3,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-function getSystemPrompt() {
+interface PackageRow { name: string; price: number; description: string | null; is_addon: boolean }
+
+function getSystemPrompt(packages: PackageRow[]) {
   const now = new Date()
   const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  const bases = packages.filter(p => !p.is_addon)
+  const addons = packages.filter(p => p.is_addon)
+
+  const packagesSection = bases.length > 0
+    ? `CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:\n${bases.map(p =>
+        `- "${p.name}" → ₱${p.price.toLocaleString()}${p.description ? ` (${p.description})` : ''}`
+      ).join('\n')}`
+    : `CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:
+- "Photobooth Only" → ₱3,500 (3 hrs, unlimited shots, custom backdrop)
+- "Photography Only" → ₱4,500 (3 hrs, 300+ edited photos)
+- "Photobooth + Photography" → ₱6,500 (3 hrs, both services) [most popular]
+- "Premium Bundle" → ₱8,000 (4 hrs, photography + videography, 400+ photos, pre-event shoot)`
+
+  const addonsSection = addons.length > 0
+    ? `ADD-ONS (append to package name with " + "):\n${addons.map(p =>
+        `- "${p.name}" → ${p.price === 0 ? 'FREE' : `+₱${p.price.toLocaleString()}`}`
+      ).join('\n')}`
+    : `ADD-ONS (append to package name with " + "):
+- "Extended coverage (+1 hr)" → +₱800
+- "Magnet prints (150 pcs)" → +₱1,500
+- "Custom template design" → FREE
+- "30-sec highlight video" → FREE`
+
   return `You are Crafty — an AI assistant embedded inside Craftifyle CRM. You help James manage his photobooth and event photography business by reading and writing data directly to the CRM.
 
 TODAY'S DATE: ${dateStr}. Always use this when calculating event timelines, interpreting relative dates ("next Saturday", "this June"), or describing how far away an event is.
@@ -28,17 +54,9 @@ IMPORTANT RULES:
 - When you complete a DB action, start your reply with "Done —" so James knows it worked.
 - If given a raw client inquiry or DM (e.g. prefixed with "Parse this:" or "New inquiry:"), extract name, event_type, event_date, venue, guest_count, package interest, and call create_lead immediately. Use source=facebook if it looks like a Messenger DM. Don't ask for confirmation unless the name is completely missing.
 
-CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:
-- "Photobooth Only" → ₱3,500 (3 hrs, unlimited shots, custom backdrop)
-- "Photography Only" → ₱4,500 (3 hrs, 300+ edited photos)
-- "Photobooth + Photography" → ₱6,500 (3 hrs, both services) [most popular]
-- "Premium Bundle" → ₱8,000 (4 hrs, photography + videography, 400+ photos, pre-event shoot)
+${packagesSection}
 
-ADD-ONS (append to package name with " + "):
-- "Extended coverage (+1 hr)" → +₱800
-- "Magnet prints (150 pcs)" → +₱1,500
-- "Custom template design" → FREE
-- "30-sec highlight video" → FREE
+${addonsSection}
 
 When a client mentions a package by partial name (e.g. "photobooth lang", "bundle", "premium"), match to the closest package above and use that exact price.`
 }
@@ -467,8 +485,17 @@ export async function POST(req: NextRequest) {
   const db = createAdminClient()
   const groq = new Groq({ apiKey })
 
+  // Fetch user's custom packages — fall back to hardcoded defaults if none exist
+  const { data: pkgData } = await db
+    .from('packages')
+    .select('name, price, description, is_addon')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('sort_order')
+  const packages: PackageRow[] = pkgData ?? []
+
   const chatMessages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: 'system', content: getSystemPrompt() },
+    { role: 'system', content: getSystemPrompt(packages) },
     ...messages,
   ]
 

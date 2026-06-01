@@ -12,6 +12,7 @@ const nav = [
   { href: '/bookings', label: 'Bookings', short: 'Events', icon: '◈' },
   { href: '/ads', label: 'Ad Performance', short: 'Ads', icon: '◉' },
   { href: '/personal', label: 'Finances', short: 'Money', icon: '◇' },
+  { href: '/settings', label: 'Packages', short: 'Packages', icon: '⚙' },
 ]
 
 interface Profile {
