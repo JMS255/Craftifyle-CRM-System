@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import PackagePicker from '@/components/PackagePicker'
 import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = [
@@ -387,9 +388,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                 />
               </div>
               <BookField label="Event Time" value={bookForm.event_time} onChange={(v) => setBookForm((p) => ({ ...p, event_time: v }))} type="time" />
-              <BookField label="Package Name" value={bookForm.package_name} onChange={(v) => setBookForm((p) => ({ ...p, package_name: v }))} placeholder="Premium 3 Hours" />
-              <BookField label="Package Price (₱)" value={bookForm.package_price} onChange={(v) => setBookForm((p) => ({ ...p, package_price: v }))} type="number" placeholder="15000" />
-              <BookField label="Deposit (₱)" value={bookForm.deposit_amount} onChange={(v) => setBookForm((p) => ({ ...p, deposit_amount: v }))} type="number" placeholder="5000" />
+              <PackagePicker
+                value={{ packageName: bookForm.package_name, packagePrice: bookForm.package_price ? parseFloat(bookForm.package_price) : 0 }}
+                onChange={({ packageName, packagePrice }) => setBookForm(p => ({ ...p, package_name: packageName, package_price: String(packagePrice) }))}
+                onDepositSuggest={(deposit) => setBookForm(p => ({ ...p, deposit_amount: String(deposit) }))}
+              />
+              <BookField label="Deposit (₱)" value={bookForm.deposit_amount} onChange={(v) => setBookForm((p) => ({ ...p, deposit_amount: v }))} type="number" placeholder="1000" />
             </div>
             <button
               type="submit"
