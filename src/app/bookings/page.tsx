@@ -94,6 +94,11 @@ export default function BookingsPage() {
     statusFilter === 'all' ? yearBookings : yearBookings.filter((b) => b.status === statusFilter)
   const months = groupByMonth(statusFiltered)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const overdueBookings = yearBookings.filter(
+    (b) => b.status === 'upcoming' && b.event_date < today && !b.balance_paid
+  )
+
   const yearActive = yearBookings.filter((b) => b.status !== 'cancelled')
   const yearRevenue = yearActive.reduce((s, b) => s + (b.package_price ?? 0), 0)
   const yearCollected = yearActive.reduce(
@@ -129,6 +134,28 @@ export default function BookingsPage() {
           </button>
         ))}
       </div>
+
+      {/* Overdue alert */}
+      {!loading && overdueBookings.length > 0 && (
+        <div className="mb-4 rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <p className="text-sm font-semibold mb-2" style={{ color: '#f87171' }}>
+            ⚠ {overdueBookings.length} booking{overdueBookings.length !== 1 ? 's' : ''} overdue — event passed, balance unpaid
+          </p>
+          <div className="space-y-1.5">
+            {overdueBookings.map(b => (
+              <Link key={b.id} href={`/bookings/${b.id}`}
+                className="flex items-center justify-between px-3 py-2 rounded-lg"
+                style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+                <div>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>{b.event_name}</span>
+                  <span className="text-xs ml-2" style={{ color: 'var(--text-faint)' }}>{fmtShort(b.event_date)}</span>
+                </div>
+                <span className="text-sm font-bold" style={{ color: '#f87171' }}>{peso(b.balance_amount)} due →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Year summary cards — 1 col mobile, 3 col desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -243,7 +270,10 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                         <td className="px-5 py-3 text-blue-700 font-medium">
                           {b.craftifyle_income ? peso(b.craftifyle_income) : <span className="text-gray-300">—</span>}
                         </td>
-                        <td className="px-5 py-3"><StatusBadge status={b.status} /></td>
+                        <td className="px-5 py-3">
+                          <StatusBadge status={b.status} />
+                          <div className="mt-1"><PaymentBadge booking={b} /></div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -282,6 +312,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                           <p className="text-sm font-bold text-indigo-700">{peso(b.package_price)}</p>
                         )}
                         <StatusBadge status={b.status} />
+                        <div className="mt-1"><PaymentBadge booking={b} /></div>
                       </div>
                     </Link>
                   ))}
@@ -332,5 +363,23 @@ function StatusBadge({ status }: { status: BookingStatus }) {
     <span className={`text-xs px-2 py-1 rounded-full font-medium ${styles[status]}`}>
       {status}
     </span>
+  )
+}
+
+function PaymentBadge({ booking }: { booking: Booking }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const isOverdue = booking.status === 'upcoming' && booking.event_date < today && !booking.balance_paid
+
+  if (isOverdue) return (
+    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>⚠ Overdue</span>
+  )
+  if (booking.balance_paid && booking.deposit_paid) return (
+    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>✓ Fully Paid</span>
+  )
+  if (booking.deposit_paid) return (
+    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>Deposit Paid</span>
+  )
+  return (
+    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>Unpaid</span>
   )
 }

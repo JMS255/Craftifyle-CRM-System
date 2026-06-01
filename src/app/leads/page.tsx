@@ -26,6 +26,28 @@ function fmt(date: string) {
   })
 }
 
+interface NextAction { label: string; color: string; bg: string }
+
+function getNextAction(lead: Lead): NextAction | null {
+  if (['booked', 'completed', 'lost'].includes(lead.status)) return null
+  const now = Date.now()
+  const eventMs = lead.event_date ? new Date(lead.event_date).getTime() : null
+  const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
+  const daysSilent = Math.floor((now - new Date(lead.updated_at).getTime()) / 86400000)
+
+  if (daysToEvent != null && daysToEvent < 0)
+    return { label: '⚠ Event passed — close it', color: '#f87171', bg: 'rgba(239,68,68,0.12)' }
+  if (daysToEvent != null && daysToEvent <= 3)
+    return { label: `⚡ Event in ${daysToEvent}d — confirm!`, color: '#fb923c', bg: 'rgba(249,115,22,0.12)' }
+  if (daysToEvent != null && daysToEvent <= 14)
+    return { label: `📅 ${daysToEvent}d to event`, color: '#fbbf24', bg: 'rgba(234,179,8,0.12)' }
+  if (['quoted', 'negotiating'].includes(lead.status) && daysSilent >= 7)
+    return { label: '🔔 Follow up now', color: '#a78bfa', bg: 'rgba(139,92,246,0.12)' }
+  if (lead.status === 'new' && daysSilent >= 3)
+    return { label: '📞 First contact needed', color: '#818cf8', bg: 'rgba(99,102,241,0.12)' }
+  return null
+}
+
 function fmtShort(date: string) {
   return new Date(date).toLocaleDateString('en-PH', {
     month: 'short', day: 'numeric',
@@ -285,6 +307,7 @@ export default function LeadsPage() {
                                 {lead.event_type && <p className="capitalize mb-0.5" style={{ color: 'var(--text-faint)' }}>{lead.event_type.replace('_', ' ')}</p>}
                                 {lead.event_date && <p style={{ color: 'var(--text-faint)' }}>📅 {fmtShort(lead.event_date)}</p>}
                                 {lead.budget && <p style={{ color: 'var(--text-faint)' }}>₱{lead.budget.toLocaleString()}</p>}
+                                {(() => { const a = getNextAction(lead); return a ? <span className="inline-block mt-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: a.bg, color: a.color }}>{a.label}</span> : null })()}
                               </div>
                             )}
                           </Draggable>
@@ -342,6 +365,7 @@ export default function LeadsPage() {
                         {lead.name}
                       </Link>
                       {lead.phone && <p className="text-xs text-gray-400">{lead.phone}</p>}
+                      {(() => { const a = getNextAction(lead); return a ? <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: a.bg, color: a.color }}>{a.label}</span> : null })()}
                     </td>
                     <td className="px-5 py-3 text-gray-600 capitalize">
                       {lead.event_type?.replace('_', ' ') ?? '—'}
@@ -397,6 +421,7 @@ export default function LeadsPage() {
                   )}
                   <span className="ml-auto text-gray-300">{fmtShort(lead.created_at)}</span>
                 </div>
+                {(() => { const a = getNextAction(lead); return a ? <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: a.bg, color: a.color }}>{a.label}</span> : null })()}
               </Link>
             ))}
             <p className="text-xs text-gray-400 text-center pt-1">
