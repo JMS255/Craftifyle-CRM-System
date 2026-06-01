@@ -49,9 +49,14 @@ export default function PackagePicker({ value, onChange, onDepositSuggest }: Pro
     return addons.reduce((sum, name) => sum + (ADDONS.find(a => a.name === name)?.price ?? 0), 0)
   }
 
+  function fullName(baseName: string, addons: string[]) {
+    const paid = addons.filter(a => !ADDONS.find(x => x.name === a)?.free)
+    return paid.length > 0 ? `${baseName} + ${paid.join(' + ')}` : baseName
+  }
+
   function selectPackage(pkg: PackageOption) {
     const total = pkg.price + addonTotal(selectedAddons)
-    onChange({ packageName: pkg.name, packagePrice: total })
+    onChange({ packageName: fullName(pkg.name, selectedAddons), packagePrice: total })
     onDepositSuggest?.(Math.max(1000, Math.round(total * 0.15)))
   }
 
@@ -61,8 +66,9 @@ export default function PackagePicker({ value, onChange, onDepositSuggest }: Pro
       : [...selectedAddons, name]
     setSelectedAddons(next)
     if (base) {
-      const total = base.price + addonTotal(next)
-      onChange({ packageName: base.name, packagePrice: total })
+      const basePkg = PACKAGES.find(p => base.name.startsWith(p.name)) ?? base
+      const total = basePkg.price + addonTotal(next)
+      onChange({ packageName: fullName(basePkg.name, next), packagePrice: total })
       onDepositSuggest?.(Math.max(1000, Math.round(total * 0.15)))
     }
   }

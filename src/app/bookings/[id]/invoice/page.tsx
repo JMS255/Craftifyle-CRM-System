@@ -118,39 +118,64 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           </div>
 
           {/* Package / Line Items */}
-          <table className="w-full text-sm mb-8">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left text-xs text-gray-400 uppercase pb-2">Description</th>
-                <th className="text-right text-xs text-gray-400 uppercase pb-2">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="py-3">
-                  <p className="text-gray-800 font-medium">{booking.package_name ?? 'Photography/Photobooth Package'}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">3 hours of coverage · Zamboanga City</p>
-                </td>
-                <td className="py-3 text-right font-medium text-gray-800">
-                  ₱{(booking.package_price ?? 0).toLocaleString()}
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td className="pt-4 text-gray-500 text-sm">Deposit Paid</td>
-                <td className="pt-4 text-right text-green-600 font-medium">
-                  − ₱{booking.deposit_amount.toLocaleString()}
-                </td>
-              </tr>
-              <tr>
-                <td className="pt-2 text-gray-900 font-bold text-base">Balance Due</td>
-                <td className="pt-2 text-right text-gray-900 font-bold text-xl">
-                  ₱{balance.toLocaleString()}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+          {(() => {
+            const pkgName = booking.package_name ?? 'Photography/Photobooth Package'
+            const parts = pkgName.split(' + ')
+            const baseName = parts[0]
+            const addons = parts.slice(1)
+            const hours = baseName.includes('Premium') ? '4' : '3'
+            const basePrice = booking.package_price != null && addons.length > 0
+              ? null : (booking.package_price ?? 0)
+            return (
+              <table className="w-full text-sm mb-8">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left text-xs text-gray-400 uppercase pb-2">Description</th>
+                    <th className="text-right text-xs text-gray-400 uppercase pb-2">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className={addons.length > 0 ? '' : 'border-b border-gray-100'}>
+                    <td className="py-3">
+                      <p className="text-gray-800 font-medium">{baseName}</p>
+                      <p className="text-gray-400 text-xs mt-0.5">{hours} hours of coverage · Zamboanga City</p>
+                    </td>
+                    <td className="py-3 text-right font-medium text-gray-800">
+                      {basePrice != null ? `₱${basePrice.toLocaleString()}` : ''}
+                    </td>
+                  </tr>
+                  {addons.map((addon, i) => (
+                    <tr key={addon} className={i === addons.length - 1 ? 'border-b border-gray-100' : ''}>
+                      <td className="py-2 pl-4">
+                        <p className="text-gray-600 text-sm">+ {addon}</p>
+                      </td>
+                      <td className="py-2 text-right text-gray-500 text-sm"></td>
+                    </tr>
+                  ))}
+                  {addons.length > 0 && (
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 text-gray-500 text-xs">Package total</td>
+                      <td className="py-2 text-right font-semibold text-gray-800">₱{(booking.package_price ?? 0).toLocaleString()}</td>
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td className="pt-4 text-gray-500 text-sm">Deposit Paid</td>
+                    <td className="pt-4 text-right text-green-600 font-medium">
+                      − ₱{booking.deposit_amount.toLocaleString()}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="pt-2 text-gray-900 font-bold text-base">Balance Due</td>
+                    <td className="pt-2 text-right text-gray-900 font-bold text-xl">
+                      ₱{balance.toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )
+          })()}
 
           {/* Payment Info */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mb-6">

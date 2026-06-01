@@ -28,11 +28,19 @@ IMPORTANT RULES:
 - When you complete a DB action, start your reply with "Done —" so James knows it worked.
 - If given a raw client inquiry or DM (e.g. prefixed with "Parse this:" or "New inquiry:"), extract name, event_type, event_date, venue, guest_count, package interest, and call create_lead immediately. Use source=facebook if it looks like a Messenger DM. Don't ask for confirmation unless the name is completely missing.
 
-CRAFTIFYLE PACKAGES (for reference when creating leads/bookings):
-- Photobooth Only: ₱3,500
-- Photography Only: ₱4,500
-- Photobooth + Photography Bundle: ₱6,500
-- Premium Bundle: ₱8,000`
+CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:
+- "Photobooth Only" → ₱3,500 (3 hrs, unlimited shots, custom backdrop)
+- "Photography Only" → ₱4,500 (3 hrs, 300+ edited photos)
+- "Photobooth + Photography" → ₱6,500 (3 hrs, both services) [most popular]
+- "Premium Bundle" → ₱8,000 (4 hrs, photography + videography, 400+ photos, pre-event shoot)
+
+ADD-ONS (append to package name with " + "):
+- "Extended coverage (+1 hr)" → +₱800
+- "Magnet prints (150 pcs)" → +₱1,500
+- "Custom template design" → FREE
+- "30-sec highlight video" → FREE
+
+When a client mentions a package by partial name (e.g. "photobooth lang", "bundle", "premium"), match to the closest package above and use that exact price.`
 }
 
 const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
@@ -400,7 +408,13 @@ async function runTool(
       if (!lead) return 'Lead not found. Try providing the lead name or ID.'
       if (!lead.event_date) return `Lead found (${lead.name}) but has no event date set. Please update the lead with an event date first.`
 
-      const packagePrice = (lead.budget as number) ?? (lead.package ? 6500 : 0)
+      const PACKAGE_PRICES: Record<string, number> = {
+        'Photobooth Only': 3500, 'Photography Only': 4500,
+        'Photobooth + Photography': 6500, 'Premium Bundle': 8000,
+      }
+      const pkgName = (lead.package as string) ?? ''
+      const lookedUp = Object.entries(PACKAGE_PRICES).find(([k]) => pkgName.toLowerCase().includes(k.toLowerCase()))
+      const packagePrice = lookedUp?.[1] ?? (lead.budget as number) ?? 6500
       const depositAmount = (args.deposit_amount as number) ?? 1000
       const balanceAmount = Math.max(0, packagePrice - depositAmount)
       const depositPaid = (args.deposit_paid as boolean) ?? false
