@@ -443,7 +443,9 @@ git push origin master
 **Phase 1 ✅** — Token unification, new accent, card inset shadow, `.card` + `.section-label` classes, sidebar active state  
 **Phase 2 ✅** — Global table system, typography letter-spacing, button press scale + focus ring, mobile nav backdrop-blur, `.tabular` number class  
 **Phase 3 ✅** — `ads/page.tsx`, `personal/page.tsx`, `login/page.tsx`, `signup/page.tsx` full token pass. All pages now use CSS vars exclusively. `profile/page.tsx` was already clean.  
-**Phase 4 — Next** — Skeleton loaders only (replace `Loading…` text across all pages with animated pulsing shapes)
+**Phase 4 ✅** — Skeleton loaders on all pages. `.skeleton` shimmer animation in globals.css. Dashboard, leads, bookings, lead detail, booking detail, invoice, ads, personal all replaced.
+
+**UI Redesign: COMPLETE ✅**
 
 ---
 

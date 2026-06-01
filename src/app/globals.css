@@ -252,6 +252,18 @@ tbody td:last-child { text-align: right; }
   color: inherit !important;
 }
 
+/* ─── Skeleton loaders ─── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--card-elevated) 25%, var(--hover-bg) 50%, var(--card-elevated) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
 /* ─── Print styles ─── */
 @media print {
   aside, nav, [data-sidebar], .chat-widget, .print\:hidden {

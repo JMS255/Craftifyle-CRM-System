@@ -117,7 +117,9 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 **Phase 3 ✅ Done** — Ads page, Personal Finance page, Login/Signup footer. All hardcoded grays replaced with CSS vars. SummaryCards, tables, accordion, EntryForm, badges all now token-consistent.
 
-**Phase 4 — Next** — Skeleton loaders only. Replace all `Loading…` text across ads, personal, leads, bookings, dashboard with animated pulsing shapes matching real layout.
+**Phase 4 ✅ Done** — Skeleton loaders on all pages. `.skeleton` CSS animation added to globals.css. Dashboard, leads list, bookings list, lead detail, booking detail, invoice, ads, personal all now show shimmer shapes instead of "Loading…" text.
+
+**UI Redesign: COMPLETE** — All 8 phases + 12 micro-details from the spec are done.
 
 ## UI Redesign Spec (from June 1 research)
 

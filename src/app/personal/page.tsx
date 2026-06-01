@@ -289,7 +289,14 @@ export default function PersonalPage() {
 
       {/* Monthly accordion */}
       {loading ? (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="card px-5 py-3.5 flex items-center justify-between">
+              <div className="skeleton h-4 w-24" />
+              <div className="skeleton h-4 w-20" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-2">
           {months.map((month) => {

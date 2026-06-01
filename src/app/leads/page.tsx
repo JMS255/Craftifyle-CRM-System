@@ -376,7 +376,16 @@ export default function LeadsPage() {
       )}
 
       {!loading && view === 'kanban' ? null : loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <div className="card overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-3.5" style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+              <div className="skeleton h-4 w-32" />
+              <div className="skeleton h-4 w-20 ml-auto" />
+              <div className="skeleton h-4 w-16" />
+              <div className="skeleton h-4 w-24" />
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
           <div className="text-4xl mb-3">◎</div>

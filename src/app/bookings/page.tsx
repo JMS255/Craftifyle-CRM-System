@@ -182,7 +182,23 @@ export default function BookingsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <div className="skeleton h-4 w-28" />
+                <div className="skeleton h-4 w-20" />
+              </div>
+              {[...Array(2)].map((_, j) => (
+                <div key={j} className="flex items-center gap-4 px-5 py-3.5" style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                  <div className="skeleton h-4 w-40" />
+                  <div className="skeleton h-4 w-24 ml-auto" />
+                  <div className="skeleton h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       ) : months.length === 0 ? (
         <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
           <div className="text-4xl mb-3">◈</div>

@@ -148,10 +148,17 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3" style={{ color: 'var(--text-faint)' }}>
-          <div className="w-4 h-4 rounded-full animate-pulse" style={{ background: '#6366f1' }} />
-          <span className="text-sm">Loading…</span>
+      <div className="p-4 md:p-8 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
+        </div>
+        <div className="card p-6 space-y-3">
+          <div className="skeleton h-5 w-40" />
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-4 w-full" />)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="skeleton h-48 rounded-xl" />
+          <div className="skeleton h-48 rounded-xl" />
         </div>
       </div>
     )

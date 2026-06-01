@@ -98,7 +98,17 @@ export default function AdsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+        <div className="card overflow-hidden">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4" style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+              <div className="skeleton h-4 w-36" />
+              <div className="skeleton h-4 w-10 ml-auto" />
+              <div className="skeleton h-4 w-10" />
+              <div className="skeleton h-4 w-14" />
+              <div className="skeleton h-4 w-20" />
+            </div>
+          ))}
+        </div>
       ) : stats.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>No ad-tagged leads yet</p>

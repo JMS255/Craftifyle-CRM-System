@@ -31,7 +31,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     load()
   }, [id])
 
-  if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
+  if (loading) return (
+    <div className="p-8 space-y-4 max-w-2xl mx-auto">
+      <div className="skeleton h-8 w-48" />
+      <div className="card p-6 space-y-3"><div className="skeleton h-4 w-full" /><div className="skeleton h-4 w-3/4" /><div className="skeleton h-4 w-5/6" /><div className="skeleton h-4 w-2/3" /></div>
+    </div>
+  )
   if (!booking) return <div className="p-8 text-red-500 text-sm">Booking not found.</div>
 
   const balance = (booking.package_price ?? 0) - booking.deposit_amount
