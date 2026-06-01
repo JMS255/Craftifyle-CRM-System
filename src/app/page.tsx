@@ -20,68 +20,46 @@ function peso(n: number) {
 }
 
 interface MonthStats {
-  yearMonth: string
-  monthLabel: string
-  total: number
-  new: number
-  contacted: number
-  quoted: number
-  negotiating: number
-  booked: number
-  lost: number
-  completed: number
-  conversionRate: number
+  yearMonth: string; monthLabel: string; total: number; new: number
+  contacted: number; quoted: number; negotiating: number
+  booked: number; lost: number; completed: number; conversionRate: number
 }
 
 function buildMonthStats(leads: Lead[], year: string): MonthStats[] {
   const map = new Map<string, Lead[]>()
-  for (let m = 1; m <= 12; m++) {
-    const key = `${year}-${String(m).padStart(2, '0')}`
-    map.set(key, [])
-  }
+  for (let m = 1; m <= 12; m++) map.set(`${year}-${String(m).padStart(2, '0')}`, [])
   for (const l of leads) {
     if (!l.created_at.startsWith(year)) continue
-    const key = l.created_at.slice(0, 7)
-    map.get(key)?.push(l)
+    map.get(l.created_at.slice(0, 7))?.push(l)
   }
-  return Array.from(map.entries())
-    .map(([yearMonth, items]) => {
-      const monthNum = parseInt(yearMonth.split('-')[1]) - 1
-      const booked = items.filter((l) => l.status === 'booked' || l.status === 'completed').length
-      return {
-        yearMonth,
-        monthLabel: MONTH_NAMES[monthNum],
-        total: items.length,
-        new: items.filter((l) => l.status === 'new').length,
-        contacted: items.filter((l) => l.status === 'contacted').length,
-        quoted: items.filter((l) => l.status === 'quoted').length,
-        negotiating: items.filter((l) => l.status === 'negotiating').length,
-        booked,
-        lost: items.filter((l) => l.status === 'lost').length,
-        completed: items.filter((l) => l.status === 'completed').length,
-        conversionRate: items.length > 0 ? Math.round((booked / items.length) * 100) : 0,
-      }
-    })
-    .filter((m) => {
-      const now = new Date()
-      const [y, mo] = m.yearMonth.split('-').map(Number)
-      if (y < now.getFullYear()) return m.total > 0
-      return mo <= now.getMonth() + 1
-    })
-    .reverse()
+  return Array.from(map.entries()).map(([yearMonth, items]) => {
+    const monthNum = parseInt(yearMonth.split('-')[1]) - 1
+    const booked = items.filter(l => l.status === 'booked' || l.status === 'completed').length
+    return {
+      yearMonth, monthLabel: MONTH_NAMES[monthNum], total: items.length,
+      new: items.filter(l => l.status === 'new').length,
+      contacted: items.filter(l => l.status === 'contacted').length,
+      quoted: items.filter(l => l.status === 'quoted').length,
+      negotiating: items.filter(l => l.status === 'negotiating').length,
+      booked, lost: items.filter(l => l.status === 'lost').length,
+      completed: items.filter(l => l.status === 'completed').length,
+      conversionRate: items.length > 0 ? Math.round((booked / items.length) * 100) : 0,
+    }
+  }).filter(m => {
+    const now = new Date()
+    const [y, mo] = m.yearMonth.split('-').map(Number)
+    if (y < now.getFullYear()) return m.total > 0
+    return mo <= now.getMonth() + 1
+  }).reverse()
 }
 
-interface RevenueStats {
-  confirmed: number
-  collected: number
-  pipeline: number
-  bookingCount: number
-}
+interface RevenueStats { confirmed: number; collected: number; pipeline: number; bookingCount: number }
 
 export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [revenue, setRevenue] = useState<RevenueStats>({ confirmed: 0, collected: 0, pipeline: 0, bookingCount: 0 })
+  const [firstName, setFirstName] = useState('there')
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [openMonth, setOpenMonth] = useState<string | null>(new Date().toISOString().slice(0, 7))
@@ -94,14 +72,12 @@ export default function Dashboard() {
     Promise.all([
       db.from('leads').select('*').order('created_at', { ascending: false }),
       db.from('bookings').select('*').eq('status', 'upcoming')
-        .gte('event_date', now.toISOString().slice(0, 10))
-        .order('event_date').limit(6),
+        .gte('event_date', now.toISOString().slice(0, 10)).order('event_date').limit(6),
       db.from('bookings')
         .select('package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
-        .gte('event_date', `${thisMonth}-01`)
-        .lt('event_date', nextMonth)
-        .neq('status', 'cancelled'),
-    ]).then(([{ data: l }, { data: b }, { data: rev }]) => {
+        .gte('event_date', `${thisMonth}-01`).lt('event_date', nextMonth).neq('status', 'cancelled'),
+      db.auth.getUser(),
+    ]).then(([{ data: l }, { data: b }, { data: rev }, { data: { user } }]) => {
       setLeads(l ?? [])
       setBookings(b ?? [])
       const confirmed = (rev ?? []).reduce((s, r) => s + (r.package_price ?? 0), 0)
@@ -112,21 +88,31 @@ export default function Dashboard() {
         return s + c
       }, 0)
       setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: (rev ?? []).length })
+      // Load first name from profile
+      if (user) {
+        db.from('profiles').select('full_name').eq('id', user.id).maybeSingle().then(({ data }) => {
+          const name = data?.full_name?.split(' ')[0]
+          if (name) setFirstName(name)
+        })
+      }
       setLoading(false)
     })
   }, [])
 
-  const years = Array.from(new Set(leads.map((l) => l.created_at.slice(0, 4)))).sort((a, b) => b.localeCompare(a))
+  const hour = new Date().getHours()
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
+  const todayStr = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+  const years = Array.from(new Set(leads.map(l => l.created_at.slice(0, 4)))).sort((a, b) => b.localeCompare(a))
   const currentYear = String(new Date().getFullYear())
   if (!years.includes(currentYear)) years.unshift(currentYear)
 
   const monthStats = buildMonthStats(leads, selectedYear)
-  const yearLeads = leads.filter((l) => l.created_at.startsWith(selectedYear))
-  const yearBooked = yearLeads.filter((l) => l.status === 'booked' || l.status === 'completed').length
-  const yearLost = yearLeads.filter((l) => l.status === 'lost').length
+  const yearLeads = leads.filter(l => l.created_at.startsWith(selectedYear))
+  const yearBooked = yearLeads.filter(l => l.status === 'booked' || l.status === 'completed').length
+  const yearLost = yearLeads.filter(l => l.status === 'lost').length
   const yearConvRate = yearLeads.length > 0 ? Math.round((yearBooked / yearLeads.length) * 100) : 0
 
-  // Today's Actions — top 3 urgent items
   const now = Date.now()
   const todayActions = leads
     .filter(l => !['booked', 'completed', 'lost'].includes(l.status))
@@ -139,7 +125,7 @@ export default function Dashboard() {
       else if (daysToEvent != null && daysToEvent <= 3) { urgency = 90; action = `Event in ${daysToEvent}d — confirm now!`; color = '#fb923c' }
       else if (daysToEvent != null && daysToEvent <= 7) { urgency = 75; action = `Event in ${daysToEvent}d — follow up`; color = '#fbbf24' }
       else if (['quoted', 'negotiating'].includes(l.status) && daysSilent >= 7) { urgency = 60; action = `${daysSilent}d quiet — send follow-up`; color = '#a78bfa' }
-      else if (l.status === 'new' && daysSilent >= 3) { urgency = 40; action = `${daysSilent}d old — first contact needed`; color = '#818cf8' }
+      else if (l.status === 'new' && daysSilent >= 3) { urgency = 40; action = `${daysSilent}d old — first contact`; color = '#818cf8' }
       return { ...l, urgency, action, color }
     })
     .filter(l => l.urgency >= 40)
@@ -148,55 +134,140 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-8 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
-        </div>
-        <div className="card p-6 space-y-3">
-          <div className="skeleton h-5 w-40" />
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-4 w-full" />)}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="skeleton h-48 rounded-xl" />
-          <div className="skeleton h-48 rounded-xl" />
+      <div className="p-4 md:p-8 space-y-5 max-w-5xl">
+        <div className="skeleton h-10 w-56 mb-2" />
+        <div className="skeleton h-28 rounded-2xl" />
+        <div className="skeleton h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="skeleton h-44 rounded-2xl" />
+          <div className="skeleton h-44 rounded-2xl" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 max-w-5xl">
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Dashboard</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-faint)' }}>
-            {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
+          <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-heading)' }}>
+            Good {timeOfDay}, {firstName} 👋
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>{todayStr}</p>
         </div>
         <Link
           href="/leads/new"
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-semibold text-white"
+          style={{ background: 'var(--accent)' }}
         >
           + New Lead
         </Link>
       </div>
 
-      {/* Onboarding checklist — shown only when no leads yet */}
+      {/* ── Onboarding ── */}
       {leads.length === 0 && <OnboardingChecklist />}
 
-      {/* Quick-prompt Crafty chips */}
-      <div className="flex gap-2 flex-wrap mb-6 -mt-2">
+      {/* ── Revenue hero strip ── */}
+      {revenue.bookingCount > 0 && (
+        <div
+          className="rounded-2xl p-5 mb-5 grid grid-cols-3 gap-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(124,111,247,0.12) 0%, rgba(139,92,246,0.06) 100%)',
+            border: '1px solid rgba(124,111,247,0.25)',
+          }}
+        >
+          <div>
+            <p className="section-label mb-2">Confirmed</p>
+            <p className="text-2xl md:text-3xl font-bold tabular" style={{ color: 'var(--text-heading)' }}>
+              {peso(revenue.confirmed)}
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+              {revenue.bookingCount} booking{revenue.bookingCount !== 1 ? 's' : ''} this month
+            </p>
+          </div>
+          <div>
+            <p className="section-label mb-2">Collected</p>
+            <p className="text-2xl md:text-3xl font-bold tabular" style={{ color: 'var(--success)' }}>
+              {peso(revenue.collected)}
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>received</p>
+          </div>
+          <div>
+            <p className="section-label mb-2">Outstanding</p>
+            <p className="text-2xl md:text-3xl font-bold tabular"
+              style={{ color: revenue.pipeline > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              {peso(revenue.pipeline)}
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>balance due</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Today's Actions ── */}
+      {todayActions.length > 0 ? (
+        <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+            <p className="section-label">Today's Actions</p>
+          </div>
+          {todayActions.map((l, i) => (
+            <Link key={l.id} href={`/leads/${l.id}`}
+              className="flex items-center justify-between px-5 py-3.5 transition-colors"
+              style={{
+                borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none',
+                borderLeft: `3px solid ${l.color}`,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+                  style={{ background: l.color + '22', color: l.color }}
+                >
+                  {l.name[0]?.toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-heading)' }}>{l.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {l.event_type ?? l.status}{l.event_date ? ` · ${fmt(l.event_date)}` : ''}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold shrink-0 ml-3" style={{ color: l.color }}>
+                {l.action} →
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : leads.length > 0 && (
+        <div className="rounded-2xl px-5 py-4 mb-5 flex items-center gap-3"
+          style={{ background: 'var(--success-muted)', border: '1px solid rgba(74,222,128,0.15)' }}>
+          <span className="text-lg">🎉</span>
+          <p className="text-sm font-medium" style={{ color: 'var(--success)' }}>
+            Nothing urgent right now — you're on top of everything.
+          </p>
+        </div>
+      )}
+
+      {/* ── Pipeline + Upcoming Events ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+        <PipelineSnapshot leads={leads} />
+        <UpcomingEvents bookings={bookings} />
+      </div>
+
+      {/* ── Quick chips ── */}
+      <div className="flex gap-2 flex-wrap mb-8">
         {[
-          { label: '📋 Paste DM inquiry', prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' },
+          { label: '📋 Paste DM', prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' },
           { label: '⚡ What needs attention?', prompt: 'What needs my attention today?', mode: 'crm' },
           { label: '💰 Revenue this month', prompt: 'How much revenue do I have this month?', mode: 'crm' },
-          { label: '✍️ Draft follow-up message', prompt: 'Help me draft a follow-up message for a client who went quiet', mode: 'advisor' },
+          { label: '✍️ Draft follow-up', prompt: 'Help me draft a follow-up message for a client who went quiet', mode: 'advisor' },
         ].map(chip => (
           <button key={chip.label}
             onClick={() => window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: chip }))}
-            className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
+            className="text-xs px-3 py-1.5 rounded-full font-medium"
             style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}
           >
             {chip.label}
@@ -204,323 +275,239 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Today's Actions */}
-      {todayActions.length > 0 && (
-        <div className="rounded-2xl p-4 mb-6" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
-            Today's Actions
-          </p>
-          <div className="space-y-2">
-            {todayActions.map(l => (
-              <Link key={l.id} href={`/leads/${l.id}`}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
-                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = l.color)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: l.color }} />
-                  <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{l.name}</span>
-                  <span className="text-xs hidden sm:inline capitalize" style={{ color: 'var(--text-faint)' }}>{l.status}</span>
-                </div>
-                <span className="text-xs font-medium shrink-0 ml-2" style={{ color: l.color }}>{l.action} →</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Year selector */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {years.map((y) => (
-          <button
-            key={y}
-            onClick={() => {
-              setSelectedYear(y)
-              setOpenMonth(y === currentYear ? new Date().toISOString().slice(0, 7) : null)
-            }}
-            className="text-sm px-4 py-1.5 rounded-full font-medium transition-all"
-            style={{
-              background: selectedYear === y ? 'var(--accent-subtle2)' : 'var(--subtle-bg)',
-              color: selectedYear === y ? 'var(--accent-text)' : 'var(--text-muted)',
-              border: `1px solid ${selectedYear === y ? 'var(--accent)' : 'var(--card-border)'}`,
-            }}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Total Leads" value={yearLeads.length} glowColor="#6366f1" icon="◎" />
-        <StatCard label="Converted" value={yearBooked} glowColor="#10b981" icon="✓" />
-        <StatCard label="Lost" value={yearLost} glowColor="#ef4444" icon="✕" />
-        <StatCard label="Conv. Rate" value={`${yearConvRate}%`} glowColor="#f59e0b" icon="%" />
-      </div>
-
-      {/* Revenue this month */}
-      {revenue.bookingCount > 0 && (
-        <div className="rounded-2xl p-4 mb-6 grid grid-cols-3 gap-4"
-          style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>
-              This Month
-            </p>
-            <p className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>{peso(revenue.confirmed)}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{revenue.bookingCount} booking{revenue.bookingCount !== 1 ? 's' : ''}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Collected</p>
-            <p className="text-xl font-bold" style={{ color: '#10b981' }}>{peso(revenue.collected)}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>received</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Outstanding</p>
-            <p className="text-xl font-bold" style={{ color: revenue.pipeline > 0 ? '#f59e0b' : '#10b981' }}>
-              {peso(revenue.pipeline)}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>balance due</p>
-          </div>
-        </div>
-      )}
-
-      {/* Trends charts */}
+      {/* ── Trends (bottom) ── */}
       {yearLeads.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-faint)' }}>
-            {selectedYear} Trends
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Bar chart — booked per month */}
-            <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-              <p className="text-xs font-semibold mb-4" style={{ color: 'var(--text-muted)' }}>Bookings per Month</p>
-              <ResponsiveContainer width="100%" height={180}>
+        <div style={{ borderTop: '1px solid var(--border-secondary)', paddingTop: '2rem' }}>
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+            <div className="flex items-center gap-4">
+              <h2 className="section-label">Trends</h2>
+              <div className="flex gap-1.5">
+                {[
+                  { label: `${yearLeads.length} leads`, color: 'var(--accent-text)', bg: 'var(--accent-subtle)' },
+                  { label: `${yearBooked} booked`, color: 'var(--success)', bg: 'var(--success-muted)' },
+                  { label: `${yearConvRate}% conv.`, color: 'var(--warning)', bg: 'var(--warning-muted)' },
+                ].map(s => (
+                  <span key={s.label} className="badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              {years.map(y => (
+                <button key={y}
+                  onClick={() => { setSelectedYear(y); setOpenMonth(y === currentYear ? new Date().toISOString().slice(0, 7) : null) }}
+                  className="text-xs px-3 py-1 rounded-full font-medium"
+                  style={selectedYear === y
+                    ? { background: 'var(--accent-subtle2)', color: 'var(--accent-text)', border: '1px solid var(--accent)' }
+                    : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div className="card p-5">
+              <p className="section-label mb-4">Bookings per Month</p>
+              <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={buildMonthStats(leads, selectedYear).reverse()} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-                  <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickLine={false} axisLine={false}
-                    tickFormatter={v => v.slice(0, 3)} />
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickLine={false} axisLine={false} tickFormatter={v => v.slice(0, 3)} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: 'var(--text-heading)', fontWeight: 600 }}
-                    itemStyle={{ color: '#10b981' }}
-                    formatter={(v) => [v, 'Booked']}
-                  />
-                  <Bar dataKey="booked" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--text-heading)', fontWeight: 600 }} itemStyle={{ color: 'var(--success)' }} formatter={v => [v, 'Booked']} />
+                  <Bar dataKey="booked" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            {/* Donut — lead source */}
-            <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-              <p className="text-xs font-semibold mb-4" style={{ color: 'var(--text-muted)' }}>Lead Sources</p>
+            <div className="card p-5">
+              <p className="section-label mb-4">Lead Sources</p>
               <SourceDonut leads={yearLeads} />
             </div>
           </div>
+
+          {/* Monthly accordion */}
+          <h2 className="section-label mb-3">Leads by Month</h2>
+          <div className="space-y-2">
+            {monthStats.map(m => {
+              const isOpen = openMonth === m.yearMonth
+              const hasData = m.total > 0
+              return (
+                <div key={m.yearMonth} className="rounded-2xl overflow-hidden transition-all"
+                  style={{ background: 'var(--card)', border: `1px solid ${isOpen ? 'var(--card-border-active)' : 'var(--card-border)'}` }}>
+                  <button onClick={() => hasData && setOpenMonth(isOpen ? null : m.yearMonth)} disabled={!hasData}
+                    className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+                    style={{ opacity: hasData ? 1 : 0.3 }}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs inline-block transition-transform" style={{ color: 'var(--text-faint)', transform: isOpen ? 'rotate(90deg)' : 'none' }}>
+                        {hasData ? '▶' : '—'}
+                      </span>
+                      <span className="font-semibold w-20 shrink-0" style={{ color: 'var(--text-heading)' }}>{m.monthLabel}</span>
+                      {hasData && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Chip label={`${m.total} leads`} color="indigo" />
+                          {m.booked > 0 && <Chip label={`${m.booked} booked`} color="green" />}
+                          {m.lost > 0 && <Chip label={`${m.lost} lost`} color="red" />}
+                        </div>
+                      )}
+                    </div>
+                    {hasData && (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2"
+                        style={{
+                          background: m.conversionRate >= 50 ? 'rgba(16,185,129,0.15)' : m.conversionRate >= 20 ? 'rgba(245,158,11,0.15)' : 'var(--subtle-bg)',
+                          color: m.conversionRate >= 50 ? '#34d399' : m.conversionRate >= 20 ? '#fbbf24' : 'var(--text-muted)',
+                        }}>{m.conversionRate}%</span>
+                    )}
+                  </button>
+                  {isOpen && hasData && (
+                    <div className="border-t px-4 py-4" style={{ borderColor: 'var(--card-border)' }}>
+                      <div className="flex rounded-full overflow-hidden h-1.5 mb-4 gap-0.5">
+                        <BarSeg count={m.booked} total={m.total} color="#10b981" />
+                        <BarSeg count={m.negotiating} total={m.total} color="#8b5cf6" />
+                        <BarSeg count={m.quoted} total={m.total} color="#f59e0b" />
+                        <BarSeg count={m.contacted} total={m.total} color="#6366f1" />
+                        <BarSeg count={m.new} total={m.total} color="#3b82f6" />
+                        <BarSeg count={m.lost} total={m.total} color="#ef4444" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <MiniStat label="New" value={m.new} color="#3b82f6" />
+                        <MiniStat label="Contacted" value={m.contacted} color="#6366f1" />
+                        <MiniStat label="Quoted" value={m.quoted} color="#f59e0b" />
+                        <MiniStat label="Negotiating" value={m.negotiating} color="#8b5cf6" />
+                        <MiniStat label="Booked" value={m.booked} color="#10b981" />
+                        <MiniStat label="Lost" value={m.lost} color="#ef4444" />
+                      </div>
+                      <Link href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
+                        className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                        View all {m.monthLabel} leads →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Monthly breakdown */}
-        <section className="md:col-span-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
-            Leads by Month
-          </h2>
-          {monthStats.length === 0 ? (
-            <div className="rounded-2xl p-8 text-center" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-              <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
-                No leads for {selectedYear} yet.{' '}
-                <Link href="/leads/new" className="text-indigo-400 hover:underline">Add one →</Link>
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {monthStats.map((m) => {
-                const isOpen = openMonth === m.yearMonth
-                const hasData = m.total > 0
-                return (
-                  <div
-                    key={m.yearMonth}
-                    className="rounded-2xl overflow-hidden transition-all"
-                    style={{
-                      background: 'var(--card)',
-                      border: `1px solid ${isOpen ? 'var(--card-border-active)' : 'var(--card-border)'}`,
-                    }}
-                  >
-                    <button
-                      onClick={() => hasData && setOpenMonth(isOpen ? null : m.yearMonth)}
-                      disabled={!hasData}
-                      className="w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors"
-                      style={{ opacity: hasData ? 1 : 0.3 }}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className="text-xs transition-transform inline-block"
-                          style={{ color: 'var(--text-faint)', transform: isOpen ? 'rotate(90deg)' : 'none' }}
-                        >
-                          {hasData ? '▶' : '—'}
-                        </span>
-                        <span className="font-semibold w-20 shrink-0" style={{ color: 'var(--text-heading)' }}>
-                          {m.monthLabel}
-                        </span>
-                        {hasData && (
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Chip label={`${m.total} leads`} color="indigo" />
-                            {m.booked > 0 && <Chip label={`${m.booked} booked`} color="green" />}
-                            {m.lost > 0 && <Chip label={`${m.lost} lost`} color="red" />}
-                          </div>
-                        )}
-                      </div>
-                      {hasData && (
-                        <span
-                          className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2"
-                          style={{
-                            background: m.conversionRate >= 50
-                              ? 'rgba(16,185,129,0.15)'
-                              : m.conversionRate >= 20
-                              ? 'rgba(245,158,11,0.15)'
-                              : 'var(--subtle-bg)',
-                            color: m.conversionRate >= 50
-                              ? '#34d399'
-                              : m.conversionRate >= 20
-                              ? '#fbbf24'
-                              : 'var(--text-muted)',
-                          }}
-                        >
-                          {m.conversionRate}%
-                        </span>
-                      )}
-                    </button>
+// ── Pipeline Snapshot ──────────────────────────────────────────
+function PipelineSnapshot({ leads }: { leads: Lead[] }) {
+  const active = leads.filter(l => !['lost', 'completed'].includes(l.status))
+  const total = active.length
+  const stages = [
+    { key: 'new',          label: 'New',          color: '#3b82f6' },
+    { key: 'contacted',    label: 'Contacted',    color: '#6366f1' },
+    { key: 'quoted',       label: 'Quoted',       color: '#f59e0b' },
+    { key: 'negotiating',  label: 'Negotiating',  color: '#8b5cf6' },
+    { key: 'booked',       label: 'Booked',       color: '#10b981' },
+  ]
+  const counts = stages.map(s => ({ ...s, count: active.filter(l => l.status === s.key).length }))
 
-                    {isOpen && hasData && (
-                      <div className="border-t px-4 py-4" style={{ borderColor: 'var(--card-border)' }}>
-                        <div className="flex rounded-full overflow-hidden h-1.5 mb-4 gap-0.5">
-                          <BarSeg count={m.booked} total={m.total} color="#10b981" />
-                          <BarSeg count={m.negotiating} total={m.total} color="#8b5cf6" />
-                          <BarSeg count={m.quoted} total={m.total} color="#f59e0b" />
-                          <BarSeg count={m.contacted} total={m.total} color="#6366f1" />
-                          <BarSeg count={m.new} total={m.total} color="#3b82f6" />
-                          <BarSeg count={m.lost} total={m.total} color="#ef4444" />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          <MiniStat label="New" value={m.new} color="#3b82f6" />
-                          <MiniStat label="Contacted" value={m.contacted} color="#6366f1" />
-                          <MiniStat label="Quoted" value={m.quoted} color="#f59e0b" />
-                          <MiniStat label="Negotiating" value={m.negotiating} color="#8b5cf6" />
-                          <MiniStat label="Booked" value={m.booked} color="#10b981" />
-                          <MiniStat label="Lost" value={m.lost} color="#ef4444" />
-                        </div>
-                        <Link
-                          href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
-                          className="text-xs hover:underline"
-                          style={{ color: 'var(--accent)' }}
-                        >
-                          View all {m.monthLabel} leads →
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Upcoming events */}
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>
-            Upcoming Events
-          </h2>
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
-          >
-            {bookings.length === 0 ? (
-              <p className="text-sm px-5 py-6" style={{ color: 'var(--text-faint)' }}>No upcoming events.</p>
-            ) : (
-              <ul>
-                {bookings.map((b, i) => (
-                  <li key={b.id} style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
-                    <Link
-                      href={`/bookings/${b.id}`}
-                      className="flex items-center justify-between px-4 py-3.5 transition-colors"
-                      style={{ background: 'transparent' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"
-                          style={{ background: 'var(--accent-subtle)', color: '#818cf8' }}
-                        >
-                          📸
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>
-                            {b.event_name}
-                          </p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{fmt(b.event_date)}</p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0 ml-2">
-                        {b.package_price != null && (
-                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                            {peso(b.package_price)}
-                          </p>
-                        )}
-                        <p className="text-xs mt-0.5" style={{ color: b.balance_paid ? '#10b981' : '#f59e0b' }}>
-                          {b.balance_paid ? '✓ Paid' : 'Balance due'}
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--border-secondary)' }}>
-              <Link href="/bookings" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
-                View all bookings →
-              </Link>
-            </div>
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="section-label">Pipeline</p>
+        <Link href="/leads" className="text-xs" style={{ color: 'var(--accent-text)' }}>
+          View all →
+        </Link>
+      </div>
+      {total === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--text-faint)' }}>No active leads.</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl font-bold tabular" style={{ color: 'var(--text-heading)' }}>{total}</span>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>active leads</span>
           </div>
-        </section>
+          {/* Segmented bar */}
+          <div className="flex rounded-full overflow-hidden mb-4" style={{ height: '6px', gap: '2px', background: 'var(--subtle-bg)' }}>
+            {counts.map(s => s.count > 0 && (
+              <div key={s.key} style={{ width: `${(s.count / total) * 100}%`, background: s.color, borderRadius: '9999px' }} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {counts.map(s => (
+              <div key={s.key} className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                <span className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
+                <span className="text-xs font-bold tabular" style={{ color: s.count > 0 ? 'var(--text-heading)' : 'var(--text-faint)' }}>{s.count}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Upcoming Events ────────────────────────────────────────────
+function UpcomingEvents({ bookings }: { bookings: Booking[] }) {
+  return (
+    <div className="card overflow-hidden flex flex-col">
+      <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+        <p className="section-label">Upcoming Events</p>
+      </div>
+      {bookings.length === 0 ? (
+        <p className="text-sm px-5 py-6 flex-1" style={{ color: 'var(--text-faint)' }}>No upcoming events.</p>
+      ) : (
+        <ul className="flex-1">
+          {bookings.map((b, i) => (
+            <li key={b.id} style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+              <Link href={`/bookings/${b.id}`}
+                className="flex items-center justify-between px-5 py-3.5 transition-colors"
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl flex flex-col items-center justify-center shrink-0 text-center"
+                    style={{ background: 'var(--accent-subtle)' }}>
+                    <span className="text-[9px] font-bold uppercase leading-none" style={{ color: 'var(--accent-text)' }}>
+                      {new Date(b.event_date).toLocaleDateString('en-PH', { month: 'short' })}
+                    </span>
+                    <span className="text-sm font-bold leading-none mt-0.5" style={{ color: 'var(--accent-text)' }}>
+                      {new Date(b.event_date).getDate()}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{b.event_name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                      {b.package_name ?? 'No package'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-2">
+                  {b.package_price != null && (
+                    <p className="text-xs font-semibold tabular" style={{ color: 'var(--text-secondary)' }}>
+                      {peso(b.package_price)}
+                    </p>
+                  )}
+                  <p className="text-xs mt-0.5 font-medium" style={{ color: b.balance_paid ? 'var(--success)' : 'var(--warning)' }}>
+                    {b.balance_paid ? '✓ Paid' : 'Balance due'}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="px-5 py-2.5" style={{ borderTop: '1px solid var(--border-secondary)' }}>
+        <Link href="/bookings" className="text-xs" style={{ color: 'var(--accent-text)' }}>View all bookings →</Link>
       </div>
     </div>
   )
 }
 
-function StatCard({ label, value, glowColor, icon }: {
-  label: string
-  value: number | string
-  glowColor: string
-  icon: string
-}) {
-  return (
-    <div
-      className="rounded-2xl p-4 relative overflow-hidden transition-colors"
-      style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
-    >
-      <div
-        className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
-        style={{ background: glowColor, transform: 'translate(30%, -30%)' }}
-      />
-      <p className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-heading)' }}>{value}</p>
-      <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--text-faint)' }}>{label}</p>
-    </div>
-  )
-}
-
+// ── Sub-components ─────────────────────────────────────────────
 function Chip({ label, color }: { label: string; color: 'indigo' | 'green' | 'red' }) {
   const styles = {
     indigo: { background: 'rgba(99,102,241,0.15)', color: '#818cf8' },
-    green: { background: 'rgba(16,185,129,0.15)', color: '#34d399' },
-    red: { background: 'rgba(239,68,68,0.15)', color: '#f87171' },
+    green:  { background: 'rgba(16,185,129,0.15)', color: '#34d399' },
+    red:    { background: 'rgba(239,68,68,0.15)',   color: '#f87171' },
   }
-  return (
-    <span className="text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={styles[color]}>
-      {label}
-    </span>
-  )
+  return <span className="text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={styles[color]}>{label}</span>
 }
 
 function BarSeg({ count, total, color }: { count: number; total: number; color: string }) {
@@ -533,16 +520,16 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
     <div className="flex items-center gap-2">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <span className="text-xs font-bold ml-auto" style={{ color: 'var(--text-heading)' }}>{value}</span>
+      <span className="text-xs font-bold ml-auto tabular" style={{ color: 'var(--text-heading)' }}>{value}</span>
     </div>
   )
 }
 
 function OnboardingChecklist() {
   const steps = [
-    { id: 'lead', label: 'Add your first lead', desc: 'Paste a Messenger DM or add manually', href: '/leads/new', icon: '◎' },
-    { id: 'crafty', label: 'Try Crafty AI', desc: 'Click the 🤖 button and ask anything', href: null, icon: '🤖' },
-    { id: 'profile', label: 'Set up your profile', desc: 'Add your business name and photo', href: '/profile', icon: '👤' },
+    { id: 'lead',   label: 'Add your first lead',  desc: 'Paste a Messenger DM or add manually', href: '/leads/new', icon: '📋' },
+    { id: 'crafty', label: 'Try Crafty AI',         desc: 'Click the 🤖 button and ask anything',  href: null,         icon: '🤖' },
+    { id: 'profile',label: 'Set up your profile',  desc: 'Add your business name and location',   href: '/profile',   icon: '👤' },
   ]
   const [done, setDone] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('onboarding-done') || '[]') } catch { return [] }
@@ -554,17 +541,14 @@ function OnboardingChecklist() {
     setDone(next)
     localStorage.setItem('onboarding-done', JSON.stringify(next))
   }
-
-  function dismiss() {
-    setDismissed(true)
-    localStorage.setItem('onboarding-dismissed', '1')
-  }
+  function dismiss() { setDismissed(true); localStorage.setItem('onboarding-dismissed', '1') }
 
   if (dismissed) return null
   const allDone = steps.every(s => done.includes(s.id))
 
   return (
-    <div className="rounded-2xl p-5 mb-6 relative" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08))', border: '1px solid rgba(99,102,241,0.25)' }}>
+    <div className="rounded-2xl p-5 mb-6 relative"
+      style={{ background: 'linear-gradient(135deg, rgba(124,111,247,0.08), rgba(139,92,246,0.06))', border: '1px solid rgba(124,111,247,0.25)' }}>
       <button onClick={dismiss} className="absolute top-4 right-4 text-xs opacity-40 hover:opacity-100" style={{ color: 'var(--text-faint)' }}>✕</button>
       <p className="text-sm font-bold mb-1" style={{ color: 'var(--text-heading)' }}>
         {allDone ? '🎉 You\'re all set!' : 'Welcome to Crafty CRM — let\'s get started!'}
@@ -572,9 +556,8 @@ function OnboardingChecklist() {
       <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
         {allDone ? 'Your CRM is ready. Start adding leads!' : 'Complete these 3 steps to get the most out of Crafty.'}
       </p>
-      {/* Progress bar */}
       <div className="h-1 rounded-full mb-4 overflow-hidden" style={{ background: 'var(--subtle-bg)' }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${(done.length / steps.length) * 100}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${(done.length / steps.length) * 100}%`, background: 'var(--accent)' }} />
       </div>
       <div className="space-y-2">
         {steps.map(s => {
@@ -587,7 +570,7 @@ function OnboardingChecklist() {
                 <p className="text-sm font-medium" style={{ color: isDone ? '#34d399' : 'var(--text-heading)', textDecoration: isDone ? 'line-through' : 'none', opacity: isDone ? 0.7 : 1 }}>{s.label}</p>
                 <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{s.desc}</p>
               </div>
-              {!isDone && <span className="text-xs shrink-0" style={{ color: '#6366f1' }}>→</span>}
+              {!isDone && <span className="text-xs" style={{ color: 'var(--accent-text)' }}>→</span>}
             </div>
           )
           if (s.href) return <Link key={s.id} href={s.href} onClick={() => markDone(s.id)}>{content}</Link>
@@ -607,20 +590,15 @@ function SourceDonut({ leads }: { leads: Lead[] }) {
   const counts: Record<string, number> = {}
   for (const l of leads) counts[l.source] = (counts[l.source] ?? 0) + 1
   const data = Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-  if (!data.length) return <p className="text-xs text-center py-12" style={{ color: 'var(--text-faint)' }}>No data yet</p>
+  if (!data.length) return <p className="text-xs text-center py-10" style={{ color: 'var(--text-faint)' }}>No data yet</p>
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={160}>
       <PieChart>
-        <Pie data={data} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
-          {data.map((entry) => (
-            <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] ?? '#6b7280'} />
-          ))}
+        <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={65} dataKey="value" paddingAngle={2}>
+          {data.map(entry => <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] ?? '#6b7280'} />)}
         </Pie>
-        <Tooltip
-          contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
-          itemStyle={{ color: 'var(--text-heading)' }}
-          formatter={(v, name) => [v, name]}
-        />
+        <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: 12 }}
+          itemStyle={{ color: 'var(--text-heading)' }} formatter={(v, name) => [v, name]} />
       </PieChart>
     </ResponsiveContainer>
   )
