@@ -49,6 +49,13 @@ export default function LeadsPage() {
       })
   }, [])
 
+  const now = Date.now()
+  const coldLeads = leads.filter((l) => {
+    if (!['contacted', 'quoted', 'negotiating'].includes(l.status)) return false
+    const daysSince = (now - new Date(l.updated_at).getTime()) / 86400000
+    return daysSince >= 5
+  }).sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
+
   const years = Array.from(
     new Set(leads.map((l) => l.created_at.slice(0, 4)))
   ).sort((a, b) => b.localeCompare(a))
@@ -87,6 +94,43 @@ export default function LeadsPage() {
           + New Lead
         </Link>
       </div>
+
+      {/* Cold Lead Alert */}
+      {!loading && coldLeads.length > 0 && (
+        <div className="mb-5 rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">🔥</span>
+            <p className="text-sm font-semibold" style={{ color: '#f87171' }}>
+              {coldLeads.length} lead{coldLeads.length !== 1 ? 's' : ''} going cold — no activity in 5+ days
+            </p>
+          </div>
+          <div className="space-y-2">
+            {coldLeads.slice(0, 5).map((l) => {
+              const days = Math.floor((now - new Date(l.updated_at).getTime()) / 86400000)
+              const heat = days >= 14 ? { color: '#ef4444', label: 'Very cold' } : days >= 7 ? { color: '#f97316', label: 'Cold' } : { color: '#eab308', label: 'Warm' }
+              return (
+                <Link
+                  key={l.id}
+                  href={`/leads/${l.id}`}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg transition-colors"
+                  style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = heat.color)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${heat.color}20`, color: heat.color }}>
+                      {heat.label}
+                    </span>
+                    <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{l.name}</span>
+                    <span className="text-xs capitalize hidden sm:inline" style={{ color: 'var(--text-faint)' }}>{l.status}</span>
+                  </div>
+                  <span className="text-xs shrink-0 ml-2" style={{ color: 'var(--text-faint)' }}>{days}d silent →</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Year selector */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">

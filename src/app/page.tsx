@@ -70,23 +70,45 @@ function buildMonthStats(leads: Lead[], year: string): MonthStats[] {
     .reverse()
 }
 
+interface RevenueStats {
+  confirmed: number
+  collected: number
+  pipeline: number
+  bookingCount: number
+}
+
 export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [revenue, setRevenue] = useState<RevenueStats>({ confirmed: 0, collected: 0, pipeline: 0, bookingCount: 0 })
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [openMonth, setOpenMonth] = useState<string | null>(new Date().toISOString().slice(0, 7))
 
   useEffect(() => {
     const db = createClient()
+    const thisMonth = new Date().toISOString().slice(0, 7)
     Promise.all([
       db.from('leads').select('*').order('created_at', { ascending: false }),
       db.from('bookings').select('*').eq('status', 'upcoming')
         .gte('event_date', new Date().toISOString().slice(0, 10))
         .order('event_date').limit(6),
-    ]).then(([{ data: l }, { data: b }]) => {
+      db.from('bookings')
+        .select('package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
+        .gte('event_date', `${thisMonth}-01`)
+        .lte('event_date', `${thisMonth}-31`)
+        .neq('status', 'cancelled'),
+    ]).then(([{ data: l }, { data: b }, { data: rev }]) => {
       setLeads(l ?? [])
       setBookings(b ?? [])
+      const confirmed = (rev ?? []).reduce((s, r) => s + (r.package_price ?? 0), 0)
+      const collected = (rev ?? []).reduce((s, r) => {
+        let c = 0
+        if (r.deposit_paid) c += r.deposit_amount ?? 0
+        if (r.balance_paid) c += r.balance_amount ?? 0
+        return s + c
+      }, 0)
+      setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: (rev ?? []).length })
       setLoading(false)
     })
   }, [])
@@ -159,6 +181,32 @@ export default function Dashboard() {
         <StatCard label="Lost" value={yearLost} glowColor="#ef4444" icon="✕" />
         <StatCard label="Conv. Rate" value={`${yearConvRate}%`} glowColor="#f59e0b" icon="%" />
       </div>
+
+      {/* Revenue this month */}
+      {revenue.bookingCount > 0 && (
+        <div className="rounded-2xl p-4 mb-6 grid grid-cols-3 gap-4"
+          style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>
+              This Month
+            </p>
+            <p className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>{peso(revenue.confirmed)}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{revenue.bookingCount} booking{revenue.bookingCount !== 1 ? 's' : ''}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Collected</p>
+            <p className="text-xl font-bold" style={{ color: '#10b981' }}>{peso(revenue.collected)}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>received</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Outstanding</p>
+            <p className="text-xl font-bold" style={{ color: revenue.pipeline > 0 ? '#f59e0b' : '#10b981' }}>
+              {peso(revenue.pipeline)}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>balance due</p>
+          </div>
+        </div>
+      )}
 
       {/* Main grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

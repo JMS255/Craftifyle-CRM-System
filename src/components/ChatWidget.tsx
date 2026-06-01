@@ -28,6 +28,8 @@ export default function ChatWidget() {
   const [crmMessages, setCrmMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const messages = mode === 'advisor' ? advisorMessages : crmMessages
@@ -75,6 +77,16 @@ export default function ChatWidget() {
   function switchMode(next: 'advisor' | 'crm') {
     setMode(next)
     setInput('')
+    setPasteOpen(false)
+    setPasteText('')
+  }
+
+  async function submitPaste() {
+    if (!pasteText.trim() || loading) return
+    const msg = `Parse this client inquiry and create a lead: ${pasteText.trim()}`
+    setPasteText('')
+    setPasteOpen(false)
+    await send(msg)
   }
 
   const suggestions = mode === 'advisor' ? ADVISOR_SUGGESTIONS : CRM_SUGGESTIONS
@@ -234,11 +246,55 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
+          {/* Paste DM panel — CRM mode only */}
+          {isCrm && pasteOpen && (
+            <div className="border-t px-3 py-3 space-y-2" style={{ borderColor: 'var(--card-border)', background: 'var(--subtle-bg)' }}>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                📋 Paste the client's DM — Crafty will extract details and create the lead.
+              </p>
+              <textarea
+                value={pasteText}
+                onChange={e => setPasteText(e.target.value)}
+                rows={3}
+                placeholder={'e.g. "Hi! Available ba kayo July 20? Birthday ng anak ko, mga 80 guests, photobooth lang."'}
+                className="w-full resize-none rounded-xl px-3 py-2 text-sm focus:outline-none"
+                style={{ background: 'var(--card)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={submitPaste}
+                  disabled={loading || !pasteText.trim()}
+                  className="flex-1 text-xs py-2 rounded-xl font-semibold text-white disabled:opacity-40 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                >
+                  Create Lead from DM
+                </button>
+                <button
+                  onClick={() => { setPasteOpen(false); setPasteText('') }}
+                  className="text-xs px-3 py-2 rounded-xl"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div
             className="border-t px-3 py-2 flex gap-2 items-end"
             style={{ borderColor: 'var(--card-border)' }}
           >
+            {isCrm && !pasteOpen && (
+              <button
+                onClick={() => setPasteOpen(true)}
+                title="Paste a client DM"
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm transition-all"
+                style={{ border: '1px solid var(--card-border)', color: 'var(--text-muted)', background: 'var(--subtle-bg)' }}
+              >
+                📋
+              </button>
+            )}
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

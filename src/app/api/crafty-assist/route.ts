@@ -26,6 +26,7 @@ IMPORTANT RULES:
 - If something is unclear, ask one short clarifying question before acting.
 - Keep replies short and direct — no fluff.
 - When you complete a DB action, start your reply with "Done —" so James knows it worked.
+- If given a raw client inquiry or DM (e.g. prefixed with "Parse this:" or "New inquiry:"), extract name, event_type, event_date, venue, guest_count, package interest, and call create_lead immediately. Use source=facebook if it looks like a Messenger DM. Don't ask for confirmation unless the name is completely missing.
 
 CRAFTIFYLE PACKAGES (for reference when creating leads/bookings):
 - Photobooth Only: ₱3,500
@@ -182,6 +183,24 @@ const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'convert_lead_to_booking',
+      description: 'Convert an existing lead to a confirmed booking. Fetches the lead\'s event details automatically and creates the booking. Updates the lead status to booked.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Lead UUID to convert.' },
+          lead_name: { type: 'string', description: 'Lead name to search by (used if lead_id not known).' },
+          deposit_amount: { type: 'number', description: 'Deposit amount in PHP. Defaults to 1000 if not specified.' },
+          deposit_paid: { type: 'boolean', description: 'Whether deposit has already been paid. Default false.' },
+          event_time: { type: 'string', description: 'Event time in HH:MM format.' },
+          notes: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_revenue_summary',
       description: 'Get total revenue summary from bookings.',
       parameters: {
@@ -323,6 +342,52 @@ async function runTool(
         return sum + s
       }, 0) ?? 0
       return JSON.stringify({ total_bookings: data?.length ?? 0, total_revenue: total, bookings: data })
+    }
+
+    if (name === 'convert_lead_to_booking') {
+      // Find lead by ID or name
+      let lead: Record<string, unknown> | null = null
+      if (args.lead_id) {
+        const { data } = await db.from('leads').select('*').eq('id', args.lead_id as string).eq('user_id', userId).single()
+        lead = data
+      } else if (args.lead_name) {
+        const { data } = await db.from('leads').select('*').ilike('name', `%${args.lead_name as string}%`).eq('user_id', userId).limit(1).single()
+        lead = data
+      }
+      if (!lead) return 'Lead not found. Try providing the lead name or ID.'
+      if (!lead.event_date) return `Lead found (${lead.name}) but has no event date set. Please update the lead with an event date first.`
+
+      const packagePrice = (lead.budget as number) ?? (lead.package ? 6500 : 0)
+      const depositAmount = (args.deposit_amount as number) ?? 1000
+      const balanceAmount = Math.max(0, packagePrice - depositAmount)
+      const depositPaid = (args.deposit_paid as boolean) ?? false
+      const today = new Date().toISOString().slice(0, 10)
+
+      const { data: booking, error } = await db.from('bookings').insert({
+        user_id: userId,
+        lead_id: lead.id,
+        event_name: `${lead.name}'s ${(lead.event_type as string)?.replace('_', ' ') ?? 'Event'}`,
+        event_date: lead.event_date,
+        event_time: (args.event_time as string) ?? null,
+        venue: lead.venue ?? null,
+        package_name: (lead.package as string) ?? null,
+        package_price: packagePrice,
+        deposit_amount: depositAmount,
+        deposit_paid: depositPaid,
+        deposit_paid_date: depositPaid ? today : null,
+        balance_amount: balanceAmount,
+        balance_paid: false,
+        balance_paid_date: null,
+        status: 'upcoming',
+        craftifyle_income: packagePrice,
+        personal_income: 0,
+        notes: (args.notes as string) ?? null,
+        gcal_event_id: null,
+      }).select('id, event_name').single()
+      if (error) return `Error: ${error.message}`
+
+      await db.from('leads').update({ status: 'booked', updated_at: new Date().toISOString() }).eq('id', lead.id as string)
+      return `Converted to booking: ${booking.event_name} on ${lead.event_date}. Deposit: ₱${depositAmount}${depositPaid ? ' (paid)' : ' (unpaid)'}. Balance: ₱${balanceAmount}. Booking ID: ${booking.id}`
     }
 
     return `Unknown tool: ${name}`
