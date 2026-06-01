@@ -116,7 +116,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ token:
               <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#6b7280' }}>How to Pay Deposit</p>
               <p className="text-sm text-white font-medium mb-1">GCash</p>
               <p className="text-sm" style={{ color: '#9ca3af' }}>Send <strong className="text-white">{peso(b.deposit_amount)}</strong> to:</p>
-              <p className="text-lg font-bold text-white mt-1">0917-XXX-XXXX</p>
+              <p className="text-lg font-bold text-white mt-1">0993-632-4512</p>
               <p className="text-xs mt-1" style={{ color: '#6b7280' }}>Account name: James Ignacio</p>
               <p className="text-xs mt-3" style={{ color: '#6b7280' }}>
                 Screenshot your GCash receipt and send it to us on Messenger so we can confirm your slot. 🙏
