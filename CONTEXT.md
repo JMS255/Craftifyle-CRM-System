@@ -99,7 +99,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 ### Immediate
 1. **SEMAPHORE_API_KEY** — add to Vercel env vars (value: 75a671289eda9b6b08a32fe272f80292)
 2. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
-3. **Full redesign** — Lead detail (next), Booking detail, Typography pass, Sidebar SVG icons
+3. **True visual identity** — future decision: bolder color story (amber accent, gradient backgrounds), stronger typography contrast, something uniquely Craftifyle
 4. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
 
 ### After UI polish
@@ -118,25 +118,24 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 **Phase 3** — All remaining pages (`ads`, `personal`, `login`, `signup`) full token pass. All CSS vars, no hardcoded grays.  
 **Phase 4** — Skeleton loaders on all pages via `.skeleton` shimmer animation in globals.css.
 
-### Full Visual Redesign (in progress)
-The polish pass fixed consistency. The full redesign makes the app *look different*.
+### Full Visual Redesign ✅ Complete (June 2)
 
-**Dashboard ✅ Done** — Greeting + time-of-day, revenue hero strip at top (gradient bg, 3xl numbers), Today's Actions with colored left border per urgency, PipelineSnapshot segmented bar, UpcomingEvents with date badge, chips + charts moved to bottom.
+| Page | What changed |
+|---|---|
+| Dashboard | Greeting + time-of-day, revenue hero strip, pipeline snapshot bar, Today's Actions with colored left borders, chips + charts moved to bottom. Removed max-width so it fills full content area. |
+| Leads list + Kanban | Avatar initials colored by stage, colored left border per row, 5-col table, action badge under name. Kanban: w-64 cards, avatar, stage color on drop. Mobile: left border + avatar. |
+| Lead detail | 2-col desktop layout (info+convo+activity left, actions right), visual pipeline progress bar with steps + connectors, timeline activity log, Convert to Booking as collapsible card. |
+| Booking detail | Payment progress bar showing % collected, larger numbers, Craftifyle Income uses accent vars. |
+| Bookings list | Year selector, status filter, month header, table rows, mobile cards — all CSS vars. |
+| New lead form | Back link, error, submit button → CSS vars. |
+| Sidebar | SVG icons replacing emoji. Profile page gets sign out + theme toggle for mobile (was missing entirely). |
 
-**Leads list + Kanban ✅ Done** — Avatar initial circles colored by stage, colored left border per row, simplified 5-col table, action badge under name. Kanban: wider cards (w-64), avatar in card, stage color on drop zones. Mobile: left border + avatar on cards.
+**Honest note:** The redesign restructured layouts and fixed visual hierarchy — revenue first, actions prominent, avatar identity on leads. The *color story* and overall aesthetic feel is still the same dark navy/purple app. A truly different look would need: bolder use of amber secondary accent, more dramatic typography scale, more whitespace, something uniquely Craftifyle. That's a future decision on visual direction.
 
-**Lead detail — Next** — 2-column desktop layout, stage as progress bar, activity log as chat thread.
-
-**Still to do:**
-- Lead detail page — 2-col layout
-- Booking detail page
-- Typography + color pass
-- Sidebar SVG icons (replace emoji)
-
-### Other recent additions (June 2)
+### Other additions (June 2)
 - **Settings/Packages page** (`/settings`) — manage packages + prices, Crafty reads from DB dynamically. Run `supabase-migration-packages.sql` to activate.
-- **Mobile nav** — fixed to 5 tabs (Home · Leads · + · Bookings · Profile), emoji icons, dropped Ads from mobile.
-- **craftycrm-website** — changelog updated with v0.4.0 + v0.5.0, roadmap updated (Sprint 2 → In progress, Now—Beta → Shipped).
+- **Mobile nav** — 5 tabs with SVG icons, sign out bug fixed (was never accessible on mobile).
+- **craftycrm-website** — changelog + roadmap updated.
 
 ## UI Redesign Spec (from June 1 research)
 

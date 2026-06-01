@@ -454,16 +454,19 @@ git push origin master
 
 **Polish Pass: COMPLETE ✅** — All 8 phases from the spec done. App is token-consistent and dark/light mode correct.
 
-**Full Visual Redesign (in progress)** — Makes the app look different, not just more correct.
+**Full Visual Redesign ✅ Complete** — Layout restructuring, visual hierarchy, token cleanup across all pages.
 
-| Page | Status |
+| Page | What changed |
 |---|---|
-| Dashboard | ✅ Done — greeting, revenue hero strip, pipeline snapshot, redesigned actions |
-| Leads list + Kanban | ✅ Done — avatar initials, colored left borders, wider kanban cards |
-| Lead detail | Next — 2-col layout, stage progress bar, chat-style activity log |
-| Booking detail | Pending |
-| Typography + color pass | Pending |
-| Sidebar SVG icons | Pending |
+| Dashboard | Greeting, revenue hero strip, pipeline snapshot bar, Today's Actions with colored borders, full width |
+| Leads list + Kanban | Avatar initials, colored left borders, 5-col table, wider kanban cards with avatars |
+| Lead detail | 2-col layout, pipeline progress bar, timeline activity log, collapsible Convert to Booking |
+| Booking detail | Payment progress bar, larger numbers, all CSS vars |
+| Bookings list | All hardcoded colors → CSS vars |
+| New lead form | Fixed remaining hardcoded colors |
+| Sidebar | SVG icons, Profile page has sign out + theme for mobile |
+
+**Note:** Layout and hierarchy changed significantly. Color story (navy/purple) unchanged — a bolder visual identity is a future decision.
 
 ---
 
@@ -472,7 +475,6 @@ git push origin master
 ### Immediate
 - Add `SEMAPHORE_API_KEY` to Vercel env vars
 - Run `supabase-migration-packages.sql` in Supabase SQL Editor (packages table not yet created)
-- Full visual redesign — Lead detail page next, then Booking detail, Typography pass, Sidebar SVG icons
 
 ### Sprint 2 (July 2026)
 - Custom package builder in UI — configure from app without code
