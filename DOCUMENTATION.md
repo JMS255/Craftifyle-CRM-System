@@ -309,6 +309,13 @@ INVITE_CODE=                       # Delete this var to enable open beta signups
 ### Profile (`/profile`)
 - Set full name, business name, city — shown throughout the CRM
 
+### Settings / Packages (`/settings`)
+- Manage base packages + add-ons with inline editing
+- Active/inactive toggle per package, add/remove rows, reset to defaults
+- Changes saved to `packages` Supabase table — Crafty reads them dynamically on every request
+- Falls back to hardcoded defaults if no packages saved yet
+- **Requires:** run `supabase-migration-packages.sql` in Supabase SQL Editor first
+
 ### PackagePicker component
 - 4 package cards + toggleable add-ons, auto-calculates total
 - Add-ons appended to `package_name` (e.g. "Photobooth + Photography + Magnet prints")
@@ -442,10 +449,21 @@ git push origin master
 
 **Phase 1 ✅** — Token unification, new accent, card inset shadow, `.card` + `.section-label` classes, sidebar active state  
 **Phase 2 ✅** — Global table system, typography letter-spacing, button press scale + focus ring, mobile nav backdrop-blur, `.tabular` number class  
-**Phase 3 ✅** — `ads/page.tsx`, `personal/page.tsx`, `login/page.tsx`, `signup/page.tsx` full token pass. All pages now use CSS vars exclusively. `profile/page.tsx` was already clean.  
-**Phase 4 ✅** — Skeleton loaders on all pages. `.skeleton` shimmer animation in globals.css. Dashboard, leads, bookings, lead detail, booking detail, invoice, ads, personal all replaced.
+**Phase 3 ✅** — `ads/page.tsx`, `personal/page.tsx`, `login/page.tsx`, `signup/page.tsx` full token pass. All pages now use CSS vars exclusively.  
+**Phase 4 ✅** — Skeleton loaders on all pages. `.skeleton` shimmer animation in globals.css.
 
-**UI Redesign: COMPLETE ✅**
+**Polish Pass: COMPLETE ✅** — All 8 phases from the spec done. App is token-consistent and dark/light mode correct.
+
+**Full Visual Redesign (in progress)** — Makes the app look different, not just more correct.
+
+| Page | Status |
+|---|---|
+| Dashboard | ✅ Done — greeting, revenue hero strip, pipeline snapshot, redesigned actions |
+| Leads list + Kanban | ✅ Done — avatar initials, colored left borders, wider kanban cards |
+| Lead detail | Next — 2-col layout, stage progress bar, chat-style activity log |
+| Booking detail | Pending |
+| Typography + color pass | Pending |
+| Sidebar SVG icons | Pending |
 
 ---
 
@@ -453,7 +471,8 @@ git push origin master
 
 ### Immediate
 - Add `SEMAPHORE_API_KEY` to Vercel env vars
-- UI Redesign Phase 4 — skeleton loaders (only remaining item)
+- Run `supabase-migration-packages.sql` in Supabase SQL Editor (packages table not yet created)
+- Full visual redesign — Lead detail page next, then Booking detail, Typography pass, Sidebar SVG icons
 
 ### Sprint 2 (July 2026)
 - Custom package builder in UI — configure from app without code

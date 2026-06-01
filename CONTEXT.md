@@ -98,8 +98,9 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ### Immediate
 1. **SEMAPHORE_API_KEY** — add to Vercel env vars (value: 75a671289eda9b6b08a32fe272f80292)
-2. **UI Redesign** — see full spec below. Start with Polish Pass (8 hrs) before committing to Full Redesign (22 hrs)
-3. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
+2. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
+3. **Full redesign** — Lead detail (next), Booking detail, Typography pass, Sidebar SVG icons
+4. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
 
 ### After UI polish
 4. **PayMongo payment links** — when James can sign up
@@ -109,17 +110,33 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ---
 
-## UI Redesign Progress (as of June 2)
+## UI Redesign Progress
 
-**Phase 1 ✅ Done** — Token unification, global gray overrides, new accent `#7c6ff7`, card inset shadow, 150ms transitions, font-feature-settings, muted status badges, `.card` + `.section-label` classes, sidebar active nav item.
+### Polish Pass (Phases 1–4) ✅ Complete
+**Phase 1** — Token unification, new accent `#7c6ff7`, `.card` + `.section-label` classes, sidebar active nav.  
+**Phase 2** — Global table system, typography letter-spacing, button press scale, mobile nav backdrop-blur.  
+**Phase 3** — All remaining pages (`ads`, `personal`, `login`, `signup`) full token pass. All CSS vars, no hardcoded grays.  
+**Phase 4** — Skeleton loaders on all pages via `.skeleton` shimmer animation in globals.css.
 
-**Phase 2 ✅ Done** — Global table system (no vertical borders, clean headers, row hover), typography (h1-h4 letter-spacing), button press scale + focus ring, mobile nav backdrop-blur + safe area, `.tabular` number class, PayCell CSS vars.
+### Full Visual Redesign (in progress)
+The polish pass fixed consistency. The full redesign makes the app *look different*.
 
-**Phase 3 ✅ Done** — Ads page, Personal Finance page, Login/Signup footer. All hardcoded grays replaced with CSS vars. SummaryCards, tables, accordion, EntryForm, badges all now token-consistent.
+**Dashboard ✅ Done** — Greeting + time-of-day, revenue hero strip at top (gradient bg, 3xl numbers), Today's Actions with colored left border per urgency, PipelineSnapshot segmented bar, UpcomingEvents with date badge, chips + charts moved to bottom.
 
-**Phase 4 ✅ Done** — Skeleton loaders on all pages. `.skeleton` CSS animation added to globals.css. Dashboard, leads list, bookings list, lead detail, booking detail, invoice, ads, personal all now show shimmer shapes instead of "Loading…" text.
+**Leads list + Kanban ✅ Done** — Avatar initial circles colored by stage, colored left border per row, simplified 5-col table, action badge under name. Kanban: wider cards (w-64), avatar in card, stage color on drop zones. Mobile: left border + avatar on cards.
 
-**UI Redesign: COMPLETE** — All 8 phases + 12 micro-details from the spec are done.
+**Lead detail — Next** — 2-column desktop layout, stage as progress bar, activity log as chat thread.
+
+**Still to do:**
+- Lead detail page — 2-col layout
+- Booking detail page
+- Typography + color pass
+- Sidebar SVG icons (replace emoji)
+
+### Other recent additions (June 2)
+- **Settings/Packages page** (`/settings`) — manage packages + prices, Crafty reads from DB dynamically. Run `supabase-migration-packages.sql` to activate.
+- **Mobile nav** — fixed to 5 tabs (Home · Leads · + · Bookings · Profile), emoji icons, dropped Ads from mobile.
+- **craftycrm-website** — changelog updated with v0.4.0 + v0.5.0, roadmap updated (Sprint 2 → In progress, Now—Beta → Shipped).
 
 ## UI Redesign Spec (from June 1 research)
 
