@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -15,6 +15,15 @@ function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+
+  // On mount: if open beta (no INVITE_CODE set), skip invite step entirely
+  useEffect(() => {
+    fetch('/api/auth/check-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '' }),
+    }).then(r => { if (r.ok) setStep('register') })
+  }, [])
 
   async function checkCode(e: React.FormEvent) {
     e.preventDefault()
@@ -97,7 +106,7 @@ function SignupForm() {
             Craftifyle CRM
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>
-            {step === 'code' ? 'Enter your invite code' : 'Create your account'}
+            {step === 'code' ? 'Enter your invite code to continue' : 'Create your free account'}
           </p>
         </div>
 

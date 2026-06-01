@@ -15,8 +15,8 @@ const ADVISOR_SUGGESTIONS = [
 ]
 
 const CRM_SUGGESTIONS = [
+  'What needs my attention today?',
   'Add a new lead: Maria Santos, birthday, June 28, ₱6,500 bundle',
-  'Show me all new leads',
   'Show upcoming bookings',
   'How much revenue do I have this month?',
 ]

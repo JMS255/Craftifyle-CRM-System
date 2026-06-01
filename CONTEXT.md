@@ -14,35 +14,45 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 ## Two Active Projects
 
 1. **james-portfolio** — Public website (craftifyle.business) — booking wizard, referral system, admin tools
-2. **craftifyle-crm** — THIS PROJECT — internal CRM with Crafty AI Messenger bot
+2. **craftifyle-crm** — THIS PROJECT — internal CRM with Crafty AI and automation
 
 ---
 
-## CRM Current Status (June 1, 2026)
+## CRM Current Status (June 1, 2026 — end of session)
 
 **What's working:**
 - Lead pipeline (new → contacted → quoted → negotiating → booked → lost → completed)
+- **Kanban board view** — drag-and-drop across pipeline stages
+- **AI next-action badges** — rule-based labels per lead (event soon, follow up, first contact, event passed)
+- **Cold lead alerts** — banner on leads page for leads silent 5+ days
 - Booking management with deposit/balance tracking
-- Crafty AI — automated Facebook Messenger sales bot (Groq llama-3.3-70b-versatile)
-- Auto-creating leads from Messenger conversations
-- Ad performance tracking via m.me/?ref= links
-- Personal income & expense tracking
+- **Payment status badges** — Unpaid / Deposit Paid / Fully Paid / Overdue per booking
+- **Overdue alerts** — banner on bookings page for events passed without full payment
+- Crafty AI — two modes:
+  - **Advisor** (business advice, draft messages) — Groq llama-3.1-8b-instant
+  - **CRM Actions** (reads/writes DB) — Groq llama-3.3-70b-versatile with tool calling
+- **Crafty tools:** get_leads, create_lead, update_lead, get_bookings, create_booking, log_payment, get_revenue_summary, convert_lead_to_booking, get_urgent_leads
+- **Paste DM** — 📋 button in CRM Actions, paste raw inquiry, Crafty creates lead
+- **Revenue dashboard card** — this month confirmed / collected / outstanding
+- **Dashboard charts** — bar chart (bookings/month) + source donut
+- **Booking confirmation smart link** — public page /confirm/[token] with event details, GCash 0993-632-4512, and terms
+- **Semaphore SMS follow-up** — cron sends Taglish SMS to leads with phone numbers
 - Invoice generation
 - Google Calendar integration
-- Auto follow-up cron for quiet leads
-- Booking reminders 3 days before events
+- Auto follow-up cron + 3-day booking reminders
+- **Open beta ready** — delete INVITE_CODE from Vercel to open signups
 
-**Main problems:**
-- Too much manual data entry — causes friction and inconsistency
-- James stops using it when it requires too much effort to maintain
-- Crafty AI works but Meta API full approval blocked (needs BIR registration)
-- Need more automation so data populates itself
+**Main problems still open:**
+- Meta API full approval blocked (needs BIR registration) — Messenger bot limited
+- PayMongo not yet available to James — payment link automation pending
+- Custom package builder not yet built
+- Crafty AI training UI not yet built
 
-**What we want to build next:**
-- Reduce manual entry friction
-- Auto-populate lead data from Messenger
-- Follow-up tracker
-- More automation so James stays consistent
+**What to build next:**
+1. Custom package builder — click-to-build quotes with add-ons, flows into invoice + Crafty
+2. Crafty AI training UI — configure packages/pricing from app, no code
+3. Open beta launch — remove invite code when ready
+4. PayMongo payment links — when James can sign up
 
 ---
 
@@ -52,9 +62,9 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - June events: June 4, 5, 14, 28
 - Lifetime ad spend: ₱9,800 → ₱54,250 revenue (5.5x ROAS)
 - Plan: resume ads at ₱150/day after June 5, point to website not Messenger
-- Ron Soriano: photographer partner from May 30 event
+- GCash number: 0993-632-4512
+- Semaphore API key: set in .env.local and needs to be added to Vercel env vars
 - Referral system launched June 1 on portfolio site
-- 30 past client DMs sent with WELCOMEBACK codes
 
 ---
 
@@ -64,10 +74,14 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 |---|---|
 | Framework | Next.js 16, App Router, TypeScript |
 | Database | Supabase (PostgreSQL) |
-| AI Bot | Groq — llama-3.3-70b-versatile (sales), llama-3.1-8b-instant (extraction) |
+| AI — Advisor | Groq — llama-3.1-8b-instant |
+| AI — CRM Actions | Groq — llama-3.3-70b-versatile (tool calling) |
 | Hosting | Vercel |
-| Messenger | Meta Messenger Platform API (Graph API v19.0) |
+| Messenger | Meta Messenger Platform API (Graph API v19.0) — partially blocked |
 | Cron | Vercel Cron |
+| SMS | Semaphore PH (SEMAPHORE_API_KEY set) |
+| Charts | recharts |
+| Drag-and-drop | @hello-pangea/dnd |
 
 ---
 
@@ -76,13 +90,16 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 | File | Purpose |
 |---|---|
 | `src/types/index.ts` | All TypeScript interfaces — always check here first |
-| `src/app/leads/` | Lead pipeline pages |
-| `src/app/bookings/` | Booking management |
-| `src/app/ads/` | Ad performance dashboard |
-| `src/app/personal/` | Personal finances |
-| `src/app/api/messenger/route.ts` | Crafty AI webhook — main bot |
-| `src/app/api/cron/follow-up/route.ts` | Daily auto follow-up |
+| `src/app/leads/page.tsx` | Lead pipeline — list + kanban board + cold alerts + next-action badges |
+| `src/app/bookings/page.tsx` | Booking management — overdue alerts + payment badges |
+| `src/app/page.tsx` | Dashboard — revenue card + charts |
+| `src/app/confirm/[token]/page.tsx` | Public booking confirmation page |
+| `src/app/api/crafty-assist/route.ts` | Crafty CRM Actions — tool calling, all DB tools |
+| `src/app/api/chat/route.ts` | Crafty Advisor — business advice, no DB access |
+| `src/components/ChatWidget.tsx` | Floating chat — Advisor + CRM Actions tabs + Paste DM |
+| `src/app/api/cron/follow-up/route.ts` | Daily follow-up — Messenger + Semaphore SMS |
 | `src/app/api/cron/reminders/route.ts` | 3-day booking reminders |
+| `src/app/api/messenger/route.ts` | Crafty AI webhook — main Messenger bot |
 | `DOCUMENTATION.md` | Full schema, API routes, feature docs |
 | `CLAUDE_RULES.md` | Coding rules — read before touching anything |
 
@@ -101,6 +118,6 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 ## How to Start a Session
 
 1. Read this file ✅
-2. Read `DOCUMENTATION.md` for full schema
-3. Ask James what he wants to fix or build
-4. Check relevant source files before touching anything
+2. Ask James what he wants to fix or build
+3. Check relevant source files before touching anything
+4. Remember: SEMAPHORE_API_KEY needs to be added to Vercel env vars

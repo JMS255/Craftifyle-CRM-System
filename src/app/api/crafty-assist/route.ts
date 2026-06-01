@@ -183,6 +183,19 @@ const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_urgent_leads',
+      description: 'Get leads that need immediate attention — sorted by urgency. Returns leads with upcoming events, quiet leads that need follow-up, and leads where the event has passed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max results. Default 10.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'convert_lead_to_booking',
       description: 'Convert an existing lead to a confirmed booking. Fetches the lead\'s event details automatically and creates the booking. Updates the lead status to booked.',
       parameters: {
@@ -342,6 +355,36 @@ async function runTool(
         return sum + s
       }, 0) ?? 0
       return JSON.stringify({ total_bookings: data?.length ?? 0, total_revenue: total, bookings: data })
+    }
+
+    if (name === 'get_urgent_leads') {
+      const { data, error } = await db.from('leads')
+        .select('id, name, phone, event_date, event_type, status, updated_at, package, budget')
+        .eq('user_id', userId)
+        .not('status', 'in', '("booked","completed","lost")')
+        .order('event_date', { ascending: true, nullsFirst: false })
+        .limit((args.limit as number) ?? 20)
+      if (error) return `Error: ${error.message}`
+      if (!data?.length) return 'No active leads found.'
+
+      const now = Date.now()
+      const scored = data.map(l => {
+        const eventMs = l.event_date ? new Date(l.event_date).getTime() : null
+        const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
+        const daysSilent = Math.floor((now - new Date(l.updated_at).getTime()) / 86400000)
+        let urgency = 0
+        let action = ''
+        if (daysToEvent != null && daysToEvent < 0) { urgency = 100; action = 'Event passed — close it' }
+        else if (daysToEvent != null && daysToEvent <= 3) { urgency = 90; action = `Event in ${daysToEvent}d — confirm now!` }
+        else if (daysToEvent != null && daysToEvent <= 14) { urgency = 70; action = `Event in ${daysToEvent}d — follow up` }
+        else if (['quoted', 'negotiating'].includes(l.status) && daysSilent >= 7) { urgency = 60; action = `Quiet ${daysSilent}d — follow up` }
+        else if (l.status === 'new' && daysSilent >= 3) { urgency = 40; action = `New, ${daysSilent}d old — first contact` }
+        else { urgency = 10; action = 'Active' }
+        return { ...l, urgency, action, daysToEvent, daysSilent }
+      }).sort((a, b) => b.urgency - a.urgency).filter(l => l.urgency >= 40)
+
+      if (!scored.length) return 'All leads are up to date — nothing urgent right now.'
+      return JSON.stringify(scored.slice(0, (args.limit as number) ?? 10))
     }
 
     if (name === 'convert_lead_to_booking') {
