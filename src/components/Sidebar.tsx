@@ -221,6 +221,7 @@ export default function Sidebar() {
         </div>
       )}
 
+      <div className="mobile-nav-fill md:hidden" />
       {/* Mobile bottom nav */}
       <nav
         className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"

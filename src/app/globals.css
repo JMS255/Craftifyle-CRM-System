@@ -223,7 +223,18 @@ tbody td:last-child { text-align: right; }
 [data-theme="light"] .mobile-nav { background: #ffffff; }
 [data-theme="dark"]  .mobile-nav { background: #15151f; }
 
-/* Match html background to nav so Android system bar gap is invisible */
+/* Fill behind nav — covers safe area gap on all devices */
+.mobile-nav-fill {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 39;
+}
+[data-theme="light"] .mobile-nav-fill { background: #ffffff; }
+[data-theme="dark"]  .mobile-nav-fill { background: #15151f; }
+
 html[data-theme="light"] { background: #ffffff; }
 html[data-theme="dark"]  { background: #15151f; }
 
