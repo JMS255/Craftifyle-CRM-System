@@ -15,6 +15,13 @@
 - **CSS:** Prefer adding a targeted class or inline style over rewriting a stylesheet section. Never touch unrelated CSS rules.
 - **Meta Messenger API:** Never change webhook endpoints or page tokens unless explicitly asked.
 
+## Mobile-First (88% of users are on mobile)
+- **Touch targets:** All interactive elements (buttons, links, pills, tabs) must be at least 44px tall. Use `py-2.5` minimum on buttons, `py-3` on form inputs.
+- **Responsive font sizes:** Use `text-base md:text-lg` patterns for KPIs and headings — never hardcode a large `px` size without a smaller mobile counterpart.
+- **Input keyboards:** Always set `inputMode` on inputs — `tel` for phone, `numeric` for numbers/amounts, `email` for email. Add `autoComplete` hints where relevant.
+- **Tap areas:** Wrap list rows in `<Link>` or `<button>` that covers the full row — no small inline links inside dense rows.
+- **No horizontal overflow:** Test every new layout at 360px width mentally. Avoid fixed widths wider than the viewport.
+
 ## Workflow
 - Read only the files relevant to the bug before editing.
 - Build check (`npx next build`) before every commit.
