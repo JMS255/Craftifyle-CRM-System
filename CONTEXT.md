@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 1, 2026 (end of full-day session)
+> Last updated: June 2, 2026 (end of session)
 
 ---
 
@@ -97,16 +97,19 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 ## What to Build Next
 
 ### Immediate
-1. **SEMAPHORE_API_KEY** — add to Vercel env vars (value: 75a671289eda9b6b08a32fe272f80292)
-2. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
-3. **Design identity implementation** — amber money accent, 48px+ KPI numbers, light mode default (research done June 3)
-4. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
+1. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
+2. **PayMongo payment links** — when James can sign up (UI already built, hidden behind `false &&`)
+3. **Client portal**
+4. **Facebook OAuth** — blocked by Meta Business Verification + App Review. Skip until BIR registered.
 
-### After UI polish
-4. **PayMongo payment links** — when James can sign up
-5. **Crafty AI training UI** — configure packages/pricing from app
-6. **Booking contracts + e-sign**
-7. **Client portal**
+### Shipped June 2, 2026
+- **Personalized onboarding flow** (`src/components/OnboardingModal.tsx`) — 3-screen flow: paste DM → Crafty reveals extracted data staggered → profile setup (name, business name, 7 business type cards, acquisition source) → launch screen with blurred dashboard. Saves to `profiles.business_type`, `profiles.acquisition_source`, `profiles.onboarding_completed`.
+- **First-session CraftyToast** (`src/components/CraftyToast.tsx`) — small toast from Crafty, fires once per trigger in first 30 min of post-onboarding session. Triggers: 1st lead, 2nd lead, 1st stage change, 1st activity logged, 5 leads, 1st booking.
+- **Design identity** — KPI numbers `text-3xl` mobile / `text-5xl` desktop, light mode as default (OS preference ignored unless user toggled manually).
+- **Semaphore SMS disabled** — removed from cron follow-up route. Messenger follow-ups still active.
+- **Mobile UX pass** — 44px touch targets on all filter pills + tabs, larger lead row padding, `inputMode` on phone/number/email fields, mobile nav solid background + safe area fix, removed "Add" label from center nav button.
+- **CLAUDE_RULES.md** — added mobile-first section: 44px touch targets, responsive font sizes, inputMode, full-row tap targets, no horizontal overflow at 360px.
+- **Global Claude Code skills** — installed `nextjs-turbopack`, `react-patterns`, `security-review` + `rules/typescript`, `rules/react`, `rules/common` from ECC into `~/.claude/`. Also upgraded `search-first` skill with Review & Apply gate.
 
 ---
 
