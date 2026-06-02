@@ -313,7 +313,9 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                     <Link
                       key={b.id}
                       href={`/bookings/${b.id}`}
-                      className={`flex items-start justify-between px-4 py-3 hover:bg-gray-50 transition-colors ${b.status === 'cancelled' ? 'opacity-40' : ''}`}
+                      className={`flex items-start justify-between px-4 py-4 transition-colors ${b.status === 'cancelled' ? 'opacity-40' : ''}`}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-900 text-sm truncate">{b.event_name}</p>

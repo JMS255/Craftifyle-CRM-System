@@ -182,10 +182,6 @@ p { color: var(--text); }
 /* ─── Number formatting ─── */
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* ─── Hero KPI number — responsive size ─── */
-.hero-money-num { font-size: 1.6rem; }
-@media (min-width: 480px) { .hero-money-num { font-size: 2.75rem; } }
-
 /* ─── Button system ─── */
 button:active:not(:disabled) {
   transform: scale(0.97);
