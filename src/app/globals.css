@@ -219,8 +219,8 @@ tbody td:last-child { text-align: right; }
 .mobile-nav {
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
-[data-theme="light"] .mobile-nav { background: #fafaf8; }
-[data-theme="dark"]  .mobile-nav { background: #0f0f17; }
+[data-theme="light"] .mobile-nav { background: #f5f5fa; }
+[data-theme="dark"]  .mobile-nav { background: #09090f; }
 
 /* ─── Override hardcoded Tailwind gray classes → CSS vars ─── */
 /* Fixes all pages that use bg-white/text-gray-* so they respect dark/light mode */
