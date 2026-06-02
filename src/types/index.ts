@@ -71,6 +71,8 @@ export interface Booking {
   gcal_event_id: string | null
   paymongo_link_id?: string | null
   paymongo_link_url?: string | null
+  contract_signed_at?: string | null
+  contract_signed_name?: string | null
   created_at: string
   updated_at: string
 }

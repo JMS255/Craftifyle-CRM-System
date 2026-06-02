@@ -42,6 +42,7 @@ export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [email, setEmail] = useState('')
   const [quickAdd, setQuickAdd] = useState(false)
+  const [isStaff, setIsStaff] = useState(false)
 
   async function loadProfile() {
     const db = createClient()
@@ -50,6 +51,10 @@ export default function Sidebar() {
     setEmail(user.email ?? '')
     const { data } = await db.from('profiles').select('full_name, business_name, location').eq('id', user.id).maybeSingle()
     setProfile(data ?? { full_name: null, business_name: null, location: null })
+    // Check if user is a staff member on someone else's team
+    const { data: invite } = await db.from('team_invites')
+      .select('id').eq('member_user_id', user.id).eq('status', 'accepted').maybeSingle()
+    setIsStaff(!!invite)
   }
 
   useEffect(() => {
@@ -101,7 +106,7 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {nav.map(({ href, label, icon }) => {
+          {nav.filter(({ href }) => !isStaff || ['/', '/leads', '/bookings'].includes(href)).map(({ href, label, icon }) => {
             const active = isActive(href)
             return (
               <Link key={href} href={href}

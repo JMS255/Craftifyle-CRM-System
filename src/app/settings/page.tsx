@@ -187,6 +187,132 @@ export default function SettingsPage() {
           Changes take effect immediately — no restart needed.
         </p>
       </div>
+
+      <TeamSection />
+    </div>
+  )
+}
+
+function TeamSection() {
+  const [members, setMembers] = useState<{ id: string; member_email: string; status: string }[]>([])
+  const [email, setEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const db = createClient()
+    db.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      db.from('team_invites').select('id, member_email, status')
+        .eq('owner_id', user.id).order('created_at')
+        .then(({ data }) => setMembers(data ?? []))
+    })
+  }, [])
+
+  async function invite(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) return
+    setInviting(true); setError('')
+    const res = await fetch('/api/team/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+    })
+    const data = await res.json()
+    if (data.token) {
+      const link = `${window.location.origin}/team/join/${data.token}`
+      setInviteLink(link)
+      setMembers(prev => [...prev, { id: data.token, member_email: email.trim(), status: 'pending' }])
+      setEmail('')
+    } else {
+      setError(data.error ?? 'Failed to create invite.')
+    }
+    setInviting(false)
+  }
+
+  async function remove(inviteId: string) {
+    await fetch('/api/team/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inviteId }),
+    })
+    setMembers(prev => prev.filter(m => m.id !== inviteId))
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(inviteLink)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  return (
+    <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--card-border)' }}>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>Team</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          Invite staff to help manage leads and bookings. Staff can't access Finances, Ads, or Settings.
+        </p>
+      </div>
+
+      {/* Current members */}
+      {members.length > 0 && (
+        <div className="card overflow-hidden mb-5">
+          {members.map((m, i) => (
+            <div key={m.id} className="flex items-center justify-between px-4 py-3"
+              style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>{m.member_email}</p>
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{
+                    background: m.status === 'accepted' ? 'var(--success-muted)' : 'var(--warning-muted)',
+                    color: m.status === 'accepted' ? 'var(--success)' : 'var(--warning)',
+                  }}>
+                  {m.status === 'accepted' ? '✓ Active' : 'Pending'}
+                </span>
+              </div>
+              <button onClick={() => remove(m.id)}
+                className="text-xs px-2 py-1.5 rounded-lg"
+                style={{ color: 'var(--danger)', background: 'var(--danger-muted)' }}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Invite form */}
+      <form onSubmit={invite} className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Staff email address"
+          className="flex-1 rounded-lg px-3 py-2 text-sm"
+        />
+        <button type="submit" disabled={inviting || !email.trim()}
+          className="px-4 py-2 rounded-[10px] text-sm font-semibold text-white disabled:opacity-50"
+          style={{ background: 'var(--accent)' }}>
+          {inviting ? 'Inviting…' : 'Invite'}
+        </button>
+      </form>
+      {error && <p className="text-xs mt-2" style={{ color: 'var(--danger)' }}>{error}</p>}
+
+      {/* Invite link to copy */}
+      {inviteLink && (
+        <div className="mt-4 rounded-xl p-4" style={{ background: 'var(--success-muted)', border: '1px solid rgba(16,185,129,0.2)' }}>
+          <p className="text-xs font-semibold mb-2" style={{ color: 'var(--success)' }}>Invite created — copy this link and send it to your staff:</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs flex-1 truncate" style={{ color: 'var(--text-muted)' }}>{inviteLink}</p>
+            <button onClick={copyLink}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold shrink-0"
+              style={{ background: linkCopied ? 'var(--success)' : 'var(--accent)', color: '#fff' }}>
+              {linkCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

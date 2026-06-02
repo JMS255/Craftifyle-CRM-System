@@ -33,6 +33,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [payLink, setPayLink] = useState<string | null>(null)
   const [generatingLink, setGeneratingLink] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [contractCopied, setContractCopied] = useState(false)
 
   const db = createClient()
 
@@ -73,6 +74,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       setMsg(data.error ?? 'Failed to generate link — check PayMongo setup.')
     }
     setGeneratingLink(false)
+  }
+
+  function copyContractLink() {
+    const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    navigator.clipboard.writeText(`${window.location.origin}/contract/${token}`)
+    setContractCopied(true)
+    setTimeout(() => setContractCopied(false), 2000)
   }
 
   function copyPayLink() {
@@ -290,6 +298,44 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── Contract ── */}
+      <div className="card p-5 mb-5">
+        <div className="flex items-center justify-between mb-1">
+          <p className="section-label">Contract</p>
+          {booking.contract_signed_at && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ background: 'var(--success-muted)', color: 'var(--success)' }}>
+              ✓ Signed
+            </span>
+          )}
+        </div>
+        {booking.contract_signed_at ? (
+          <div className="mt-2">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Signed by <strong>{booking.contract_signed_name}</strong>
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+              {new Date(booking.contract_signed_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+          </div>
+        ) : (
+          <div className="mt-2">
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)' }}>
+              Not signed yet. Send the contract link to your client.
+            </p>
+            <button onClick={copyContractLink}
+              className="text-sm font-semibold px-4 py-2.5 rounded-[10px] transition-colors"
+              style={{
+                background: contractCopied ? 'var(--success-muted)' : 'var(--subtle-bg)',
+                color: contractCopied ? 'var(--success)' : 'var(--text-heading)',
+                border: '1px solid var(--card-border)',
+              }}>
+              {contractCopied ? '✓ Link Copied!' : '📋 Copy Contract Link'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Payment Link ── */}
