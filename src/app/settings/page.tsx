@@ -79,7 +79,7 @@ export default function SettingsPage() {
             user_id: user.id,
             name: r.name.trim(),
             price: parseFloat(r.price) || 0,
-            description: r.description.trim() || null,
+            description: r.description?.trim() || null,
             is_addon: r.is_addon,
             is_active: r.is_active,
             sort_order: i,
