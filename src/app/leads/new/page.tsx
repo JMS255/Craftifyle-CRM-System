@@ -106,7 +106,7 @@ export default function NewLeadPage() {
             className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }} />
         </div>
-        <Field label="Phone / Contact" value={form.phone} onChange={(v) => set('phone', v)} placeholder="09XXXXXXXXX or Facebook name" />
+        <Field label="Phone / Contact" value={form.phone} onChange={(v) => set('phone', v)} placeholder="09XXXXXXXXX or Facebook name" inputMode="tel" autoComplete="tel" />
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Event Type</label>
@@ -123,12 +123,12 @@ export default function NewLeadPage() {
         {/* Expandable extra fields */}
         {showMore && (
           <div className="space-y-4 pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
-            <Field label="Email" value={form.email} onChange={(v) => set('email', v)} placeholder="maria@email.com" type="email" />
+            <Field label="Email" value={form.email} onChange={(v) => set('email', v)} placeholder="maria@email.com" type="email" autoComplete="email" />
             <Field label="Facebook" value={form.facebook} onChange={(v) => set('facebook', v)} placeholder="@mariaS or facebook.com/maria" />
             <Field label="Venue" value={form.venue} onChange={(v) => set('venue', v)} placeholder="e.g. Grand Astoria Hotel" />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Guest Count" value={form.guest_count} onChange={(v) => set('guest_count', v)} placeholder="150" type="number" />
-              <Field label="Budget (₱)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="6500" type="number" />
+              <Field label="Guest Count" value={form.guest_count} onChange={(v) => set('guest_count', v)} placeholder="150" type="number" inputMode="numeric" />
+              <Field label="Budget (₱)" value={form.budget} onChange={(v) => set('budget', v)} placeholder="6500" type="number" inputMode="numeric" />
             </div>
             <Field label="Package Interest" value={form.package} onChange={(v) => set('package', v)} placeholder="e.g. Photobooth + Photography" />
             <div>
@@ -173,14 +173,17 @@ export default function NewLeadPage() {
   )
 }
 
-function Field({ label, value, onChange, placeholder = '', type = 'text' }: {
+function Field({ label, value, onChange, placeholder = '', type = 'text', inputMode, autoComplete }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
+  autoComplete?: string
 }) {
   return (
     <div>
       <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        inputMode={inputMode} autoComplete={autoComplete}
+        className="w-full rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }} />
     </div>
   )

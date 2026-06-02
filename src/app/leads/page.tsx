@@ -210,7 +210,7 @@ export default function LeadsPage() {
         <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-muted)' }}>Year:</span>
         {years.map(y => (
           <button key={y} onClick={() => setSelectedYear(y)}
-            className="text-xs px-3 py-1.5 rounded-full font-semibold"
+            className="text-xs px-3 py-2.5 rounded-full font-semibold"
             style={selectedYear === y
               ? { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' }
               : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}>
@@ -224,7 +224,7 @@ export default function LeadsPage() {
         <div className="flex gap-1.5 mb-4 flex-wrap">
           {STATUSES.map(s => (
             <button key={s} onClick={() => setFilterStatus(filterStatus === s ? 'all' : s)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium capitalize"
+              className="flex items-center gap-1.5 text-xs px-3 py-2.5 rounded-full font-medium capitalize"
               style={filterStatus === s
                 ? { background: STAGE[s].bg, color: STAGE[s].color, border: `1px solid ${STAGE[s].border}40` }
                 : { background: 'transparent', color: 'var(--text-faint)', border: '1px solid var(--card-border)' }}>
@@ -233,7 +233,7 @@ export default function LeadsPage() {
             </button>
           ))}
           {filterStatus !== 'all' && (
-            <button onClick={() => setFilterStatus('all')} className="text-xs px-2 py-1.5" style={{ color: 'var(--accent-text)' }}>
+            <button onClick={() => setFilterStatus('all')} className="text-xs px-2 py-2.5" style={{ color: 'var(--accent-text)' }}>
               Clear ✕
             </button>
           )}
@@ -257,7 +257,7 @@ export default function LeadsPage() {
               const s = STAGE[col]
               return (
                 <button key={col} onClick={() => setKanbanCol(col)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 capitalize"
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-full text-xs font-semibold shrink-0 capitalize"
                   style={{ background: kanbanCol === col ? s.bg : 'var(--subtle-bg)', border: `1px solid ${kanbanCol === col ? s.border : 'var(--card-border)'}`, color: kanbanCol === col ? s.color : 'var(--text-faint)' }}>
                   {col} <span style={{ opacity: 0.7 }}>{count}</span>
                 </button>
@@ -461,7 +461,7 @@ export default function LeadsPage() {
                   const s = STAGE[lead.status]
                   return (
                     <tr key={lead.id} style={{ borderLeft: `3px solid ${s.border}` }}>
-                      <td className="pl-4 pr-3 py-3">
+                      <td className="pl-4 pr-3 py-4">
                         <Link href={`/leads/${lead.id}`} className="flex items-start gap-3 group">
                           <Avatar name={lead.name} status={lead.status} size={36} />
                           <div className="min-w-0">
@@ -478,7 +478,7 @@ export default function LeadsPage() {
                           </div>
                         </Link>
                       </td>
-                      <td className="py-3">
+                      <td className="py-4">
                         <p className="text-sm capitalize" style={{ color: 'var(--text-secondary)' }}>
                           {lead.event_type?.replace('_', ' ') ?? '—'}
                         </p>
@@ -488,7 +488,7 @@ export default function LeadsPage() {
                           </p>
                         )}
                       </td>
-                      <td className="py-3">
+                      <td className="py-4">
                         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                           {lead.event_date ? fmtShort(lead.event_date) : '—'}
                         </p>
@@ -583,7 +583,7 @@ function SwipeCard({ lead, onAction }: {
       )}
       <Link
         href={`/leads/${lead.id}`}
-        className="relative flex items-start gap-3 card px-4 py-3.5"
+        className="relative flex items-start gap-3 card px-4 py-5"
         style={{
           borderRadius: 0,
           borderLeft: 'none',
