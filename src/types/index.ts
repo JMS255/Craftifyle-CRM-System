@@ -69,6 +69,8 @@ export interface Booking {
   personal_income: number
   notes: string | null
   gcal_event_id: string | null
+  paymongo_link_id?: string | null
+  paymongo_link_url?: string | null
   created_at: string
   updated_at: string
 }

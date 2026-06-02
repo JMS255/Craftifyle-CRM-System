@@ -30,6 +30,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [savingIncome, setSavingIncome] = useState(false)
   const [syncingCal, setSyncingCal] = useState(false)
   const [calMsg, setCalMsg] = useState('')
+  const [payLink, setPayLink] = useState<string | null>(null)
+  const [generatingLink, setGeneratingLink] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const db = createClient()
 
@@ -43,10 +46,41 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     db.from('bookings').select('*').eq('id', id).single().then(({ data }) => {
       setBooking(data)
-      if (data) setCraftifyleIncome(data.craftifyle_income > 0 ? String(data.craftifyle_income) : '')
+      if (data) {
+        setCraftifyleIncome(data.craftifyle_income > 0 ? String(data.craftifyle_income) : '')
+        setPayLink(data.paymongo_link_url ?? null)
+      }
       setLoading(false)
     })
   }, [id])
+
+  async function generatePayLink() {
+    if (!booking) return
+    setGeneratingLink(true)
+    const isDepositUnpaid = !booking.deposit_paid
+    const amount = isDepositUnpaid ? booking.deposit_amount : booking.balance_amount
+    const description = `${isDepositUnpaid ? 'Deposit' : 'Balance'} — ${booking.event_name}`
+    const res = await fetch('/api/paymongo/create-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: id, amount, description }),
+    })
+    const data = await res.json()
+    if (data.linkUrl) {
+      setPayLink(data.linkUrl)
+      setBooking(prev => prev ? { ...prev, paymongo_link_url: data.linkUrl, paymongo_link_id: data.linkId } : prev)
+    } else {
+      setMsg(data.error ?? 'Failed to generate link — check PayMongo setup.')
+    }
+    setGeneratingLink(false)
+  }
+
+  function copyPayLink() {
+    if (!payLink) return
+    navigator.clipboard.writeText(payLink)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
 
   async function markDepositPaid() {
     const today = new Date().toISOString().slice(0, 10)
@@ -257,6 +291,40 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
       </div>
+
+      {/* ── Payment Link ── */}
+      {(booking.deposit_paid === false || booking.balance_paid === false) && (
+        <div className="card p-5 mb-5">
+          <p className="section-label mb-1">Send Payment Link</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
+            Client pays via GCash, Maya, or card. Deposit is marked paid automatically when they complete payment.
+          </p>
+          {payLink ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}>
+                <span className="text-xs flex-1 truncate" style={{ color: 'var(--accent-text)' }}>{payLink}</span>
+                <button onClick={copyPayLink}
+                  className="text-xs font-semibold shrink-0 px-3 py-1.5 rounded-lg transition-colors"
+                  style={{ background: linkCopied ? 'var(--success-muted)' : 'var(--accent-subtle)', color: linkCopied ? 'var(--success)' : 'var(--accent-text)' }}>
+                  {linkCopied ? '✓ Copied!' : 'Copy'}
+                </button>
+              </div>
+              <button onClick={generatePayLink} disabled={generatingLink}
+                className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-50"
+                style={{ color: 'var(--text-faint)', border: '1px solid var(--card-border)' }}>
+                {generatingLink ? 'Generating…' : 'Generate new link'}
+              </button>
+            </div>
+          ) : (
+            <button onClick={generatePayLink} disabled={generatingLink}
+              className="text-sm font-semibold px-5 py-2.5 rounded-[10px] text-white disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+              {generatingLink ? 'Generating…' : '💳 Generate Payment Link'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Craftifyle Income ── */}
       <div className="card p-5 mb-5">
