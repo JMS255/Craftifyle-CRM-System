@@ -175,6 +175,7 @@ export default function Dashboard() {
 
       {/* ── Welcome flow — shown when user has zero leads ── */}
       {leads.length === 0 && <WelcomeFlow onComplete={reload} />}
+      {leads.length > 0 && <OnboardingChecklist />}
 
       {/* ── Revenue hero strip ── */}
       {revenue.bookingCount > 0 && (

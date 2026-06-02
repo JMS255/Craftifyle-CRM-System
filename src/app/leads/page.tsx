@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { createClient } from '@/lib/supabase'
@@ -64,6 +64,8 @@ export default function LeadsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [view, setView] = useState<'list' | 'kanban'>('list')
   const [kanbanCol, setKanbanCol] = useState<LeadStatus>('new')
+  const [undoInfo, setUndoInfo] = useState<{ id: string; name: string; prevStatus: LeadStatus } | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('leads-view') as 'list' | 'kanban'
@@ -77,6 +79,24 @@ export default function LeadsPage() {
   }, [])
 
   function toggleView(v: 'list' | 'kanban') { setView(v); localStorage.setItem('leads-view', v) }
+
+  async function handleSwipeAction(leadId: string, newStatus: LeadStatus, prevStatus: LeadStatus, leadName: string) {
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus, updated_at: new Date().toISOString() } : l))
+    const db = createClient()
+    await db.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId)
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setUndoInfo({ id: leadId, name: leadName, prevStatus })
+    undoTimerRef.current = setTimeout(() => setUndoInfo(null), 4000)
+  }
+
+  async function handleUndo() {
+    if (!undoInfo) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setLeads(prev => prev.map(l => l.id === undoInfo.id ? { ...l, status: undoInfo.prevStatus } : l))
+    const db = createClient()
+    await db.from('leads').update({ status: undoInfo.prevStatus, updated_at: new Date().toISOString() }).eq('id', undoInfo.id)
+    setUndoInfo(null)
+  }
 
   async function onDragEnd(result: DropResult) {
     if (!result.destination) return
@@ -493,42 +513,108 @@ export default function LeadsPage() {
             </div>
           </div>
 
-          {/* Mobile cards */}
+          {/* Mobile cards — swipeable */}
           <div className="md:hidden space-y-2">
-            {filtered.map(lead => {
-              const action = getNextAction(lead)
-              const s = STAGE[lead.status]
-              return (
-                <Link key={lead.id} href={`/leads/${lead.id}`}
-                  className="flex items-start gap-3 card px-4 py-3.5 transition-colors"
-                  style={{ borderLeft: `3px solid ${s.border}` }}>
-                  <Avatar name={lead.name} status={lead.status} size={38} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-heading)' }}>{lead.name}</p>
-                      <span className="badge capitalize shrink-0" style={{ background: s.bg, color: s.color }}>{lead.status}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs flex-wrap" style={{ color: 'var(--text-faint)' }}>
-                      {lead.event_type && <span className="capitalize">{lead.event_type.replace('_', ' ')}</span>}
-                      {lead.event_date && <span>· {fmtShort(lead.event_date)}</span>}
-                      {lead.package && <span>· {lead.package}</span>}
-                    </div>
-                    {action && (
-                      <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ background: action.bg, color: action.color }}>
-                        {action.label}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
+            {filtered.map(lead => (
+              <SwipeCard key={lead.id} lead={lead} onAction={handleSwipeAction} />
+            ))}
             <p className="text-xs text-center pt-1" style={{ color: 'var(--text-faint)' }}>
-              {filtered.length} lead{filtered.length !== 1 ? 's' : ''}
+              {filtered.length} lead{filtered.length !== 1 ? 's' : ''} · swipe → to follow up · swipe ← to archive
             </p>
           </div>
         </>
       )}
+
+      {/* ── Swipe undo snackbar ── */}
+      {undoInfo && (
+        <div className="md:hidden fixed bottom-24 left-4 right-4 z-50 rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-2xl"
+          style={{ background: '#1e1e30', border: '1px solid rgba(99,102,241,0.4)' }}>
+          <p className="text-sm text-white">Moved <strong>{undoInfo.name}</strong></p>
+          <button onClick={handleUndo} className="text-sm font-bold ml-4" style={{ color: '#818cf8' }}>Undo</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Swipeable mobile lead card ─────────────────────────────────
+function SwipeCard({ lead, onAction }: {
+  lead: Lead
+  onAction: (id: string, newStatus: LeadStatus, prevStatus: LeadStatus, name: string) => void
+}) {
+  const startXRef = useRef(0)
+  const didSwipeRef = useRef(false)
+  const [dx, setDx] = useState(0)
+  const [settling, setSettling] = useState(false)
+  const THRESHOLD = 80
+  const s = STAGE[lead.status]
+  const action = getNextAction(lead)
+
+  function onTouchStart(e: React.TouchEvent) {
+    startXRef.current = e.touches[0].clientX
+    didSwipeRef.current = false
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const d = e.touches[0].clientX - startXRef.current
+    setDx(d)
+    if (Math.abs(d) > 8) didSwipeRef.current = true
+  }
+  function onTouchEnd() {
+    if (dx > THRESHOLD) onAction(lead.id, 'contacted', lead.status, lead.name)
+    else if (dx < -THRESHOLD) onAction(lead.id, 'lost', lead.status, lead.name)
+    setSettling(true)
+    setDx(0)
+    setTimeout(() => setSettling(false), 200)
+  }
+
+  const clamped = Math.max(-120, Math.min(120, dx))
+
+  return (
+    <div className="relative overflow-hidden" style={{ borderRadius: 14, borderLeft: `3px solid ${s.border}` }}>
+      {dx > 20 && (
+        <div className="absolute inset-0 flex items-center pl-5" style={{ background: 'rgba(99,102,241,0.12)' }}>
+          <span className="text-sm font-semibold" style={{ color: '#818cf8' }}>✓ Mark contacted</span>
+        </div>
+      )}
+      {dx < -20 && (
+        <div className="absolute inset-0 flex items-center justify-end pr-5" style={{ background: 'rgba(239,68,68,0.1)' }}>
+          <span className="text-sm font-semibold" style={{ color: '#f87171' }}>Archive ×</span>
+        </div>
+      )}
+      <Link
+        href={`/leads/${lead.id}`}
+        className="relative flex items-start gap-3 card px-4 py-3.5"
+        style={{
+          borderRadius: 0,
+          borderLeft: 'none',
+          display: 'flex',
+          transform: `translateX(${clamped}px)`,
+          transition: settling ? 'transform 200ms ease' : 'none',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={e => { if (didSwipeRef.current) e.preventDefault() }}
+      >
+        <Avatar name={lead.name} status={lead.status} size={38} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-heading)' }}>{lead.name}</p>
+            <span className="badge capitalize shrink-0" style={{ background: s.bg, color: s.color }}>{lead.status}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1 text-xs flex-wrap" style={{ color: 'var(--text-faint)' }}>
+            {lead.event_type && <span className="capitalize">{lead.event_type.replace('_', ' ')}</span>}
+            {lead.event_date && <span>· {fmtShort(lead.event_date)}</span>}
+            {lead.package && <span>· {lead.package}</span>}
+          </div>
+          {action && (
+            <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: action.bg, color: action.color }}>
+              {action.label}
+            </span>
+          )}
+        </div>
+      </Link>
     </div>
   )
 }

@@ -212,15 +212,22 @@ export default function Sidebar() {
       {/* Mobile bottom nav */}
       <nav
         className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
-        style={{ background: 'rgba(15,15,23,0.85)', borderColor: 'var(--sidebar-border)' }}
+        style={{
+          background: 'rgba(15,15,23,0.82)',
+          borderColor: 'var(--sidebar-border)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
       >
         {/* Home + Leads */}
         {nav.slice(0, 2).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
-              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
+              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors relative"
               style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+              {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full" style={{ background: 'var(--accent)' }} />}
               {icon}
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
@@ -240,8 +247,9 @@ export default function Sidebar() {
           const active = isActive(href)
           return (
             <Link key={href} href={href}
-              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
+              className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors relative"
               style={{ color: active ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+              {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full" style={{ background: 'var(--accent)' }} />}
               {icon}
               <span className="text-[10px] font-medium leading-tight">{short}</span>
             </Link>
@@ -250,8 +258,9 @@ export default function Sidebar() {
 
         {/* Profile */}
         <Link href="/profile"
-          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
+          className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors relative"
           style={{ color: pathname === '/profile' ? 'var(--accent-text)' : 'var(--text-faint)' }}>
+          {pathname === '/profile' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full" style={{ background: 'var(--accent)' }} />}
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z" />
           </svg>
