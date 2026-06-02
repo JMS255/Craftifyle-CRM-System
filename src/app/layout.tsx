@@ -17,7 +17,9 @@ export const metadata: Metadata = {
 const themeScript = `
   (function() {
     try {
-      var t = localStorage.getItem('craftifyle-theme') || 'dark';
+      var saved = localStorage.getItem('craftifyle-theme');
+      var osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var t = saved || (osDark ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', t);
     } catch(e) {}
   })();

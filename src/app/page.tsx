@@ -64,7 +64,8 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [openMonth, setOpenMonth] = useState<string | null>(new Date().toISOString().slice(0, 7))
 
-  useEffect(() => {
+  function reload() {
+    setLoading(true)
     const db = createClient()
     const now = new Date()
     const thisMonth = now.toISOString().slice(0, 7)
@@ -88,7 +89,6 @@ export default function Dashboard() {
         return s + c
       }, 0)
       setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: (rev ?? []).length })
-      // Load first name from profile
       if (user) {
         db.from('profiles').select('full_name').eq('id', user.id).maybeSingle().then(({ data }) => {
           const name = data?.full_name?.split(' ')[0]
@@ -97,7 +97,9 @@ export default function Dashboard() {
       }
       setLoading(false)
     })
-  }, [])
+  }
+
+  useEffect(() => { reload() }, [])
 
   const hour = new Date().getHours()
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
@@ -166,8 +168,8 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* ── Onboarding ── */}
-      {leads.length === 0 && <OnboardingChecklist />}
+      {/* ── Welcome flow — shown when user has zero leads ── */}
+      {leads.length === 0 && <WelcomeFlow onComplete={reload} />}
 
       {/* ── Revenue hero strip ── */}
       {revenue.bookingCount > 0 && (
@@ -525,6 +527,171 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-xs font-bold ml-auto tabular" style={{ color: 'var(--text-heading)' }}>{value}</span>
+    </div>
+  )
+}
+
+// ── WelcomeFlow — first-login experience ───────────────────────
+function WelcomeFlow({ onComplete }: { onComplete: () => void }) {
+  const [step, setStep] = useState<'paste' | 'processing' | 'done'>('paste')
+  const [dm, setDm] = useState('')
+  const [reply, setReply] = useState('')
+  const [error, setError] = useState('')
+  const [skipped, setSkipped] = useState(() => localStorage.getItem('craftifyle-welcomed') === '1')
+
+  async function handleParse() {
+    if (!dm.trim()) return
+    setStep('processing')
+    setError('')
+    try {
+      const res = await fetch('/api/crafty-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Parse this client inquiry and create a lead: ${dm.trim()}` }],
+        }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setReply(data.reply ?? 'Done — Lead created!')
+      setStep('done')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
+      setStep('paste')
+    }
+  }
+
+  function finish() {
+    localStorage.setItem('craftifyle-welcomed', '1')
+    onComplete()
+  }
+
+  if (skipped) return null
+
+  return (
+    <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-lg">
+
+        {step === 'paste' && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5"
+              style={{ background: 'var(--accent-subtle)', border: '1px solid var(--card-border)' }}>
+              👋
+            </div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-heading)' }}>
+              Welcome to Crafty CRM
+            </h1>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Let's create your first lead in under 2 minutes.<br />
+              Paste a client inquiry from Messenger below.
+            </p>
+          </div>
+        )}
+
+        {step === 'processing' && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 animate-pulse"
+              style={{ background: 'var(--accent-subtle)', border: '1px solid var(--card-border)' }}>
+              🤖
+            </div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-heading)' }}>
+              Crafty is reading your DM…
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Extracting client name, event details, and contact info.
+            </p>
+          </div>
+        )}
+
+        {step === 'done' && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5"
+              style={{ background: 'var(--success-muted)', border: '1px solid rgba(74,222,128,0.2)' }}>
+              🎉
+            </div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-heading)' }}>
+              Your first lead is organized!
+            </h1>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Crafty extracted the details and added the client to your pipeline.
+            </p>
+          </div>
+        )}
+
+        <div className="card p-6">
+
+          {step === 'paste' && (
+            <>
+              <p className="section-label mb-3">Paste a Messenger DM</p>
+              <textarea
+                value={dm}
+                onChange={e => setDm(e.target.value)}
+                rows={5}
+                placeholder={'e.g.\n"Hi! Available po ba kayo July 4? Birthday ng anak ko, 80 guests. Gusto namin ng photobooth. Magkano po?"'}
+                className="w-full rounded-xl px-4 py-3 text-sm resize-none mb-4"
+                autoFocus
+              />
+              {error && <p className="text-xs mb-3" style={{ color: 'var(--danger)' }}>{error}</p>}
+              <button onClick={handleParse} disabled={!dm.trim()}
+                className="w-full py-3 rounded-[10px] text-sm font-semibold text-white disabled:opacity-40 mb-3"
+                style={{ background: 'var(--accent)' }}>
+                🤖 Let Crafty Parse This
+              </button>
+              <div className="flex items-center gap-3">
+                <Link href="/leads/new"
+                  className="flex-1 py-2.5 rounded-[10px] text-sm font-medium text-center"
+                  style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
+                  Add lead manually
+                </Link>
+                <button onClick={() => { setSkipped(true); localStorage.setItem('craftifyle-welcomed', '1') }}
+                  className="flex-1 py-2.5 rounded-[10px] text-sm"
+                  style={{ color: 'var(--text-faint)' }}>
+                  Skip for now
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 'processing' && (
+            <div className="py-8 flex flex-col items-center gap-3">
+              <div className="flex gap-1">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-2 h-2 rounded-full animate-bounce"
+                    style={{ background: 'var(--accent)', animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <p className="text-sm" style={{ color: 'var(--text-faint)' }}>Reading your DM…</p>
+            </div>
+          )}
+
+          {step === 'done' && (
+            <>
+              <div className="rounded-xl px-4 py-4 mb-5"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)' }}>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-heading)' }}>
+                  {reply}
+                </p>
+              </div>
+              <button onClick={finish}
+                className="w-full py-3 rounded-[10px] text-sm font-semibold text-white mb-3"
+                style={{ background: 'var(--accent)' }}>
+                View my dashboard →
+              </button>
+              <Link href="/leads"
+                className="block w-full text-center py-2.5 rounded-[10px] text-sm font-medium"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
+                Go to Leads
+              </Link>
+            </>
+          )}
+        </div>
+
+        {step === 'paste' && (
+          <p className="text-center text-xs mt-4" style={{ color: 'var(--text-faint)' }}>
+            Crafty reads the DM and extracts client details automatically. Nothing is sent to the client.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
