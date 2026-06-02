@@ -247,7 +247,6 @@ export default function Sidebar() {
           className="flex-1 flex flex-col items-center pt-1.5 pb-3 gap-0.5">
           <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xl font-bold"
             style={{ background: 'var(--accent)', boxShadow: '0 0 16px var(--accent-glow)' }}>+</span>
-          <span className="text-[10px] font-medium leading-tight" style={{ color: 'var(--text-faint)' }}>Add</span>
         </button>
 
         {/* Bookings only */}
