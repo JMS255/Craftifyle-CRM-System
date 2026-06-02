@@ -742,6 +742,18 @@ function OnboardingChecklist() {
   })
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('onboarding-dismissed') === '1')
 
+  const allDone = steps.every(s => done.includes(s.id))
+
+  useEffect(() => {
+    if (allDone) {
+      const t = setTimeout(() => {
+        setDismissed(true)
+        localStorage.setItem('onboarding-dismissed', '1')
+      }, 2000)
+      return () => clearTimeout(t)
+    }
+  }, [allDone])
+
   function markDone(id: string) {
     const next = [...new Set([...done, id])]
     setDone(next)
@@ -750,7 +762,6 @@ function OnboardingChecklist() {
   function dismiss() { setDismissed(true); localStorage.setItem('onboarding-dismissed', '1') }
 
   if (dismissed) return null
-  const allDone = steps.every(s => done.includes(s.id))
 
   return (
     <div className="rounded-2xl p-5 mb-6 relative"
