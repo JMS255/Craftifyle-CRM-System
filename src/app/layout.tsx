@@ -12,6 +12,16 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 export const metadata: Metadata = {
   title: 'Crafty CRM',
   description: 'Crafty CRM — Business management for service businesses',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Crafty CRM',
+  },
+  icons: {
+    icon: '/icon-512.png',
+    apple: '/apple-touch-icon.png',
+  },
 }
 
 // Prevent flash of wrong theme before React hydrates
@@ -31,6 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geist.variable} h-full`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <meta name="theme-color" content="#7c6ff7" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body className="h-full flex antialiased" style={{ background: 'var(--bg)' }}>
         <ThemeProvider>
