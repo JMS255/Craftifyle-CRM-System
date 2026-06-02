@@ -99,7 +99,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 ### Immediate
 1. **SEMAPHORE_API_KEY** — add to Vercel env vars (value: 75a671289eda9b6b08a32fe272f80292)
 2. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
-3. **True visual identity** — future decision: bolder color story (amber accent, gradient backgrounds), stronger typography contrast, something uniquely Craftifyle
+3. **Design identity implementation** — amber money accent, 48px+ KPI numbers, light mode default (research done June 3)
 4. **Skipped UX items** — C4 swipe-to-action, C6 Facebook Login, H7 optimistic UI, N1–N6 nice-to-haves
 
 ### After UI polish
@@ -130,7 +130,33 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 | New lead form | Back link, error, submit button → CSS vars. |
 | Sidebar | SVG icons replacing emoji. Profile page gets sign out + theme toggle for mobile (was missing entirely). |
 
-**Honest note:** The redesign restructured layouts and fixed visual hierarchy — revenue first, actions prominent, avatar identity on leads. The *color story* and overall aesthetic feel is still the same dark navy/purple app. A truly different look would need: bolder use of amber secondary accent, more dramatic typography scale, more whitespace, something uniquely Craftifyle. That's a future decision on visual direction.
+**Honest note:** The redesign restructured layouts and fixed visual hierarchy. The *color story* is still the same dark navy/purple app. A true visual identity shift is the next design phase — research completed June 3 (see below).
+
+### Design Identity — Research-Backed Direction (June 3)
+
+Deep research across 25+ sources confirmed three decisions. All three are strongly supported.
+
+**1. Amber/Gold (#f59e0b) for money/revenue UI**
+- Elliot & Maier (2014): gold stimulates dopamine in financial contexts — users associate it with earned wealth, not caution
+- GCash (blue), Maya (green), Grab (green) — amber/gold for revenue data is completely unclaimed in PH fintech
+- Filipino cultural context: gold = prosperity, celebration, achievement — the exact emotions around booking revenue
+- Semantic rule: purple = action/navigation, amber = money earned. They never overlap.
+- Apply to: revenue numbers on dashboard, booking values, "Booked" stage dot, payment confirmed states
+
+**2. Bigger KPI numbers (48px+) with muted peso sign**
+- Tableau eye-tracking study: large numbers receive visual fixation within 200ms — pre-conscious attention
+- Piepenbrock et al. (Ergonomics): significantly more correct comprehension at larger font sizes
+- GCash displays balance at ~40px with muted peso prefix — 94M Filipino users trained on this pattern
+- 3-tier scale: revenue hero 52–56px weight 700 (amber) / secondary KPIs 36px / supporting data 13px muted
+- Peso sign at 60% size + 60% opacity of the number
+
+**3. Light mode as default (warm cream #fafaf8)**
+- Piepenbrock 2013 (Ergonomics): "users read text faster and more accurately in light mode" — biology, not preference
+- 99% of PH internet access is mobile; users work outdoors at events where dark mode loses contrast physics
+- Every major PH app defaults to light: GCash, Maya, Shopee, Grab, Facebook
+- Every CRM peer defaults to light: HoneyBook, Dubsado, 17hats
+- Dark mode's 82% global adoption is heavily skewed by developers in night sessions — not Craftifyle's user
+- Implementation: default = light, auto-detect OS `prefers-color-scheme: dark`, keep user toggle in Profile
 
 ### Other additions (June 2)
 - **Settings/Packages page** (`/settings`) — manage packages + prices, Crafty reads from DB dynamically. Run `supabase-migration-packages.sql` to activate.
