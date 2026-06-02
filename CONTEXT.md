@@ -114,6 +114,37 @@ Design tokens to apply from handoff `colors_and_type.css`:
 - All transitions: 150ms ease
 - Button press: scale(0.97) | Card hover: translateY(-1px) + elevated bg
 
+### Login + Signup Redesign — Research-Backed Spec (June 3, 2026)
+Deep research done across 20+ sources. Key findings for implementation:
+
+**Mobile signup (3 fields max):**
+- Full name → Email → Password (show/hide toggle, NO confirm-password field — removing it boosts conversion 56%)
+- Google login button ABOVE email form (not below)
+- Submit CTA: "Create Free Account" — 52px tall, full width
+- Social proof: "Join 1,200+ Filipino solopreneurs" below headline
+- Tagalog trust line near submit: "Ligtas ang iyong datos."
+- Bottom: "Already have an account? Log in →"
+
+**Mobile login:**
+- Headline: "Welcome back" (not "Log In")
+- Google button first → divider → email/password
+- "Forgot password?" right-aligned below password field
+- Submit: "Log In" — 52px tall, full width
+
+**Desktop:**
+- Centered 480px card on brand-tinted background (`#7c6ff7` at 8–10% opacity)
+- Logo at top, Google button first, email/password below
+
+**UX rules:**
+- Validate on blur (not on keystroke), inline errors below each field
+- Error color: #EF4444 | Success: #10B981
+- Input font: 16px minimum (smaller triggers iOS zoom bug)
+- All animations: 200–300ms, transform + opacity only
+- Button loading state: disable immediately + show spinner on click
+- After signup: brief celebration → segmentation → demo data (NOT empty dashboard)
+
+**Skip Facebook login** — scam associations in PH hurt conversion.
+
 ### Other Pending
 - **PayMongo payment links** — when James can sign up (UI already built, hidden behind `false &&`)
 - **Client portal**
