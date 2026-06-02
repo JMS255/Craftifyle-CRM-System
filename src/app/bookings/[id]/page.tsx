@@ -293,7 +293,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* ── Payment Link ── */}
-      {(booking.deposit_paid === false || booking.balance_paid === false) && (
+      {false && (booking.deposit_paid === false || booking.balance_paid === false) && (
         <div className="card p-5 mb-5">
           <p className="section-label mb-1">Send Payment Link</p>
           <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
