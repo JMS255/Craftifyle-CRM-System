@@ -20,7 +20,7 @@ const themeScript = `
     try {
       var saved = localStorage.getItem('craftifyle-theme');
       var osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var t = saved || (osDark ? 'dark' : 'light');
+      var t = saved || 'light';
       document.documentElement.setAttribute('data-theme', t);
     } catch(e) {}
   })();

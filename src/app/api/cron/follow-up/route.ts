@@ -87,17 +87,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // SMS follow-up — for leads with a phone number and no Messenger (or as backup)
-    if (!didSend && lead.phone) {
-      const firstName = lead.name.split(' ')[0]
-      const smsText = `Hi ${firstName}! Baka nalimutan lang. Available pa kami para sa iyong event. Interested ka pa po ba? — Craftifyle 📸`
-      try {
-        await sendSms(lead.phone, smsText)
-        didSend = true
-      } catch (e) {
-        console.error(`SMS follow-up failed for lead ${lead.id}:`, e)
-      }
-    }
+    // SMS disabled — Semaphore credits paused
 
     if (didSend) {
       await db.from('leads').update({ last_followup_sent: now.toISOString() }).eq('id', lead.id)

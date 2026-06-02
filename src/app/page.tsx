@@ -539,8 +539,8 @@ function fmtAbbrev(n: number): string {
 function HeroMoney({ amount, color = 'var(--money)' }: { amount: number; color?: string }) {
   return (
     <div className="flex items-baseline gap-0.5 leading-none">
-      <span className="font-semibold" style={{ fontSize: '1rem', color, opacity: 0.6 }}>₱</span>
-      <span className="font-bold tabular" style={{ fontSize: '1.875rem', lineHeight: 1, color }}>
+      <span className="font-semibold" style={{ fontSize: '0.9rem', color, opacity: 0.6 }}>₱</span>
+      <span className="font-bold tabular" style={{ fontSize: '3rem', lineHeight: 1, color }}>
         {fmtAbbrev(amount)}
       </span>
     </div>
