@@ -178,7 +178,7 @@ export default function ChatWidget() {
                 {isCrm ? 'Crafty Assistant' : 'Craft AI'}
               </p>
               <p className="text-indigo-200 text-xs truncate">
-                {isCrm ? 'Reads & writes your CRM data' : 'Business advisor'}
+                {isCrm ? 'Add leads, log payments, check revenue' : 'Ask anything about your business'}
               </p>
             </div>
             <button
@@ -204,7 +204,7 @@ export default function ChatWidget() {
                 background: 'transparent',
               }}
             >
-              Advisor
+              💬 Ask for Advice
             </button>
             <button
               onClick={() => switchMode('crm')}
@@ -215,7 +215,7 @@ export default function ChatWidget() {
                 background: 'transparent',
               }}
             >
-              ⚡ CRM Actions
+              ⚡ Do Something
             </button>
           </div>
 

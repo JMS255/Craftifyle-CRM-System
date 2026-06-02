@@ -9,6 +9,16 @@ import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
 
+const STAGE_HINT: Record<LeadStatus, string> = {
+  new:         'New inquiry — reach out and introduce yourself. Ask about their event.',
+  contacted:   'You\'ve made contact. Follow up in 2–3 days if no reply yet.',
+  quoted:      'Price sent. Follow up within 3 days — leads go cold fast.',
+  negotiating: 'In discussions. Aim to get a deposit confirmed this week.',
+  booked:      '🎉 Confirmed! Make sure the deposit is received and the event is in your calendar.',
+  lost:        'Marked as lost. You can reopen this lead if the client comes back.',
+  completed:   'Event done! Consider asking for a review or referral.',
+}
+
 const STAGE: Record<LeadStatus, { color: string; bg: string; border: string }> = {
   new:         { color: '#60a5fa', bg: 'rgba(59,130,246,0.12)',  border: 'rgba(59,130,246,0.3)' },
   contacted:   { color: '#fbbf24', bg: 'rgba(234,179,8,0.12)',   border: 'rgba(234,179,8,0.3)' },
@@ -194,6 +204,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* ── Pipeline progress bar ── */}
       <div className="card p-4 mb-5">
+        <p className="text-xs mb-3 font-medium" style={{ color: 'var(--accent-text)' }}>
+          👉 {STAGE_HINT[lead.status]}
+        </p>
         <div className="flex items-center gap-0 overflow-x-auto">
           {mainStages.map((stage, i) => {
             const st = STAGE[stage]

@@ -134,6 +134,11 @@ export default function Dashboard() {
     .sort((a, b) => b.urgency - a.urgency)
     .slice(0, 3)
 
+  const balanceDueAlerts = bookings.filter(b => {
+    const daysToEvent = Math.floor((new Date(b.event_date).getTime() - now) / 86400000)
+    return daysToEvent >= 0 && daysToEvent <= 7 && !b.balance_paid && b.balance_amount > 0
+  })
+
   if (loading) {
     return (
       <div className="p-4 md:p-8 space-y-5">
@@ -243,6 +248,35 @@ export default function Dashboard() {
           <p className="text-sm font-medium" style={{ color: 'var(--success)' }}>
             Nothing urgent right now — you're on top of everything.
           </p>
+        </div>
+      )}
+
+      {/* ── Balance Due This Week ── */}
+      {balanceDueAlerts.length > 0 && (
+        <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--card)', border: '1px solid rgba(245,158,11,0.3)' }}>
+          <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border-secondary)', background: 'rgba(245,158,11,0.06)' }}>
+            <p className="section-label" style={{ color: 'var(--money)' }}>💰 Balance Due This Week</p>
+          </div>
+          {balanceDueAlerts.map((b, i) => {
+            const daysToEvent = Math.floor((new Date(b.event_date).getTime() - now) / 86400000)
+            const when = daysToEvent === 0 ? 'Today' : daysToEvent === 1 ? 'Tomorrow' : `In ${daysToEvent} days`
+            return (
+              <Link key={b.id} href={`/bookings/${b.id}`}
+                className="flex items-center justify-between px-5 py-3.5 transition-colors"
+                style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-heading)' }}>{b.event_name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{when} · {fmt(b.event_date)}</p>
+                </div>
+                <span className="text-sm font-bold ml-3 shrink-0" style={{ color: 'var(--money)' }}>
+                  {peso(b.balance_amount)} due →
+                </span>
+              </Link>
+            )
+          })}
         </div>
       )}
 

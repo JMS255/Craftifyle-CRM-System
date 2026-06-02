@@ -60,44 +60,47 @@ export default function SettingsPage() {
     setSaving(true)
     setSaved(false)
     setError('')
-    const { data: { user } } = await db.auth.getUser()
-    if (!user) { setSaving(false); return }
+    try {
+      const { data: { user } } = await db.auth.getUser()
+      if (!user) return
 
-    const allRows = [
-      ...bases.map((r, i) => ({ ...r, sort_order: i, is_addon: false })),
-      ...addons.map((r, i) => ({ ...r, sort_order: i, is_addon: true })),
-    ].filter(r => r.name.trim())
+      const allRows = [
+        ...bases.map((r, i) => ({ ...r, sort_order: i, is_addon: false })),
+        ...addons.map((r, i) => ({ ...r, sort_order: i, is_addon: true })),
+      ].filter(r => r.name.trim())
 
-    // Delete removed rows
-    if (deletedIds.length > 0) {
-      await db.from('packages').delete().in('id', deletedIds)
-    }
+      // Replace all — delete existing then re-insert
+      const { error: delErr } = await db.from('packages').delete().eq('user_id', user.id)
+      if (delErr) throw new Error(delErr.message)
 
-    // Upsert all current rows
-    const { error: err } = await db.from('packages').upsert(
-      allRows.map(r => ({
-        ...(r.id ? { id: r.id } : {}),
-        user_id: user.id,
-        name: r.name.trim(),
-        price: parseFloat(r.price) || 0,
-        description: r.description.trim() || null,
-        is_addon: r.is_addon,
-        is_active: r.is_active,
-        sort_order: r.sort_order,
-      })),
-      { onConflict: 'id' }
-    )
+      if (allRows.length > 0) {
+        const { error: insertErr } = await db.from('packages').insert(
+          allRows.map((r, i) => ({
+            user_id: user.id,
+            name: r.name.trim(),
+            price: parseFloat(r.price) || 0,
+            description: r.description.trim() || null,
+            is_addon: r.is_addon,
+            is_active: r.is_active,
+            sort_order: i,
+          }))
+        )
+        if (insertErr) throw new Error(insertErr.message)
+      }
 
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-    // Refresh to get new IDs for unsaved rows
-    const { data } = await db.from('packages').select('*').eq('user_id', user.id).order('sort_order')
-    if (data) {
-      setBases(data.filter(p => !p.is_addon).map(p => ({ ...p, price: String(p.price) })))
-      setAddons(data.filter(p => p.is_addon).map(p => ({ ...p, price: String(p.price) })))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
       setDeletedIds([])
+
+      const { data } = await db.from('packages').select('*').eq('user_id', user.id).order('sort_order')
+      if (data) {
+        setBases(data.filter(p => !p.is_addon).map(p => ({ ...p, price: String(p.price) })))
+        setAddons(data.filter(p => p.is_addon).map(p => ({ ...p, price: String(p.price) })))
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Save failed — try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
