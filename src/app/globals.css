@@ -217,7 +217,7 @@ tbody td:last-child { text-align: right; }
 
 /* ─── Mobile nav ─── */
 .mobile-nav {
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--sidebar-border);
 }
