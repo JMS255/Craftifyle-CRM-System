@@ -106,18 +106,30 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => { reload() }, [id])
 
   async function updateStatus(status: LeadStatus) {
-    setSaving(true)
-    await db.from('leads').update({ status }).eq('id', id)
-    setSaving(false)
-    setLead(prev => prev ? { ...prev, status } : prev)
+    const prev = lead?.status
+    setLead(p => p ? { ...p, status } : p)
+    const { error } = await db.from('leads').update({ status }).eq('id', id)
+    if (error && prev) setLead(p => p ? { ...p, status: prev } : p)
   }
   async function addActivity(e: React.FormEvent) {
     e.preventDefault()
-    if (!actContent.trim()) return
-    setAddingActivity(true)
+    const content = actContent.trim()
+    if (!content) return
+    const followUp = actFollowUp || null
+    const tempId = `temp-${Date.now()}`
+    // Clear form + show activity immediately
+    setActContent(''); setActFollowUp('')
+    setActivities(prev => [{
+      id: tempId, lead_id: id, type: actType,
+      content, follow_up_date: followUp,
+      completed: false, created_at: new Date().toISOString(),
+    }, ...prev])
+    // Background insert — replace temp with real once DB responds
     const { data: { user } } = await db.auth.getUser()
-    await db.from('activities').insert({ lead_id: id, type: actType, content: actContent.trim(), follow_up_date: actFollowUp || null, completed: false, user_id: user?.id })
-    setActContent(''); setActFollowUp(''); setAddingActivity(false); reload()
+    const { data: newAct } = await db.from('activities').insert({
+      lead_id: id, type: actType, content, follow_up_date: followUp, completed: false, user_id: user?.id,
+    }).select().single()
+    if (newAct) setActivities(prev => prev.map(a => a.id === tempId ? newAct : a))
   }
   async function markActivityDone(actId: string) {
     await db.from('activities').update({ completed: true }).eq('id', actId)

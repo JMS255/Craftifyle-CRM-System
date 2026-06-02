@@ -22,7 +22,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [saving] = useState(false)
   const [msg, setMsg] = useState('')
   const [copied, setCopied] = useState(false)
   const [justPaid, setJustPaid] = useState<'deposit' | 'balance' | null>(null)
@@ -48,23 +48,32 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     })
   }, [id])
 
-  async function patch(updates: Partial<Booking>) {
-    setSaving(true); setMsg('')
-    const { data, error } = await db.from('bookings').update(updates).eq('id', id).select().single()
-    if (error) { setMsg('Error: ' + error.message) }
-    else { setBooking(data); setMsg('Saved!'); setTimeout(() => setMsg(''), 2000) }
-    setSaving(false)
-  }
-
   async function markDepositPaid() {
-    await patch({ deposit_paid: true, deposit_paid_date: new Date().toISOString().slice(0, 10) })
+    const today = new Date().toISOString().slice(0, 10)
+    setBooking(prev => prev ? { ...prev, deposit_paid: true, deposit_paid_date: today } : prev)
     setJustPaid('deposit'); setTimeout(() => setJustPaid(null), 2500)
+    const { error } = await db.from('bookings').update({ deposit_paid: true, deposit_paid_date: today }).eq('id', id)
+    if (error) {
+      setBooking(prev => prev ? { ...prev, deposit_paid: false, deposit_paid_date: null } : prev)
+      setMsg('Error — try again.'); setJustPaid(null)
+    }
   }
   async function markBalancePaid() {
-    await patch({ balance_paid: true, balance_paid_date: new Date().toISOString().slice(0, 10) })
+    const today = new Date().toISOString().slice(0, 10)
+    setBooking(prev => prev ? { ...prev, balance_paid: true, balance_paid_date: today } : prev)
     setJustPaid('balance'); setTimeout(() => setJustPaid(null), 2500)
+    const { error } = await db.from('bookings').update({ balance_paid: true, balance_paid_date: today }).eq('id', id)
+    if (error) {
+      setBooking(prev => prev ? { ...prev, balance_paid: false, balance_paid_date: null } : prev)
+      setMsg('Error — try again.'); setJustPaid(null)
+    }
   }
-  async function setStatus(status: BookingStatus) { await patch({ status }) }
+  async function setStatus(status: BookingStatus) {
+    const prev = booking?.status
+    setBooking(b => b ? { ...b, status } : b)
+    const { error } = await db.from('bookings').update({ status }).eq('id', id)
+    if (error && prev) { setBooking(b => b ? { ...b, status: prev } : b); setMsg('Error — try again.') }
+  }
   async function saveIncome(e: React.FormEvent) {
     e.preventDefault(); setSavingIncome(true); setMsg('')
     const { data, error } = await db.from('bookings').update({ craftifyle_income: craftifyleIncome ? parseFloat(craftifyleIncome) : 0 }).eq('id', id).select().single()
