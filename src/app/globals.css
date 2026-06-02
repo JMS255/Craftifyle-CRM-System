@@ -219,17 +219,13 @@ tbody td:last-child { text-align: right; }
 .mobile-nav {
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
-[data-theme="light"] .mobile-nav { background: #f5f5fa; }
-[data-theme="dark"]  .mobile-nav { background: #09090f; }
-[data-theme="light"] .mobile-nav::after { background: #f5f5fa; }
-[data-theme="dark"]  .mobile-nav::after { background: #09090f; }
-.mobile-nav::after {
-  content: '';
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
+[data-theme="light"] .mobile-nav {
+  background: #f5f5fa;
+  box-shadow: 0 100px 0 100px #f5f5fa;
+}
+[data-theme="dark"] .mobile-nav {
+  background: #09090f;
+  box-shadow: 0 100px 0 100px #09090f;
 }
 
 /* ─── Override hardcoded Tailwind gray classes → CSS vars ─── */
