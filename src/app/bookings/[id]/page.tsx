@@ -203,7 +203,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           style={{ borderBottom: '1px solid var(--border-secondary)' }}>
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>Deposit</p>
-            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--text-heading)' }}>
+            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--money)' }}>
               {peso(booking.deposit_amount)}
             </p>
             {booking.deposit_paid_date && (
@@ -227,7 +227,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <div className="flex items-center justify-between py-3.5">
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>Balance</p>
-            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--text-heading)' }}>
+            <p className="text-xl font-bold tabular mt-0.5" style={{ color: 'var(--money)' }}>
               {peso(booking.balance_amount)}
             </p>
             {booking.balance_paid_date && (
@@ -258,7 +258,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <div className="rounded-xl p-4 mb-4 text-center"
           style={{ background: 'var(--accent-subtle)', border: '1px solid var(--card-border)' }}>
           <p className="section-label mb-1">Craftifyle Income</p>
-          <p className="text-2xl font-bold tabular" style={{ color: 'var(--accent-text)' }}>
+          <p className="text-2xl font-bold tabular" style={{ color: 'var(--money)' }}>
             {booking.craftifyle_income > 0 ? peso(booking.craftifyle_income) : '—'}
           </p>
         </div>

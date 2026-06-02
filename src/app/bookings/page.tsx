@@ -254,7 +254,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                 <span className="text-xs font-medium hidden sm:inline" style={{ color: 'var(--accent-text)' }}>
                   {peso(month.craftifyleIncome)} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>income</span>
                 </span>
-                <span className="text-sm font-bold tabular" style={{ color: 'var(--text-heading)' }}>{peso(month.totalRevenue)}</span>
+                <span className="text-sm font-bold tabular" style={{ color: 'var(--money)' }}>{peso(month.totalRevenue)}</span>
               </div>
             </button>
 
@@ -337,7 +337,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                       </div>
                       <div className="shrink-0 text-right ml-3">
                         {b.package_price != null && (
-                          <p className="text-sm font-bold tabular" style={{ color: 'var(--text-heading)' }}>{peso(b.package_price)}</p>
+                          <p className="text-sm font-bold tabular" style={{ color: 'var(--money)' }}>{peso(b.package_price)}</p>
                         )}
                         <StatusBadge status={b.status} />
                         <div className="mt-1"><PaymentBadge booking={b} /></div>
@@ -356,9 +356,9 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color: 'indigo' | 'green' | 'blue' | 'purple' }) {
   const colors = {
-    indigo: { bg: 'rgba(124,111,247,0.1)', text: '#a5b4fc' },
-    green:  { bg: 'rgba(16,185,129,0.1)',  text: '#34d399' },
-    blue:   { bg: 'rgba(59,130,246,0.1)',  text: '#60a5fa' },
+    indigo: { bg: 'var(--money-muted)',   text: 'var(--money)' },
+    green:  { bg: 'var(--success-muted)', text: 'var(--success)' },
+    blue:   { bg: 'var(--accent-subtle)', text: 'var(--accent-text)' },
     purple: { bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa' },
   }
   return (

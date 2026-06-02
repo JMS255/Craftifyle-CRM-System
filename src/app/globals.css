@@ -1,42 +1,7 @@
 @import "tailwindcss";
 
-/* ─── Dark theme (default) ─── */
-:root {
-  --bg:                  #09090f;
-  --sidebar-bg:          #0f0f17;
-  --card:                #111118;
-  --card-elevated:       #141420;
-  --sidebar-border:      rgba(255,255,255,0.05);
-  --card-border:         rgba(255,255,255,0.08);
-  --card-border-active:  rgba(255,255,255,0.14);
-  --border-secondary:    rgba(255,255,255,0.05);
-  --input-bg:            #0f0f17;
-  --input-border:        rgba(255,255,255,0.1);
-  --text-faint:          #4a4a6a;
-  --text-muted:          #787895;
-  --text-secondary:      #9ca3af;
-  --text:                #cdcdcd;
-  --text-heading:        #f4f4f6;
-  --hover-bg:            rgba(255,255,255,0.04);
-  --subtle-bg:           rgba(255,255,255,0.04);
-  --accent:              #7c6ff7;
-  --accent-glow:         rgba(124,111,247,0.15);
-  --accent-subtle:       rgba(124,111,247,0.1);
-  --accent-subtle2:      rgba(124,111,247,0.18);
-  --accent-text:         #a5b4fc;
-  --success:             #4ade80;
-  --success-muted:       rgba(74,222,128,0.12);
-  --warning:             #fbbf24;
-  --warning-muted:       rgba(251,191,36,0.12);
-  --danger:              #f87171;
-  --danger-muted:        rgba(248,113,113,0.12);
-  --card-inset:          inset 0 1px 0 rgba(255,255,255,0.06);
-  --scrollbar-thumb:     #2a2a3a;
-  --scrollbar-thumb-hover: #3a3a5a;
-}
-
-/* ─── Light theme ─── */
-[data-theme="light"] {
+/* ─── Light theme (default) ─── */
+:root, [data-theme="light"] {
   --bg:                  #f5f5fa;
   --sidebar-bg:          #fafaf8;
   --card:                #ffffff;
@@ -65,9 +30,48 @@
   --warning-muted:       rgba(217,119,6,0.1);
   --danger:              #dc2626;
   --danger-muted:        rgba(220,38,38,0.08);
+  --money:               #d97706;
+  --money-muted:         rgba(217,119,6,0.10);
   --card-inset:          none;
   --scrollbar-thumb:     #d1d5db;
   --scrollbar-thumb-hover: #9ca3af;
+}
+
+/* ─── Dark theme ─── */
+[data-theme="dark"] {
+  --bg:                  #09090f;
+  --sidebar-bg:          #0f0f17;
+  --card:                #111118;
+  --card-elevated:       #141420;
+  --sidebar-border:      rgba(255,255,255,0.05);
+  --card-border:         rgba(255,255,255,0.08);
+  --card-border-active:  rgba(255,255,255,0.14);
+  --border-secondary:    rgba(255,255,255,0.05);
+  --input-bg:            #0f0f17;
+  --input-border:        rgba(255,255,255,0.1);
+  --text-faint:          #4a4a6a;
+  --text-muted:          #787895;
+  --text-secondary:      #9ca3af;
+  --text:                #cdcdcd;
+  --text-heading:        #f4f4f6;
+  --hover-bg:            rgba(255,255,255,0.04);
+  --subtle-bg:           rgba(255,255,255,0.04);
+  --accent:              #7c6ff7;
+  --accent-glow:         rgba(124,111,247,0.15);
+  --accent-subtle:       rgba(124,111,247,0.1);
+  --accent-subtle2:      rgba(124,111,247,0.18);
+  --accent-text:         #a5b4fc;
+  --success:             #4ade80;
+  --success-muted:       rgba(74,222,128,0.12);
+  --warning:             #fbbf24;
+  --warning-muted:       rgba(251,191,36,0.12);
+  --danger:              #f87171;
+  --danger-muted:        rgba(248,113,113,0.12);
+  --money:               #f59e0b;
+  --money-muted:         rgba(245,158,11,0.12);
+  --card-inset:          inset 0 1px 0 rgba(255,255,255,0.06);
+  --scrollbar-thumb:     #2a2a3a;
+  --scrollbar-thumb-hover: #3a3a5a;
 }
 
 @theme inline {

@@ -19,12 +19,13 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
+  const [theme, setTheme] = useState<Theme>('light')
 
-  // On mount, read from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('craftifyle-theme') as Theme | null
-    const preferred = saved ?? 'dark'
+    // If user has saved a preference, use it. Otherwise check OS preference, default to light.
+    const osPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const preferred: Theme = saved ?? (osPrefersDark ? 'dark' : 'light')
     setTheme(preferred)
     document.documentElement.setAttribute('data-theme', preferred)
   }, [])

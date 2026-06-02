@@ -174,33 +174,26 @@ export default function Dashboard() {
         <div
           className="rounded-2xl p-5 mb-5 grid grid-cols-3 gap-4"
           style={{
-            background: 'linear-gradient(135deg, rgba(124,111,247,0.12) 0%, rgba(139,92,246,0.06) 100%)',
-            border: '1px solid rgba(124,111,247,0.25)',
+            background: 'linear-gradient(135deg, var(--money-muted) 0%, var(--accent-subtle) 100%)',
+            border: '1px solid var(--card-border)',
           }}
         >
           <div>
-            <p className="section-label mb-2">Confirmed</p>
-            <p className="text-2xl md:text-3xl font-bold tabular" style={{ color: 'var(--text-heading)' }}>
-              {peso(revenue.confirmed)}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+            <p className="section-label mb-3">Confirmed</p>
+            <HeroMoney amount={revenue.confirmed} />
+            <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>
               {revenue.bookingCount} booking{revenue.bookingCount !== 1 ? 's' : ''} this month
             </p>
           </div>
           <div>
-            <p className="section-label mb-2">Collected</p>
-            <p className="text-2xl md:text-3xl font-bold tabular" style={{ color: 'var(--success)' }}>
-              {peso(revenue.collected)}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>received</p>
+            <p className="section-label mb-3">Collected</p>
+            <HeroMoney amount={revenue.collected} color="var(--success)" />
+            <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>received</p>
           </div>
           <div>
-            <p className="section-label mb-2">Outstanding</p>
-            <p className="text-2xl md:text-3xl font-bold tabular"
-              style={{ color: revenue.pipeline > 0 ? 'var(--warning)' : 'var(--success)' }}>
-              {peso(revenue.pipeline)}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>balance due</p>
+            <p className="section-label mb-3">Outstanding</p>
+            <HeroMoney amount={revenue.pipeline} color={revenue.pipeline > 0 ? 'var(--money)' : 'var(--success)'} />
+            <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>balance due</p>
           </div>
         </div>
       )}
@@ -480,7 +473,7 @@ function UpcomingEvents({ bookings }: { bookings: Booking[] }) {
                 </div>
                 <div className="text-right shrink-0 ml-2">
                   {b.package_price != null && (
-                    <p className="text-xs font-semibold tabular" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-sm font-bold tabular" style={{ color: 'var(--money)' }}>
                       {peso(b.package_price)}
                     </p>
                   )}
@@ -496,6 +489,17 @@ function UpcomingEvents({ bookings }: { bookings: Booking[] }) {
       <div className="px-5 py-2.5" style={{ borderTop: '1px solid var(--border-secondary)' }}>
         <Link href="/bookings" className="text-xs" style={{ color: 'var(--accent-text)' }}>View all bookings →</Link>
       </div>
+    </div>
+  )
+}
+
+// ── HeroMoney — big amber KPI number with muted peso sign ──────
+function HeroMoney({ amount, color = 'var(--money)' }: { amount: number; color?: string }) {
+  const formatted = amount.toLocaleString('en-PH', { minimumFractionDigits: 0 })
+  return (
+    <div className="flex items-baseline gap-1 leading-none">
+      <span className="font-semibold" style={{ fontSize: '1.4rem', color, opacity: 0.55 }}>₱</span>
+      <span className="font-bold tabular" style={{ fontSize: '2.75rem', lineHeight: 1, color }}>{formatted}</span>
     </div>
   )
 }
