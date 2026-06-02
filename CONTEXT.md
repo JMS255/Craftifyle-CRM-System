@@ -96,11 +96,28 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ## What to Build Next
 
-### Immediate
-1. **Run `supabase-migration-packages.sql`** — packages table not yet created in Supabase SQL Editor
-2. **PayMongo payment links** — when James can sign up (UI already built, hidden behind `false &&`)
-3. **Client portal**
-4. **Facebook OAuth** — blocked by Meta Business Verification + App Review. Skip until BIR registered.
+### Immediate — UI Redesign from Design Handoff
+A full high-fidelity design handoff has been completed by Claude Design. Files are at:
+`c:\Users\james\OneDrive\Desktop\Craftifyle-photobooth software\craftifyle-crm\` (attached to session June 3 2026)
+
+Implement in this order (one page per session):
+1. **Dashboard** — 4 KPI cards (glow blobs), 2-col layout: Leads by Month (left 1.5fr) + Upcoming Events (right 1fr), year pill, page header with date. Keep existing Supabase data wiring. Visual overhaul only.
+2. **Leads list** — filter pills, search, 6-col table with StatusBadge, footer count.
+3. **Lead detail** — back link, 2-col desktop layout, pipeline stage pills, details grid, AI reply draft card.
+4. **Bookings** — 3 revenue cards (tinted), status tabs, month section, 6-col table.
+5. **Sidebar** — already close; minor tweaks to active state (2px left border accent).
+6. **Login + Signup** — apply research findings: Google login first, 3 fields max, warm error messages, Taglish trust line, centered card on brand-tinted bg.
+
+Design tokens to apply from handoff `colors_and_type.css`:
+- KPI hero: 52px weight 700 amber | KPI mid: 36px | KPI data: 13px muted
+- Radius: input 8px, button 10px, card 14px, pill 9999px
+- All transitions: 150ms ease
+- Button press: scale(0.97) | Card hover: translateY(-1px) + elevated bg
+
+### Other Pending
+- **PayMongo payment links** — when James can sign up (UI already built, hidden behind `false &&`)
+- **Client portal**
+- **Facebook OAuth** — blocked by Meta Business Verification + App Review. Skip until BIR registered.
 
 ### Shipped June 2, 2026
 - **Personalized onboarding flow** (`src/components/OnboardingModal.tsx`) — 3-screen flow: paste DM → Crafty reveals extracted data staggered → profile setup (name, business name, 7 business type cards, acquisition source) → launch screen with blurred dashboard. Saves to `profiles.business_type`, `profiles.acquisition_source`, `profiles.onboarding_completed`.
