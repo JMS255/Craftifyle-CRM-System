@@ -180,25 +180,25 @@ export default function Dashboard() {
       {/* ── Revenue hero strip ── */}
       {revenue.bookingCount > 0 && (
         <div
-          className="rounded-2xl p-5 mb-5 grid grid-cols-3 gap-4"
+          className="rounded-2xl p-4 md:p-5 mb-5 grid grid-cols-3 gap-2 md:gap-4"
           style={{
             background: 'linear-gradient(135deg, var(--money-muted) 0%, var(--accent-subtle) 100%)',
             border: '1px solid var(--card-border)',
           }}
         >
-          <div>
+          <div className="min-w-0">
             <p className="section-label mb-3">Confirmed</p>
             <HeroMoney amount={revenue.confirmed} />
             <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>
               {revenue.bookingCount} booking{revenue.bookingCount !== 1 ? 's' : ''} this month
             </p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="section-label mb-3">Collected</p>
             <HeroMoney amount={revenue.collected} color="var(--success)" />
             <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>received</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="section-label mb-3">Outstanding</p>
             <HeroMoney amount={revenue.pipeline} color={revenue.pipeline > 0 ? 'var(--money)' : 'var(--success)'} />
             <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>balance due</p>
@@ -534,9 +534,9 @@ function UpcomingEvents({ bookings }: { bookings: Booking[] }) {
 function HeroMoney({ amount, color = 'var(--money)' }: { amount: number; color?: string }) {
   const formatted = amount.toLocaleString('en-PH', { minimumFractionDigits: 0 })
   return (
-    <div className="flex items-baseline gap-1 leading-none">
-      <span className="font-semibold" style={{ fontSize: '1.4rem', color, opacity: 0.55 }}>₱</span>
-      <span className="font-bold tabular" style={{ fontSize: '2.75rem', lineHeight: 1, color }}>{formatted}</span>
+    <div className="flex items-baseline gap-0.5 leading-none min-w-0 overflow-hidden">
+      <span className="font-semibold shrink-0" style={{ fontSize: '0.85em', color, opacity: 0.55 }}>₱</span>
+      <span className="hero-money-num font-bold tabular truncate" style={{ lineHeight: 1, color }}>{formatted}</span>
     </div>
   )
 }
