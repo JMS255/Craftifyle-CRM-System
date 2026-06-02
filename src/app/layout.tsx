@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar'
 import ChatWidget from '@/components/ChatWidget'
 import ThemeProvider from '@/components/ThemeProvider'
 import OnboardingModal from '@/components/OnboardingModal'
+import CraftyToast from '@/components/CraftyToast'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <ChatWidget />
           <OnboardingModal />
+          <CraftyToast />
         </ThemeProvider>
       </body>
     </html>

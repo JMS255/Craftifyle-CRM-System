@@ -147,7 +147,7 @@ function SignupForm() {
             style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
           >
             {step === 'code' ? (
-              {/* Facebook signup */}
+              <>
           <div className="space-y-3 mb-4">
             <button type="button" onClick={handleFacebookSignup} disabled={fbLoading}
               className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
@@ -199,6 +199,7 @@ function SignupForm() {
                   {loading ? 'Checking…' : 'Continue →'}
                 </button>
               </form>
+              </>
             ) : (
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>

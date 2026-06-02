@@ -78,6 +78,11 @@ export default function NewLeadPage() {
       return
     }
 
+    const { count } = await db.from('leads').select('*', { count: 'exact', head: true })
+    const n = count ?? 1
+    if (n === 1) window.dispatchEvent(new CustomEvent('crafty:first-lead', { detail: { name: data.name } }))
+    else if (n === 2) window.dispatchEvent(new CustomEvent('crafty:second-lead', { detail: { name: data.name } }))
+    else if (n >= 5) window.dispatchEvent(new CustomEvent('crafty:five-leads'))
     router.push(`/leads/${data.id}`)
   }
 

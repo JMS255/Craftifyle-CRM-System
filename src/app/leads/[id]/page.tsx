@@ -110,6 +110,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     setLead(p => p ? { ...p, status } : p)
     const { error } = await db.from('leads').update({ status }).eq('id', id)
     if (error && prev) setLead(p => p ? { ...p, status: prev } : p)
+    else window.dispatchEvent(new CustomEvent('crafty:first-stage-change', { detail: { name: lead?.name } }))
   }
   async function addActivity(e: React.FormEvent) {
     e.preventDefault()
@@ -129,7 +130,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     const { data: newAct } = await db.from('activities').insert({
       lead_id: id, type: actType, content, follow_up_date: followUp, completed: false, user_id: user?.id,
     }).select().single()
-    if (newAct) setActivities(prev => prev.map(a => a.id === tempId ? newAct : a))
+    if (newAct) {
+      setActivities(prev => prev.map(a => a.id === tempId ? newAct : a))
+      window.dispatchEvent(new CustomEvent('crafty:first-activity'))
+    }
   }
   async function markActivityDone(actId: string) {
     await db.from('activities').update({ completed: true }).eq('id', actId)
@@ -151,7 +155,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }).select().single()
     await db.from('leads').update({ status: 'booked' }).eq('id', id)
     setConverting(false)
-    if (booking) router.push(`/bookings/${booking.id}`)
+    if (booking) {
+      window.dispatchEvent(new CustomEvent('crafty:first-booking', { detail: { name: lead?.name } }))
+      router.push(`/bookings/${booking.id}`)
+    }
   }
 
   if (loading) return (
