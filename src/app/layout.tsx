@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
 import Sidebar from '@/components/Sidebar'
@@ -8,6 +8,13 @@ import OnboardingModal from '@/components/OnboardingModal'
 import CraftyToast from '@/components/CraftyToast'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#7c6ff7',
+}
 
 export const metadata: Metadata = {
   title: 'Crafty CRM',
@@ -41,9 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geist.variable} h-full`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <meta name="theme-color" content="#7c6ff7" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body className="h-full flex antialiased" style={{ background: 'var(--bg)' }}>
         <ThemeProvider>
