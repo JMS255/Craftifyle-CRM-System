@@ -19,10 +19,12 @@ function BookingsIcon() { return <Icon d="M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 
 function AdsIcon()      { return <Icon d="M18 20V10 M12 20V4 M6 20v-6" /> }
 function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
 function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
+function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
 
 const nav = [
   { href: '/',         label: 'Dashboard',     short: 'Home',     icon: <HomeIcon /> },
   { href: '/leads',    label: 'Leads',          short: 'Leads',    icon: <LeadsIcon /> },
+  { href: '/inbox',    label: 'Messenger',      short: 'Inbox',    icon: <InboxIcon /> },
   { href: '/bookings', label: 'Bookings',       short: 'Bookings', icon: <BookingsIcon /> },
   { href: '/ads',      label: 'Ad Performance', short: 'Ads',      icon: <AdsIcon /> },
   { href: '/personal', label: 'Finances',       short: 'Money',    icon: <FinanceIcon /> },
@@ -207,6 +209,11 @@ export default function Sidebar() {
               style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
               <span>💰</span> Log a Payment
             </button>
+            <Link href="/inbox" onClick={() => setQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+              <span>💬</span> Messenger Inbox
+            </Link>
             <button onClick={() => setQuickAdd(false)}
               className="w-full py-2.5 rounded-xl text-sm font-medium mt-1"
               style={{ color: 'var(--text-faint)' }}>Cancel</button>
