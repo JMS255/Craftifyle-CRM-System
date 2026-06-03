@@ -173,6 +173,16 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* ── KPI row ── */}
+      {leads.length > 0 && (
+        <div className="flex gap-4 mb-6">
+          <KpiCard value={String(yearLeads.length)} label="Total Leads" glow="#c7d2fe" />
+          <KpiCard value={String(yearBooked)} label="Converted" glow="#bbf7d0" />
+          <KpiCard value={String(yearLost)} label="Lost" glow="#fecaca" />
+          <KpiCard value={`${yearConvRate}%`} label="Conv. Rate" glow="#fde68a" />
+        </div>
+      )}
+
       {/* ── Welcome flow — shown when user has zero leads ── */}
       {leads.length === 0 && <WelcomeFlow onComplete={reload} />}
       {leads.length > 0 && <OnboardingChecklist />}
@@ -281,10 +291,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Pipeline + Upcoming Events ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-        <PipelineSnapshot leads={leads} />
-        <UpcomingEvents bookings={bookings} />
+      {/* ── Leads by Month + Upcoming Events ── */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-5">
+        <div className="md:col-span-3">
+          <LeadsByMonth leads={leads} selectedYear={selectedYear} openMonth={openMonth} setOpenMonth={setOpenMonth} />
+        </div>
+        <div className="md:col-span-2">
+          <UpcomingEvents bookings={bookings} />
+        </div>
       </div>
 
       {/* ── Quick chips ── */}
@@ -305,7 +319,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── Trends (bottom) ── */}
+      {/* ── Charts (bottom) ── */}
       {yearLeads.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border-secondary)', paddingTop: '2rem' }}>
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -335,9 +349,7 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card p-5">
               <p className="section-label mb-4">Bookings per Month</p>
               <ResponsiveContainer width="100%" height={160}>
@@ -355,70 +367,110 @@ export default function Dashboard() {
               <SourceDonut leads={yearLeads} />
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
-          {/* Monthly accordion */}
-          <h2 className="section-label mb-3">Leads by Month</h2>
-          <div className="space-y-2">
-            {monthStats.map(m => {
-              const isOpen = openMonth === m.yearMonth
-              const hasData = m.total > 0
-              return (
-                <div key={m.yearMonth} className="rounded-2xl overflow-hidden transition-all"
-                  style={{ background: 'var(--card)', border: `1px solid ${isOpen ? 'var(--card-border-active)' : 'var(--card-border)'}` }}>
-                  <button onClick={() => hasData && setOpenMonth(isOpen ? null : m.yearMonth)} disabled={!hasData}
-                    className="w-full flex items-center justify-between px-4 py-3.5 text-left"
-                    style={{ opacity: hasData ? 1 : 0.3 }}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-xs inline-block transition-transform" style={{ color: 'var(--text-faint)', transform: isOpen ? 'rotate(90deg)' : 'none' }}>
-                        {hasData ? '▶' : '—'}
-                      </span>
-                      <span className="font-semibold w-20 shrink-0" style={{ color: 'var(--text-heading)' }}>{m.monthLabel}</span>
-                      {hasData && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Chip label={`${m.total} leads`} color="indigo" />
-                          {m.booked > 0 && <Chip label={`${m.booked} booked`} color="green" />}
-                          {m.lost > 0 && <Chip label={`${m.lost} lost`} color="red" />}
-                        </div>
-                      )}
-                    </div>
-                    {hasData && (
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2"
-                        style={{
-                          background: m.conversionRate >= 50 ? 'rgba(16,185,129,0.15)' : m.conversionRate >= 20 ? 'rgba(245,158,11,0.15)' : 'var(--subtle-bg)',
-                          color: m.conversionRate >= 50 ? '#34d399' : m.conversionRate >= 20 ? '#fbbf24' : 'var(--text-muted)',
-                        }}>{m.conversionRate}%</span>
-                    )}
-                  </button>
-                  {isOpen && hasData && (
-                    <div className="border-t px-4 py-4" style={{ borderColor: 'var(--card-border)' }}>
-                      <div className="flex rounded-full overflow-hidden h-1.5 mb-4 gap-0.5">
-                        <BarSeg count={m.booked} total={m.total} color="#10b981" />
-                        <BarSeg count={m.negotiating} total={m.total} color="#8b5cf6" />
-                        <BarSeg count={m.quoted} total={m.total} color="#f59e0b" />
-                        <BarSeg count={m.contacted} total={m.total} color="#6366f1" />
-                        <BarSeg count={m.new} total={m.total} color="#3b82f6" />
-                        <BarSeg count={m.lost} total={m.total} color="#ef4444" />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <MiniStat label="New" value={m.new} color="#3b82f6" />
-                        <MiniStat label="Contacted" value={m.contacted} color="#6366f1" />
-                        <MiniStat label="Quoted" value={m.quoted} color="#f59e0b" />
-                        <MiniStat label="Negotiating" value={m.negotiating} color="#8b5cf6" />
-                        <MiniStat label="Booked" value={m.booked} color="#10b981" />
-                        <MiniStat label="Lost" value={m.lost} color="#ef4444" />
-                      </div>
-                      <Link href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
-                        className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
-                        View all {m.monthLabel} leads →
-                      </Link>
+// ── Leads by Month (handoff left column) ──────────────────────
+function LeadsByMonth({ leads, selectedYear, openMonth, setOpenMonth }: {
+  leads: Lead[]; selectedYear: string; openMonth: string | null; setOpenMonth: (m: string | null) => void
+}) {
+  const monthStats = buildMonthStats(leads, selectedYear)
+  const booked = leads.filter(l => l.created_at.startsWith(selectedYear) && (l.status === 'booked' || l.status === 'completed')).length
+  const convRate = leads.filter(l => l.created_at.startsWith(selectedYear)).length > 0
+    ? Math.round((booked / leads.filter(l => l.created_at.startsWith(selectedYear)).length) * 100) : 0
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="section-label">Leads by Month</p>
+          <div className="flex gap-1.5">
+            <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)' }}>{leads.filter(l => l.created_at.startsWith(selectedYear)).length} leads</span>
+            {booked > 0 && <span className="badge" style={{ background: 'var(--success-muted)', color: 'var(--success)' }}>{booked} booked</span>}
+            <span className="badge" style={{ background: 'var(--warning-muted)', color: 'var(--warning)' }}>{convRate}%</span>
+          </div>
+        </div>
+      </div>
+      <div className="divide-y" style={{ borderColor: 'var(--border-secondary)' }}>
+        {monthStats.length === 0 && (
+          <p className="text-sm px-5 py-6" style={{ color: 'var(--text-faint)' }}>No leads this year.</p>
+        )}
+        {monthStats.map(m => {
+          const isOpen = openMonth === m.yearMonth
+          const hasData = m.total > 0
+          return (
+            <div key={m.yearMonth} style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+              <button onClick={() => hasData && setOpenMonth(isOpen ? null : m.yearMonth)} disabled={!hasData}
+                className="w-full flex items-center justify-between px-5 py-3.5 text-left"
+                style={{ opacity: hasData ? 1 : 0.35 }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs transition-transform inline-block" style={{ color: 'var(--text-faint)', transform: isOpen ? 'rotate(90deg)' : 'none' }}>
+                    {hasData ? '▶' : '—'}
+                  </span>
+                  <span className="font-semibold w-20 shrink-0 text-sm" style={{ color: 'var(--text-heading)' }}>{m.monthLabel}</span>
+                  {hasData && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Chip label={`${m.total} leads`} color="indigo" />
+                      {m.booked > 0 && <Chip label={`${m.booked} booked`} color="green" />}
+                      {m.lost > 0 && <Chip label={`${m.lost} lost`} color="red" />}
                     </div>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                {hasData && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
+                    style={{
+                      background: m.conversionRate >= 50 ? 'rgba(16,185,129,0.15)' : m.conversionRate >= 20 ? 'rgba(245,158,11,0.15)' : 'var(--subtle-bg)',
+                      color: m.conversionRate >= 50 ? '#34d399' : m.conversionRate >= 20 ? '#fbbf24' : 'var(--text-muted)',
+                    }}>{m.conversionRate}%</span>
+                )}
+              </button>
+              {isOpen && hasData && (
+                <div className="px-5 pb-4" style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                  <div className="flex rounded-full overflow-hidden h-1.5 my-3 gap-0.5">
+                    <BarSeg count={m.booked} total={m.total} color="#10b981" />
+                    <BarSeg count={m.negotiating} total={m.total} color="#8b5cf6" />
+                    <BarSeg count={m.quoted} total={m.total} color="#f59e0b" />
+                    <BarSeg count={m.contacted} total={m.total} color="#6366f1" />
+                    <BarSeg count={m.new} total={m.total} color="#3b82f6" />
+                    <BarSeg count={m.lost} total={m.total} color="#ef4444" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <MiniStat label="New" value={m.new} color="#3b82f6" />
+                    <MiniStat label="Contacted" value={m.contacted} color="#6366f1" />
+                    <MiniStat label="Quoted" value={m.quoted} color="#f59e0b" />
+                    <MiniStat label="Negotiating" value={m.negotiating} color="#8b5cf6" />
+                    <MiniStat label="Booked" value={m.booked} color="#10b981" />
+                    <MiniStat label="Lost" value={m.lost} color="#ef4444" />
+                  </div>
+                  <Link href={`/leads?year=${selectedYear}&month=${m.yearMonth}`}
+                    className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                    View all {m.monthLabel} leads →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── KPI Card (handoff design) ──────────────────────────────────
+function KpiCard({ value, label, glow }: { value: string; label: string; glow: string }) {
+  return (
+    <div className="card flex-1" style={{ position: 'relative', overflow: 'hidden', padding: '20px 22px' }}>
+      <div style={{
+        position: 'absolute', top: -28, right: -28, width: 92, height: 92,
+        borderRadius: '50%', filter: 'blur(28px)', opacity: 0.5, background: glow,
+      }} />
+      <div className="tabular" style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)', lineHeight: 1, position: 'relative' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10, position: 'relative' }}>{label}</div>
     </div>
   )
 }
