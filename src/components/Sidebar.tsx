@@ -112,15 +112,8 @@ export default function Sidebar() {
         }}
       >
         {/* Logo + collapse toggle */}
-        <div className="px-3 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--sidebar-border)' }}>
-          {collapsed ? (
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white mx-auto"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-            >
-              C
-            </div>
-          ) : (
+        <div className="px-3 py-5 border-b flex items-center" style={{ borderColor: 'var(--sidebar-border)', justifyContent: collapsed ? 'center' : 'space-between' }}>
+          {!collapsed && (
             <div className="flex items-center gap-2.5">
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
