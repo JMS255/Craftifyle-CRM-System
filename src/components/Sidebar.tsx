@@ -20,6 +20,8 @@ function AdsIcon()      { return <Icon d="M18 20V10 M12 20V4 M6 20v-6" /> }
 function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
 function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
 function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
+function ChevronLeft()  { return <Icon d="M15 18l-6-6 6-6" size={16} /> }
+function ChevronRight() { return <Icon d="M9 18l6-6-6-6" size={16} /> }
 
 const nav = [
   { href: '/',         label: 'Dashboard',     short: 'Home',     icon: <HomeIcon /> },
@@ -30,6 +32,8 @@ const nav = [
   { href: '/personal', label: 'Finances',       short: 'Money',    icon: <FinanceIcon /> },
   { href: '/settings', label: 'Packages',       short: 'Packages', icon: <PackagesIcon /> },
 ]
+
+const AUTH_PATHS = ['/login', '/signup', '/contract/', '/confirm/', '/team/join/']
 
 interface Profile {
   full_name: string | null
@@ -45,6 +49,20 @@ export default function Sidebar() {
   const [email, setEmail] = useState('')
   const [quickAdd, setQuickAdd] = useState(false)
   const [isStaff, setIsStaff] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+
+  const isAuthPage = AUTH_PATHS.some(p => pathname.startsWith(p))
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed')
+    if (saved === 'true') setCollapsed(true)
+  }, [])
+
+  function toggleCollapsed() {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('sidebar-collapsed', String(next))
+  }
 
   async function loadProfile() {
     const db = createClient()
@@ -53,18 +71,17 @@ export default function Sidebar() {
     setEmail(user.email ?? '')
     const { data } = await db.from('profiles').select('full_name, business_name, location').eq('id', user.id).maybeSingle()
     setProfile(data ?? { full_name: null, business_name: null, location: null })
-    // Check if user is a staff member on someone else's team
     const { data: invite } = await db.from('team_invites')
       .select('id').eq('member_user_id', user.id).eq('status', 'accepted').maybeSingle()
     setIsStaff(!!invite)
   }
 
   useEffect(() => {
+    if (isAuthPage) return
     loadProfile()
-    // Refresh when profile is saved
     window.addEventListener('profile-updated', loadProfile)
     return () => window.removeEventListener('profile-updated', loadProfile)
-  }, [])
+  }, [isAuthPage])
 
   async function signOut() {
     const db = createClient()
@@ -76,6 +93,8 @@ export default function Sidebar() {
     return href === '/' ? pathname === '/' : pathname.startsWith(href)
   }
 
+  if (isAuthPage) return null
+
   const displayName = profile?.full_name || email.split('@')[0] || 'My Account'
   const displaySub = profile?.business_name || profile?.location || 'Crafty CRM'
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -85,105 +104,146 @@ export default function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         data-sidebar
-        className="hidden md:flex flex-col shrink-0 w-56 min-h-screen border-r transition-colors print:hidden"
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+        className="hidden md:flex flex-col shrink-0 min-h-screen border-r transition-all duration-200 print:hidden"
+        style={{
+          width: collapsed ? '4rem' : '14rem',
+          background: 'var(--sidebar-bg)',
+          borderColor: 'var(--sidebar-border)',
+        }}
       >
-        {/* Logo */}
-        <div className="px-5 py-6 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
-          <div className="flex items-center gap-2.5">
+        {/* Logo + collapse toggle */}
+        <div className="px-3 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--sidebar-border)' }}>
+          {collapsed ? (
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white mx-auto"
               style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
             >
               C
             </div>
-            <div>
-              <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-heading)' }}>
-                Crafty CRM
-              </p>
-              <p className="text-xs leading-tight" style={{ color: 'var(--text-faint)' }}>Beta</p>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
+                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+              >
+                C
+              </div>
+              <div>
+                <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-heading)' }}>
+                  Crafty CRM
+                </p>
+                <p className="text-xs leading-tight" style={{ color: 'var(--text-faint)' }}>Beta</p>
+              </div>
             </div>
-          </div>
+          )}
+          <button
+            onClick={toggleCollapsed}
+            className="w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:bg-white/10 shrink-0"
+            style={{ color: 'var(--text-faint)', marginLeft: collapsed ? 'auto' : '0.25rem' }}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight /> : <ChevronLeft />}
+          </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-2 py-4 space-y-0.5">
           {nav.filter(({ href }) => !isStaff || ['/', '/leads', '/bookings'].includes(href)).map(({ href, label, icon }) => {
             const active = isActive(href)
             return (
               <Link key={href} href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
+                title={collapsed ? label : undefined}
+                className="flex items-center gap-3 rounded-lg text-sm transition-all duration-150"
                 style={{
+                  padding: collapsed ? '0.625rem' : '0.625rem 0.75rem',
+                  justifyContent: collapsed ? 'center' : undefined,
                   background: active ? 'var(--accent-subtle)' : 'transparent',
                   color: active ? 'var(--text-heading)' : 'var(--text-muted)',
                   fontWeight: active ? 500 : 400,
-                  borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  marginLeft: '-1px',
+                  borderLeft: active && !collapsed ? '2px solid var(--accent)' : '2px solid transparent',
+                  marginLeft: collapsed ? 0 : '-1px',
                 }}>
                 <span className="w-5 flex items-center justify-center shrink-0">{icon}</span>
-                {label}
+                {!collapsed && label}
               </Link>
             )
           })}
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t space-y-3" style={{ borderColor: 'var(--sidebar-border)' }}>
-          {/* User — click to go to profile */}
-          <Link href="/profile" className="flex items-center gap-2 rounded-xl px-2 py-1.5 -mx-2 transition-colors hover:bg-white/5">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+        {!collapsed && (
+          <div className="px-4 py-4 border-t space-y-3" style={{ borderColor: 'var(--sidebar-border)' }}>
+            <Link href="/profile" className="flex items-center gap-2 rounded-xl px-2 py-1.5 -mx-2 transition-colors hover:bg-white/5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+              >
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+                  {displayName}
+                </p>
+                <p className="text-xs truncate" style={{ color: 'var(--text-faint)' }}>{displaySub}</p>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                style={{
+                  background: 'var(--subtle-bg)',
+                  border: '1px solid var(--card-border)',
+                  color: 'var(--text-muted)',
+                }}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <span className="text-sm leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              </button>
+
+              <button
+                onClick={() => window.dispatchEvent(new Event('crafty-open-tutorial'))}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-colors"
+                style={{
+                  background: 'var(--subtle-bg)',
+                  border: '1px solid var(--card-border)',
+                  color: 'var(--text-muted)',
+                }}
+                title="How to use Crafty CRM"
+              >
+                ?
+              </button>
+
+              <button
+                onClick={signOut}
+                className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5 ml-auto"
+                style={{ color: 'var(--text-faint)' }}
+              >
+                Sign out →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Collapsed footer — just avatar + sign out */}
+        {collapsed && (
+          <div className="px-2 py-4 border-t flex flex-col items-center gap-2" style={{ borderColor: 'var(--sidebar-border)' }}>
+            <Link href="/profile" title={displayName}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-opacity hover:opacity-80"
               style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
             >
               {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
-                {displayName}
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--text-faint)' }}>{displaySub}</p>
-            </div>
-          </Link>
-
-          {/* Theme toggle + tutorial + sign out row */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={toggleTheme}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{
-                background: 'var(--subtle-bg)',
-                border: '1px solid var(--card-border)',
-                color: 'var(--text-muted)',
-              }}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <span className="text-sm leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
-              <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
-            </button>
-
-            {/* Tutorial button */}
-            <button
-              onClick={() => window.dispatchEvent(new Event('crafty-open-tutorial'))}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-colors"
-              style={{
-                background: 'var(--subtle-bg)',
-                border: '1px solid var(--card-border)',
-                color: 'var(--text-muted)',
-              }}
-              title="How to use Crafty CRM"
-            >
-              ?
-            </button>
-
-            <button
-              onClick={signOut}
-              className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5 ml-auto"
+            </Link>
+            <button onClick={signOut} title="Sign out"
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10"
               style={{ color: 'var(--text-faint)' }}
             >
-              Sign out →
+              <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9" size={16} />
             </button>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Quick Add bottom sheet */}
@@ -226,7 +286,6 @@ export default function Sidebar() {
         className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex transition-colors print:hidden"
         style={{ borderColor: 'var(--sidebar-border)' }}
       >
-        {/* Home + Leads */}
         {nav.slice(0, 2).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
@@ -242,14 +301,12 @@ export default function Sidebar() {
           )
         })}
 
-        {/* Centre + Quick Add */}
         <button onClick={() => setQuickAdd(true)}
           className="flex-1 flex flex-col items-center pt-1.5 pb-3 gap-0.5">
           <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xl font-bold"
             style={{ background: 'var(--accent)', boxShadow: '0 0 16px var(--accent-glow)' }}>+</span>
         </button>
 
-        {/* Bookings only */}
         {nav.slice(2, 3).map(({ href, short, icon }) => {
           const active = isActive(href)
           return (
@@ -265,7 +322,6 @@ export default function Sidebar() {
           )
         })}
 
-        {/* Profile */}
         <Link href="/profile"
           className="flex-1 flex flex-col items-center pt-2 pb-3 gap-1 transition-colors"
           style={{
