@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 9, 2026 (end of session)
+> Last updated: June 9, 2026 (session 2 — animations + polish)
 
 ---
 
@@ -46,8 +46,8 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Charts: bookings/month bar chart + lead source donut
 
 **Crafty AI — two modes**
-- Advisor tab → `/api/chat` — Groq llama-3.1-8b-instant, business advice, no DB access
-- CRM Actions tab → `/api/crafty-assist` — Groq llama-3.3-70b-versatile with tool calling
+- Advisor tab → `/api/chat` — Gemini 2.5 Flash Lite, business advice, no DB access
+- CRM Actions tab → `/api/crafty-assist` — Gemini 2.5 Flash Lite with tool calling
 - Both know today's date (injected at request time)
 - Pulse animation + tooltip on first 3 sessions (discoverability)
 - External event trigger: `window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt, mode } }))`
@@ -61,6 +61,13 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Paste DM — 📋 button opens panel, paste raw Messenger inquiry, Crafty creates lead
 - Mode toggle: Advisor / CRM Actions (each keeps separate message history)
 - Quick-prompt chips on dashboard fire Crafty prompts via CustomEvent
+- Animations: FAB glow pulse, panel slide-up/down CSS transition (always mounted), 3-dot typing indicator, message slide-in, suggestion chip stagger
+
+**UX Improvements (June 9, session 2)**
+- Delete leads and bookings — red Delete button on detail pages, confirm dialog, redirects to list
+- Lost leads hidden from default list view — shown only when "lost" filter is explicitly selected
+- KPI cards mobile overflow fixed — `grid grid-cols-2 md:grid-cols-4` instead of flex row
+- ChatWidget: FAB glow pulse, panel slide-up/slide-down CSS transition (always mounted), 3-dot typing indicator, message slide-in, suggestion chip stagger
 
 **UX Improvements (June 1)**
 - Onboarding checklist for new users (3 steps + progress bar)
@@ -93,7 +100,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Login → Firebase `signInWithEmailAndPassword` → POST `/api/auth/session` → `__session` httpOnly cookie (5 days)
 - On login → POST `/api/auth/post-login` → auto-migrates old Supabase-UID data to new Firebase UID by email match
 - Session cookie verified via `firebase-admin` (`adminAuth.verifySessionCookie`)
-- **Known issue (June 9):** `jose` ESM/CJS conflict with Turbopack — fix deployed (pin jose to v4.x via `package.json` overrides + `serverExternalPackages`). Awaiting Vercel deploy confirmation.
+- **Fixed (June 9):** `jose` ESM/CJS conflict with Turbopack — resolved by pinning jose to v4.x via `package.json` overrides + `serverExternalPackages` in next.config.ts. Deployed to Vercel.
 - Open beta ready: delete INVITE_CODE from Vercel env → anyone can sign up
 - Signup page auto-skips invite step if open beta is on
 
@@ -341,7 +348,7 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 - Minimal diffs — never rewrite full files
 - 25-line cap — enter Plan Mode if more than 25 lines need changing
 - Never use `any` or `@ts-ignore`
-- Never change Groq model IDs without being asked
+- Never change Gemini model IDs without being asked (`gemini-2.5-flash-lite`)
 - Build check (`npx next build`) before every commit
 
 ---
