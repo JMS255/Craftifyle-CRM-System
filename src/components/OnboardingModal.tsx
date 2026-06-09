@@ -137,7 +137,7 @@ export default function OnboardingModal() {
     if (profileExists) {
       await updateDocument('profiles', userId, profileData)
     } else {
-      await addDocumentWithId('profiles', userId, { ...profileData, user_id: userId })
+      await addDocumentWithId('profiles', userId, { ...profileData, user_id: userId, email: auth.currentUser?.email ?? '' })
     }
     setTimeout(() => { setOpen(false); setClosing(false) }, 400)
   }

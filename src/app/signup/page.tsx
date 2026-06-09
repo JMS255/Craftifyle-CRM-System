@@ -13,6 +13,7 @@ async function createSession(user: { getIdToken: () => Promise<string> }) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   })
+  await fetch('/api/auth/post-login', { method: 'POST' })
 }
 
 function SignupForm() {

@@ -45,3 +45,8 @@ export async function updateDocument(col: string, id: string, data: Partial<Reco
 export async function deleteDocument(col: string, id: string): Promise<void> {
   await deleteDoc(doc(db, col, id))
 }
+
+export async function getDocsByUser<T>(col: string, userId: string): Promise<T[]> {
+  const snap = await getDocs(query(collection(db, col), where('user_id', '==', userId)))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as T)
+}
