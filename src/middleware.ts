@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/api/auth/check-invite') ||
     pathname.startsWith('/api/auth/session') ||
+    pathname.startsWith('/api/auth/post-login') ||
     pathname.startsWith('/api/messenger') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/contract') ||

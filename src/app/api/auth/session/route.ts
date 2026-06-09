@@ -3,11 +3,11 @@ import { adminAuth } from '@/lib/firebase-admin'
 
 // POST /api/auth/session — exchange Firebase ID token for a session cookie
 export async function POST(req: NextRequest) {
-  const { idToken } = await req.json()
-  if (!idToken) return NextResponse.json({ error: 'ID token required' }, { status: 400 })
-
   try {
-    // Session cookie valid for 5 days
+    const body = await req.json()
+    const idToken: string | undefined = body?.idToken
+    if (!idToken) return NextResponse.json({ error: 'ID token required' }, { status: 400 })
+
     const expiresIn = 60 * 60 * 24 * 5 * 1000
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn })
 
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return res
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: msg }, { status: 401 })
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
