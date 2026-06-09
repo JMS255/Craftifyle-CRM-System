@@ -130,7 +130,7 @@ export default function LeadsPage() {
     const matchYear = l.created_at.startsWith(selectedYear)
     const matchSearch = !search || l.name.toLowerCase().includes(search.toLowerCase()) ||
       (l.phone ?? '').includes(search) || (l.facebook ?? '').toLowerCase().includes(search.toLowerCase())
-    const matchStatus = filterStatus === 'all' || l.status === filterStatus
+    const matchStatus = filterStatus === 'all' ? l.status !== 'lost' : l.status === filterStatus
     return matchYear && matchSearch && matchStatus
   })
 
