@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { auth, getDocById, updateDocument, addDocument, getAllDocs } from '@/lib/firebase'
+import { auth, getDocById, updateDocument, addDocument, getAllDocs, deleteDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
@@ -171,6 +171,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     router.push(`/bookings/${bookingId}`)
   }
 
+  async function deleteLead() {
+    if (!confirm(`Delete lead "${lead?.name}"? This cannot be undone.`)) return
+    await deleteDocument('leads', id)
+    router.push('/leads')
+  }
+
   if (loading) return (
     <div className="p-4 md:p-8 space-y-4">
       <div className="skeleton h-8 w-52" />
@@ -202,10 +208,16 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{lead.name}</span>
         <div className="ml-auto flex items-center gap-2">
           {!editing ? (
+            <>
             <button onClick={startEdit} className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
               style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}>
               Edit
             </button>
+            <button onClick={deleteLead} className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+              Delete
+            </button>
+            </>
           ) : (
             <>
               <button onClick={() => setEditing(false)} className="text-xs px-3 py-1.5 rounded-[10px]"

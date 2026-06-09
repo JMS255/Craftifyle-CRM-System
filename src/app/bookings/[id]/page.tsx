@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getDocById, updateDocument } from '@/lib/firebase'
+import { getDocById, updateDocument, deleteDocument } from '@/lib/firebase'
 import type { Booking, BookingStatus } from '@/types'
 
 function fmt(date: string) {
@@ -20,6 +21,7 @@ const STATUS_STYLE: Record<BookingStatus, { color: string; bg: string }> = {
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
   const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving] = useState(false)
@@ -142,6 +144,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     setSyncingCal(false); setTimeout(() => setCalMsg(''), 3000)
   }
 
+  async function deleteBooking() {
+    if (!confirm(`Delete booking "${booking?.event_name}"? This cannot be undone.`)) return
+    await deleteDocument('bookings', id)
+    router.push('/bookings')
+  }
+
   if (loading) return (
     <div className="p-4 md:p-8 max-w-3xl md:max-w-none space-y-4">
       <div className="skeleton h-8 w-52" />
@@ -168,6 +176,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <span className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>{booking.event_name}</span>
         <div className="ml-auto flex items-center gap-2 flex-wrap">
           {calMsg && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{calMsg}</span>}
+          <button onClick={deleteBooking} className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+            Delete
+          </button>
           <button onClick={syncCalendar} disabled={syncingCal}
             className="text-xs px-3 py-1.5 rounded-[10px] font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--success)' }}>
