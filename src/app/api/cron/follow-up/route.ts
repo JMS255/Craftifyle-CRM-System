@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { adminDb } from '@/lib/firebase-admin'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
 async function sendSms(phone: string, text: string) {
   const apiKey = process.env.SEMAPHORE_API_KEY
@@ -53,44 +54,38 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
-  const db = createClient()
   const now = new Date()
-
-  // Find leads that are active (contacted/quoted), have Messenger, Crafty is on,
-  // and haven't had a follow-up in 24+ hours
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: leads } = await db
-    .from('leads')
-    .select('id, name, phone, event_date, messenger_sender_id, last_followup_sent, created_at')
-    .in('status', ['contacted', 'quoted', 'negotiating'])
-    .or(`last_followup_sent.is.null,last_followup_sent.lt.${oneDayAgo}`)
+  const leadsSnap = await adminDb.collection('leads').get()
+  const allLeadDocs = leadsSnap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }) as Record<string, unknown>)
+  const leads = allLeadDocs.filter((l: Record<string, unknown>) =>
+    ['contacted', 'quoted', 'negotiating'].includes(l.status as string) &&
+    (!l.last_followup_sent || String(l.last_followup_sent) < oneDayAgo)
+  )
 
   let sent = 0
 
-  for (const lead of leads ?? []) {
-    const createdAt = new Date(lead.created_at)
+  for (const lead of leads) {
+    const createdAt = new Date(lead.created_at as string)
     const daysQuiet = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysQuiet > 10) continue
 
-    const message = getFollowUpMessage(lead.name, daysQuiet, lead.event_date)
+    const message = getFollowUpMessage(lead.name as string, daysQuiet, lead.event_date as string | null)
     let didSend = false
 
-    // Messenger follow-up (existing — only if Crafty active + has Messenger)
     if (lead.messenger_sender_id) {
       try {
-        await sendMessage(lead.messenger_sender_id, message)
+        await sendMessage(lead.messenger_sender_id as string, message)
         didSend = true
       } catch (e) {
         console.error(`Messenger follow-up failed for lead ${lead.id}:`, e)
       }
     }
 
-    // SMS disabled — Semaphore credits paused
-
     if (didSend) {
-      await db.from('leads').update({ last_followup_sent: now.toISOString() }).eq('id', lead.id)
+      await adminDb.collection('leads').doc(lead.id as string).update({ last_followup_sent: now.toISOString() })
       sent++
     }
   }

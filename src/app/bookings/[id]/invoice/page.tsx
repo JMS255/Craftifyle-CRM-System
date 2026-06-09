@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, use } from 'react'
-import { createClient } from '@/lib/supabase'
+import { getDocById } from '@/lib/firebase'
 import type { Booking, Lead } from '@/types'
 import Link from 'next/link'
 
@@ -19,11 +19,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     async function load() {
-      const db = createClient()
-      const { data: b } = await db.from('bookings').select('*').eq('id', id).single()
+      const b = await getDocById<Booking>('bookings', id)
       setBooking(b)
       if (b?.lead_id) {
-        const { data: l } = await db.from('leads').select('*').eq('id', b.lead_id).single()
+        const l = await getDocById<Lead>('leads', b.lead_id)
         setLead(l)
       }
       setLoading(false)

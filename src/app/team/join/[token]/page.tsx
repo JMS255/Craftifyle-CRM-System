@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 
 export default function TeamJoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -14,8 +14,7 @@ export default function TeamJoinPage({ params }: { params: Promise<{ token: stri
 
   useEffect(() => {
     async function init() {
-      const db = createClient()
-      const { data: { user } } = await db.auth.getUser()
+      const user = auth.currentUser
 
       if (!user) {
         // Not logged in — redirect to signup with next param

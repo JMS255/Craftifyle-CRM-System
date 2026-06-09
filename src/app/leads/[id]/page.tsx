@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { auth, getDocById, updateDocument, addDocument, getAllDocs } from '@/lib/firebase'
 import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
@@ -66,8 +66,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [bookForm, setBookForm] = useState({ event_name: '', event_time: '', package_name: '', package_price: '', deposit_amount: '' })
   const [showConvert, setShowConvert] = useState(false)
 
-  const db = createClient()
-
   function startEdit() {
     if (!lead) return
     setEditForm({ name: lead.name, phone: lead.phone, email: lead.email, facebook: lead.facebook, source: lead.source, event_type: lead.event_type, event_date: lead.event_date, venue: lead.venue, guest_count: lead.guest_count, package: lead.package, budget: lead.budget, notes: lead.notes })
@@ -75,22 +73,28 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
   async function saveEdit() {
     setSavingEdit(true)
-    await db.from('leads').update(editForm).eq('id', id)
+    await updateDocument('leads', id, editForm as Partial<Record<string, unknown>>)
     setSavingEdit(false)
     setEditing(false)
     reload()
   }
   async function reload() {
-    const [{ data: l }, { data: a }] = await Promise.all([
-      db.from('leads').select('*').eq('id', id).single(),
-      db.from('activities').select('*').eq('lead_id', id).order('created_at', { ascending: false }),
+    const [l, allActivities] = await Promise.all([
+      getDocById<Lead & { crafty_active?: boolean; messenger_sender_id?: string }>('leads', id),
+      getAllDocs<Activity>('activities'),
     ])
     setLead(l)
-    setActivities(a ?? [])
+    const acts = allActivities
+      .filter(a => a.lead_id === id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    setActivities(acts)
     if (l?.messenger_sender_id) {
-      const { data: msgs } = await db.from('messenger_conversations').select('role, content, created_at')
-        .eq('sender_id', l.messenger_sender_id).order('created_at', { ascending: true }).limit(50)
-      setConversation(msgs ?? [])
+      const allMsgs = await getAllDocs<ConvoMsg & { sender_id: string }>('messenger_conversations')
+      const msgs = allMsgs
+        .filter(m => m.sender_id === l.messenger_sender_id)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .slice(-50)
+      setConversation(msgs)
     }
     setLoading(false)
   }
@@ -98,7 +102,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     if (!lead) return
     setTogglingCrafty(true)
     const newVal = !(lead.crafty_active ?? true)
-    await db.from('leads').update({ crafty_active: newVal }).eq('id', id)
+    await updateDocument('leads', id, { crafty_active: newVal })
     setLead(prev => prev ? { ...prev, crafty_active: newVal } : prev)
     setTogglingCrafty(false)
   }
@@ -107,9 +111,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function updateStatus(status: LeadStatus) {
     const prev = lead?.status
     setLead(p => p ? { ...p, status } : p)
-    const { error } = await db.from('leads').update({ status }).eq('id', id)
-    if (error && prev) setLead(p => p ? { ...p, status: prev } : p)
-    else window.dispatchEvent(new CustomEvent('crafty:first-stage-change', { detail: { name: lead?.name } }))
+    try {
+      await updateDocument('leads', id, { status })
+      window.dispatchEvent(new CustomEvent('crafty:first-stage-change', { detail: { name: lead?.name } }))
+    } catch {
+      if (prev) setLead(p => p ? { ...p, status: prev } : p)
+    }
   }
   async function addActivity(e: React.FormEvent) {
     e.preventDefault()
@@ -117,47 +124,51 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     if (!content) return
     const followUp = actFollowUp || null
     const tempId = `temp-${Date.now()}`
-    // Clear form + show activity immediately
     setActContent(''); setActFollowUp('')
     setActivities(prev => [{
       id: tempId, lead_id: id, type: actType,
       content, follow_up_date: followUp,
       completed: false, created_at: new Date().toISOString(),
     }, ...prev])
-    // Background insert — replace temp with real once DB responds
-    const { data: { user } } = await db.auth.getUser()
-    const { data: newAct } = await db.from('activities').insert({
-      lead_id: id, type: actType, content, follow_up_date: followUp, completed: false, user_id: user?.id,
-    }).select().single()
-    if (newAct) {
-      setActivities(prev => prev.map(a => a.id === tempId ? newAct : a))
-      window.dispatchEvent(new CustomEvent('crafty:first-activity'))
+    const user = auth.currentUser
+    const newId = await addDocument('activities', {
+      lead_id: id, type: actType, content, follow_up_date: followUp,
+      completed: false, user_id: user?.uid ?? '',
+      created_at: new Date().toISOString(),
+    })
+    const newAct: Activity = {
+      id: newId, lead_id: id, type: actType, content,
+      follow_up_date: followUp, completed: false, created_at: new Date().toISOString(),
     }
+    setActivities(prev => prev.map(a => a.id === tempId ? newAct : a))
+    window.dispatchEvent(new CustomEvent('crafty:first-activity'))
   }
   async function markActivityDone(actId: string) {
-    await db.from('activities').update({ completed: true }).eq('id', actId)
+    await updateDocument('activities', actId, { completed: true })
     setActivities(prev => prev.map(a => a.id === actId ? { ...a, completed: true } : a))
   }
   async function convertToBooking(e: React.FormEvent) {
     e.preventDefault()
     if (!bookForm.event_name.trim()) return
     setConverting(true)
-    const { data: { user } } = await db.auth.getUser()
-    const { data: booking } = await db.from('bookings').insert({
+    const user = auth.currentUser
+    const packagePrice = bookForm.package_price ? parseFloat(bookForm.package_price) : null
+    const depositAmount = bookForm.deposit_amount ? parseFloat(bookForm.deposit_amount) : 0
+    const bookingData = {
       lead_id: id, event_name: bookForm.event_name.trim(), event_date: lead!.event_date,
       event_time: bookForm.event_time || null, venue: lead!.venue,
       package_name: bookForm.package_name || null,
-      package_price: bookForm.package_price ? parseFloat(bookForm.package_price) : null,
-      deposit_amount: bookForm.deposit_amount ? parseFloat(bookForm.deposit_amount) : 0,
-      balance_amount: bookForm.package_price && bookForm.deposit_amount ? parseFloat(bookForm.package_price) - parseFloat(bookForm.deposit_amount) : 0,
-      status: 'upcoming', user_id: user?.id,
-    }).select().single()
-    await db.from('leads').update({ status: 'booked' }).eq('id', id)
-    setConverting(false)
-    if (booking) {
-      window.dispatchEvent(new CustomEvent('crafty:first-booking', { detail: { name: lead?.name } }))
-      router.push(`/bookings/${booking.id}`)
+      package_price: packagePrice,
+      deposit_amount: depositAmount,
+      balance_amount: packagePrice && depositAmount ? packagePrice - depositAmount : 0,
+      status: 'upcoming', user_id: user?.uid ?? '',
+      created_at: new Date().toISOString(),
     }
+    const bookingId = await addDocument('bookings', bookingData)
+    await updateDocument('leads', id, { status: 'booked' })
+    setConverting(false)
+    window.dispatchEvent(new CustomEvent('crafty:first-booking', { detail: { name: lead?.name } }))
+    router.push(`/bookings/${bookingId}`)
   }
 
   if (loading) return (

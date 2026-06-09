@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth'
+import { auth, getAllDocs } from '@/lib/firebase'
 import { useTheme } from './ThemeProvider'
 
 function Icon({ d, size = 18 }: { d: string; size?: number }) {
@@ -65,27 +66,31 @@ export default function Sidebar() {
   }
 
   async function loadProfile() {
-    const db = createClient()
-    const { data: { user } } = await db.auth.getUser()
+    const user = auth.currentUser
     if (!user) return
     setEmail(user.email ?? '')
-    const { data } = await db.from('profiles').select('full_name, business_name, location').eq('id', user.id).maybeSingle()
-    setProfile(data ?? { full_name: null, business_name: null, location: null })
-    const { data: invite } = await db.from('team_invites')
-      .select('id').eq('member_user_id', user.id).eq('status', 'accepted').maybeSingle()
-    setIsStaff(!!invite)
+    const profiles = await getAllDocs<{ id: string; full_name: string | null; business_name: string | null; location: string | null }>('profiles')
+    const p = profiles.find(pr => pr.id === user.uid)
+    setProfile(p ?? { full_name: null, business_name: null, location: null })
+    const invites = await getAllDocs<{ id: string; member_user_id: string; status: string }>('team_invites')
+    setIsStaff(invites.some(i => i.member_user_id === user.uid && i.status === 'accepted'))
   }
 
   useEffect(() => {
     if (isAuthPage) return
-    loadProfile()
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) loadProfile()
+    })
     window.addEventListener('profile-updated', loadProfile)
-    return () => window.removeEventListener('profile-updated', loadProfile)
+    return () => {
+      unsub()
+      window.removeEventListener('profile-updated', loadProfile)
+    }
   }, [isAuthPage])
 
   async function signOut() {
-    const db = createClient()
-    await db.auth.signOut()
+    await firebaseSignOut(auth)
+    await fetch('/api/auth/session', { method: 'DELETE' })
     router.replace('/login')
   }
 

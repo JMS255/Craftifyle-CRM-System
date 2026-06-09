@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase-admin'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { adminDb, adminAuth } from '@/lib/firebase-admin'
+import { cookies } from 'next/headers'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
 interface PackageRow { name: string; price: number; description: string | null; is_addon: boolean }
 
@@ -200,100 +201,69 @@ const TOOLS = [{ functionDeclarations: [
   },
 ]}]
 
-async function runTool(
-  name: string,
-  args: Record<string, unknown>,
-  db: ReturnType<typeof createAdminClient>,
-  userId: string,
-): Promise<string> {
+async function runTool(name: string, args: Record<string, unknown>, userId: string): Promise<string> {
   try {
     if (name === 'get_leads') {
-      let query = db.from('leads').select('id, name, phone, event_type, event_date, package, budget, status, source, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit((args.limit as number) ?? 10)
-      if (args.status) query = query.eq('status', args.status as string)
-      if (args.search) query = query.ilike('name', `%${args.search}%`)
-      const { data, error } = await query
-      if (error) return `Error: ${error.message}`
-      if (!data?.length) return 'No leads found.'
-      return JSON.stringify(data)
+      const snap = await adminDb.collection('leads').get()
+      let data = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() })) as Record<string, unknown>[]
+      data = data.filter(l => l.user_id === userId)
+      if (args.status) data = data.filter(l => l.status === args.status)
+      if (args.search) data = data.filter(l => String(l.name ?? '').toLowerCase().includes((args.search as string).toLowerCase()))
+      data = data.sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+      data = data.slice(0, (args.limit as number) ?? 10)
+      if (!data.length) return 'No leads found.'
+      return JSON.stringify(data.map(l => ({ id: l.id, name: l.name, phone: l.phone, event_type: l.event_type, event_date: l.event_date, package: l.package, budget: l.budget, status: l.status, source: l.source, created_at: l.created_at })))
     }
 
     if (name === 'create_lead') {
-      const { data, error } = await db.from('leads').insert({
-        user_id: userId,
-        name: args.name,
-        phone: args.phone ?? null,
-        email: args.email ?? null,
-        facebook: args.facebook ?? null,
-        event_type: args.event_type ?? null,
-        event_date: args.event_date ?? null,
-        venue: args.venue ?? null,
-        guest_count: args.guest_count ?? null,
-        package: args.package ?? null,
-        budget: args.budget ?? null,
-        source: (args.source as string) ?? 'other',
-        notes: args.notes ?? null,
-        status: 'new',
-      }).select('id, name').single()
-      if (error) return `Error: ${error.message}`
-      return `Created lead: ${data.name} (ID: ${data.id})`
+      const now = new Date().toISOString()
+      const ref = await adminDb.collection('leads').add({
+        user_id: userId, name: args.name, phone: args.phone ?? null, email: args.email ?? null,
+        facebook: args.facebook ?? null, event_type: args.event_type ?? null, event_date: args.event_date ?? null,
+        venue: args.venue ?? null, guest_count: args.guest_count ?? null, package: args.package ?? null,
+        budget: args.budget ?? null, source: (args.source as string) ?? 'other', notes: args.notes ?? null,
+        status: 'new', created_at: now, updated_at: now,
+      })
+      return `Created lead: ${args.name} (ID: ${ref.id})`
     }
 
     if (name === 'update_lead') {
       const { id, ...fields } = args
       const updates: Record<string, unknown> = {}
       const allowed = ['status', 'name', 'phone', 'email', 'event_type', 'event_date', 'venue', 'guest_count', 'package', 'budget', 'notes']
-      for (const key of allowed) {
-        if (fields[key] !== undefined) updates[key] = fields[key]
-      }
+      for (const key of allowed) { if (fields[key] !== undefined) updates[key] = fields[key] }
       updates.updated_at = new Date().toISOString()
-      const { data, error } = await db.from('leads').update(updates)
-        .eq('id', id as string).eq('user_id', userId).select('id, name').single()
-      if (error) return `Error: ${error.message}`
-      return `Updated lead: ${data.name} (ID: ${data.id})`
+      await adminDb.collection('leads').doc(id as string).update(updates)
+      return `Updated lead ID: ${id}`
     }
 
     if (name === 'get_bookings') {
-      const { data, error } = await db.from('bookings')
-        .select('id, event_name, event_date, package_name, package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
-        .eq('user_id', userId)
-        .eq('status', (args.status as string) ?? 'upcoming')
-        .order('event_date')
-        .limit((args.limit as number) ?? 10)
-      if (error) return `Error: ${error.message}`
-      if (!data?.length) return 'No bookings found.'
-      return JSON.stringify(data)
+      const snap = await adminDb.collection('bookings').get()
+      let data = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() })) as Record<string, unknown>[]
+      data = data.filter(b => b.user_id === userId && b.status === ((args.status as string) ?? 'upcoming'))
+      data = data.sort((a, b) => String(a.event_date ?? '').localeCompare(String(b.event_date ?? '')))
+      data = data.slice(0, (args.limit as number) ?? 10)
+      if (!data.length) return 'No bookings found.'
+      return JSON.stringify(data.map(b => ({ id: b.id, event_name: b.event_name, event_date: b.event_date, package_name: b.package_name, package_price: b.package_price, deposit_amount: b.deposit_amount, deposit_paid: b.deposit_paid, balance_amount: b.balance_amount, balance_paid: b.balance_paid, status: b.status })))
     }
 
     if (name === 'create_booking') {
       const packagePrice = (args.package_price as number) ?? 0
       const depositAmount = args.deposit_amount as number
       const balanceAmount = args.balance_amount as number
-      const { data, error } = await db.from('bookings').insert({
-        user_id: userId,
-        event_name: args.event_name,
-        event_date: args.event_date,
-        event_time: args.event_time ?? null,
-        venue: args.venue ?? null,
-        package_name: args.package_name ?? null,
-        package_price: packagePrice,
-        deposit_amount: depositAmount,
-        deposit_paid: (args.deposit_paid as boolean) ?? false,
-        deposit_paid_date: (args.deposit_paid as boolean) ? (args.paid_date ?? new Date().toISOString().slice(0, 10)) : null,
-        balance_amount: balanceAmount,
-        balance_paid: false,
-        balance_paid_date: null,
-        status: 'upcoming',
-        craftifyle_income: packagePrice,
-        personal_income: 0,
-        notes: args.notes ?? null,
-        lead_id: args.lead_id ?? null,
-        gcal_event_id: null,
-      }).select('id, event_name').single()
-      if (error) return `Error: ${error.message}`
-      return `Created booking: ${data.event_name} (ID: ${data.id})`
+      const depositPaid = (args.deposit_paid as boolean) ?? false
+      const today = new Date().toISOString().slice(0, 10)
+      const now = new Date().toISOString()
+      const ref = await adminDb.collection('bookings').add({
+        user_id: userId, event_name: args.event_name, event_date: args.event_date, event_time: args.event_time ?? null,
+        venue: args.venue ?? null, package_name: args.package_name ?? null, package_price: packagePrice,
+        deposit_amount: depositAmount, deposit_paid: depositPaid,
+        deposit_paid_date: depositPaid ? today : null, balance_amount: balanceAmount,
+        balance_paid: false, balance_paid_date: null, status: 'upcoming',
+        craftifyle_income: packagePrice, personal_income: 0, notes: args.notes ?? null,
+        lead_id: args.lead_id ?? null, gcal_event_id: null, created_at: now, updated_at: now,
+      })
+      return `Created booking: ${args.event_name} (ID: ${ref.id})`
     }
 
     if (name === 'log_payment') {
@@ -302,82 +272,61 @@ async function runTool(
       const field = args.payment_type === 'deposit'
         ? { deposit_paid: true, deposit_paid_date: paidDate }
         : { balance_paid: true, balance_paid_date: paidDate }
-      const { data, error } = await db.from('bookings').update(field)
-        .eq('id', args.booking_id as string).eq('user_id', userId).select('id, event_name').single()
-      if (error) return `Error: ${error.message}`
-      return `Marked ${args.payment_type} as paid for booking: ${data.event_name}`
+      const bookingRef = adminDb.collection('bookings').doc(args.booking_id as string)
+      const snap = await bookingRef.get()
+      if (!snap.exists) return 'Booking not found.'
+      await bookingRef.update(field)
+      return `Marked ${args.payment_type} as paid for booking: ${snap.data()?.event_name}`
     }
 
     if (name === 'get_revenue_summary') {
-      let query = db.from('bookings').select('craftifyle_income, package_price, deposit_paid, balance_paid, event_date')
-        .eq('user_id', userId)
-        .neq('status', 'cancelled')
+      const snap = await adminDb.collection('bookings').get()
+      let data = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() })) as Record<string, unknown>[]
+      data = data.filter(b => b.user_id === userId && b.status !== 'cancelled')
       if (args.month) {
         const [y, m] = (args.month as string).split('-')
         const start = `${y}-${m}-01`
         const end = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10)
-        query = query.gte('event_date', start).lte('event_date', end)
+        data = data.filter(b => String(b.event_date ?? '') >= start && String(b.event_date ?? '') <= end)
       }
-      const { data, error } = await query
-      if (error) return `Error: ${error.message}`
-      const total = data?.reduce((sum, b) => sum + (b.package_price ?? 0), 0) ?? 0
-      const collected = data?.reduce((sum, b) => {
-        let s = 0
-        const booking = b as { deposit_paid: boolean; balance_paid: boolean; package_price: number | null; craftifyle_income: number }
-        if (booking.deposit_paid) s += booking.craftifyle_income * 0.15
-        if (booking.balance_paid) s += booking.craftifyle_income
-        return sum + s
-      }, 0) ?? 0
-      return JSON.stringify({ total_bookings: data?.length ?? 0, total_revenue: total, bookings: data })
+      const total = data.reduce((sum, b) => sum + ((b.package_price as number) ?? 0), 0)
+      return JSON.stringify({ total_bookings: data.length, total_revenue: total, bookings: data })
     }
 
     if (name === 'get_urgent_leads') {
-      const { data, error } = await db.from('leads')
-        .select('id, name, phone, event_date, event_type, status, updated_at, package, budget')
-        .eq('user_id', userId)
-        .not('status', 'in', '("booked","completed","lost")')
-        .order('event_date', { ascending: true, nullsFirst: false })
-        .limit((args.limit as number) ?? 20)
-      if (error) return `Error: ${error.message}`
-      if (!data?.length) return 'No active leads found.'
-
+      const snap = await adminDb.collection('leads').get()
+      let data = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() })) as Record<string, unknown>[]
+      data = data.filter(l => l.user_id === userId && !['booked', 'completed', 'lost'].includes(l.status as string))
       const now = Date.now()
       const scored = data.map(l => {
-        const eventMs = l.event_date ? new Date(l.event_date).getTime() : null
+        const eventMs = l.event_date ? new Date(l.event_date as string).getTime() : null
         const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
-        const daysSilent = Math.floor((now - new Date(l.updated_at).getTime()) / 86400000)
-        let urgency = 0
-        let action = ''
+        const daysSilent = Math.floor((now - new Date(l.updated_at as string).getTime()) / 86400000)
+        let urgency = 10; let action = 'Active'
         if (daysToEvent != null && daysToEvent < 0) { urgency = 100; action = 'Event passed — close it' }
         else if (daysToEvent != null && daysToEvent <= 3) { urgency = 90; action = `Event in ${daysToEvent}d — confirm now!` }
         else if (daysToEvent != null && daysToEvent <= 14) { urgency = 70; action = `Event in ${daysToEvent}d — follow up` }
-        else if (['quoted', 'negotiating'].includes(l.status) && daysSilent >= 7) { urgency = 60; action = `Quiet ${daysSilent}d — follow up` }
+        else if (['quoted', 'negotiating'].includes(l.status as string) && daysSilent >= 7) { urgency = 60; action = `Quiet ${daysSilent}d — follow up` }
         else if (l.status === 'new' && daysSilent >= 3) { urgency = 40; action = `New, ${daysSilent}d old — first contact` }
-        else { urgency = 10; action = 'Active' }
         return { ...l, urgency, action, daysToEvent, daysSilent }
       }).sort((a, b) => b.urgency - a.urgency).filter(l => l.urgency >= 40)
-
       if (!scored.length) return 'All leads are up to date — nothing urgent right now.'
       return JSON.stringify(scored.slice(0, (args.limit as number) ?? 10))
     }
 
     if (name === 'convert_lead_to_booking') {
-      // Find lead by ID or name
       let lead: Record<string, unknown> | null = null
       if (args.lead_id) {
-        const { data } = await db.from('leads').select('*').eq('id', args.lead_id as string).eq('user_id', userId).single()
-        lead = data
+        const snap = await adminDb.collection('leads').doc(args.lead_id as string).get()
+        if (snap.exists) lead = { id: snap.id, ...snap.data() }
       } else if (args.lead_name) {
-        const { data } = await db.from('leads').select('*').ilike('name', `%${args.lead_name as string}%`).eq('user_id', userId).limit(1).single()
-        lead = data
+        const snap = await adminDb.collection('leads').get()
+        const all = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() })) as Record<string, unknown>[]
+        lead = all.find(l => l.user_id === userId && String(l.name ?? '').toLowerCase().includes((args.lead_name as string).toLowerCase())) ?? null
       }
-      if (!lead) return 'Lead not found. Try providing the lead name or ID.'
-      if (!lead.event_date) return `Lead found (${lead.name}) but has no event date set. Please update the lead with an event date first.`
-
-      const PACKAGE_PRICES: Record<string, number> = {
-        'Photobooth Only': 3500, 'Photography Only': 4500,
-        'Photobooth + Photography': 6500, 'Premium Bundle': 8000,
-      }
+      if (!lead) return 'Lead not found.'
+      if (!lead.event_date) return `Lead found (${lead.name}) but has no event date set.`
+      const PACKAGE_PRICES: Record<string, number> = { 'Photobooth Only': 3500, 'Photography Only': 4500, 'Photobooth + Photography': 6500, 'Premium Bundle': 8000 }
       const pkgName = (lead.package as string) ?? ''
       const lookedUp = Object.entries(PACKAGE_PRICES).find(([k]) => pkgName.toLowerCase().includes(k.toLowerCase()))
       const packagePrice = lookedUp?.[1] ?? (lead.budget as number) ?? 6500
@@ -385,32 +334,20 @@ async function runTool(
       const balanceAmount = Math.max(0, packagePrice - depositAmount)
       const depositPaid = (args.deposit_paid as boolean) ?? false
       const today = new Date().toISOString().slice(0, 10)
-
-      const { data: booking, error } = await db.from('bookings').insert({
-        user_id: userId,
-        lead_id: lead.id,
+      const now = new Date().toISOString()
+      const bookingRef = await adminDb.collection('bookings').add({
+        user_id: userId, lead_id: lead.id,
         event_name: `${lead.name}'s ${(lead.event_type as string)?.replace('_', ' ') ?? 'Event'}`,
-        event_date: lead.event_date,
-        event_time: (args.event_time as string) ?? null,
-        venue: lead.venue ?? null,
-        package_name: (lead.package as string) ?? null,
-        package_price: packagePrice,
-        deposit_amount: depositAmount,
-        deposit_paid: depositPaid,
-        deposit_paid_date: depositPaid ? today : null,
-        balance_amount: balanceAmount,
-        balance_paid: false,
-        balance_paid_date: null,
-        status: 'upcoming',
-        craftifyle_income: packagePrice,
-        personal_income: 0,
-        notes: (args.notes as string) ?? null,
-        gcal_event_id: null,
-      }).select('id, event_name').single()
-      if (error) return `Error: ${error.message}`
-
-      await db.from('leads').update({ status: 'booked', updated_at: new Date().toISOString() }).eq('id', lead.id as string)
-      return `Converted to booking: ${booking.event_name} on ${lead.event_date}. Deposit: ₱${depositAmount}${depositPaid ? ' (paid)' : ' (unpaid)'}. Balance: ₱${balanceAmount}. Booking ID: ${booking.id}`
+        event_date: lead.event_date, event_time: (args.event_time as string) ?? null,
+        venue: lead.venue ?? null, package_name: (lead.package as string) ?? null,
+        package_price: packagePrice, deposit_amount: depositAmount, deposit_paid: depositPaid,
+        deposit_paid_date: depositPaid ? today : null, balance_amount: balanceAmount,
+        balance_paid: false, balance_paid_date: null, status: 'upcoming',
+        craftifyle_income: packagePrice, personal_income: 0, notes: (args.notes as string) ?? null,
+        gcal_event_id: null, created_at: now, updated_at: now,
+      })
+      await adminDb.collection('leads').doc(lead.id as string).update({ status: 'booked', updated_at: now })
+      return `Converted to booking: ${lead.event_name ?? lead.name}'s event on ${lead.event_date}. Deposit: ₱${depositAmount}${depositPaid ? ' (paid)' : ' (unpaid)'}. Balance: ₱${balanceAmount}. Booking ID: ${bookingRef.id}`
     }
 
     return `Unknown tool: ${name}`
@@ -420,9 +357,17 @@ async function runTool(
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const cookieStore = await cookies()
+  const sessionCookie = cookieStore.get('__session')?.value
+  if (!sessionCookie) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let userId: string
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true)
+    userId = decoded.uid
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { messages } = await req.json()
   if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
@@ -430,16 +375,13 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
 
-  const db = createAdminClient()
-
-  // Fetch user's custom packages — fall back to hardcoded defaults if none exist
-  const { data: pkgData } = await db
-    .from('packages')
-    .select('name, price, description, is_addon')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .order('sort_order')
-  const packages: PackageRow[] = pkgData ?? []
+  // Fetch user's custom packages
+  const pkgsSnap = await adminDb.collection('packages').get()
+  type PkgDoc = PackageRow & { id: string; user_id: string; is_active: boolean; sort_order: number }
+  const allPkgs = pkgsSnap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }) as unknown as PkgDoc)
+  const packages: PackageRow[] = allPkgs
+    .filter((p: PkgDoc) => p.user_id === userId && p.is_active)
+    .sort((a: PkgDoc, b: PkgDoc) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({
@@ -465,7 +407,7 @@ export async function POST(req: NextRequest) {
       calls.map(async call => ({
         functionResponse: {
           name: call.name,
-          response: { result: await runTool(call.name, call.args as Record<string, unknown>, db, user.id) },
+          response: { result: await runTool(call.name, call.args as Record<string, unknown>, userId) },
         },
       }))
     )

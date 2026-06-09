@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { getAllDocs } from '@/lib/firebase'
 import type { Booking, BookingStatus } from '@/types'
 
 const STATUSES: BookingStatus[] = ['upcoming', 'completed', 'cancelled']
@@ -72,14 +72,10 @@ export default function BookingsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
 
   useEffect(() => {
-    const db = createClient()
-    db.from('bookings')
-      .select('*')
-      .order('event_date', { ascending: false })
-      .then(({ data }) => {
-        setBookings(data ?? [])
-        setLoading(false)
-      })
+    getAllDocs<Booking>('bookings').then(data => {
+      setBookings([...data].sort((a, b) => b.event_date.localeCompare(a.event_date)))
+      setLoading(false)
+    })
   }, [])
 
   const years = Array.from(

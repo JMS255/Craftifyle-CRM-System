@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { adminDb } from '@/lib/firebase-admin'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
 async function sendMessage(recipientId: string, text: string) {
   const pageToken = process.env.MESSENGER_PAGE_ACCESS_TOKEN
@@ -23,39 +24,30 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
-  const db = createClient()
   const now = new Date()
-
-  // Find upcoming bookings in the next 3 days
   const today = now.toISOString().slice(0, 10)
   const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  const { data: bookings } = await db
-    .from('bookings')
-    .select('id, event_name, event_date, event_time, venue, lead_id, deposit_paid, balance_amount')
-    .eq('status', 'upcoming')
-    .gte('event_date', today)
-    .lte('event_date', in3Days)
+  const bookingsSnap = await adminDb.collection('bookings').get()
+  const allBookingDocs = bookingsSnap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }) as Record<string, unknown>)
+  const bookings = allBookingDocs.filter((b: Record<string, unknown>) => b.status === 'upcoming' && String(b.event_date ?? '') >= today && String(b.event_date ?? '') <= in3Days)
 
   let sent = 0
 
-  for (const booking of bookings ?? []) {
+  for (const booking of bookings) {
     if (!booking.lead_id) continue
 
-    const { data: lead } = await db
-      .from('leads')
-      .select('name, messenger_sender_id')
-      .eq('id', booking.lead_id)
-      .single()
-
+    const leadSnap = await adminDb.collection('leads').doc(booking.lead_id as string).get()
+    if (!leadSnap.exists) continue
+    const lead = leadSnap.data() as Record<string, unknown>
     if (!lead?.messenger_sender_id) continue
 
-    const firstName = lead.name.split(' ')[0]
-    const eventDate = new Date(booking.event_date).toLocaleDateString('en-PH', {
+    const firstName = String(lead.name ?? '').split(' ')[0]
+    const eventDate = new Date(booking.event_date as string).toLocaleDateString('en-PH', {
       weekday: 'long', month: 'long', day: 'numeric',
     })
     const daysAway = Math.ceil(
-      (new Date(booking.event_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      (new Date(booking.event_date as string).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     )
 
     let message = `Hi ${firstName}! 📸 Just a reminder — ang inyong event ay ${daysAway === 1 ? 'bukas na' : `sa ${daysAway} days na`} (${eventDate})`
@@ -65,12 +57,12 @@ export async function GET(req: NextRequest) {
 
     if (!booking.deposit_paid) {
       message += `\n\nPaalala lang po — hindi pa nakukumpirma ang booking ninyo. Para ma-secure, magpadala po ng ₱1,000 deposit sa GCash: 0993-632-4512 (James Ignacio) 😊`
-    } else if (booking.balance_amount > 0) {
-      message += ` \n\nBalance due po: ₱${booking.balance_amount.toLocaleString()} — pwede ma-settle on the day ng event 😊`
+    } else if ((booking.balance_amount as number) > 0) {
+      message += ` \n\nBalance due po: ₱${(booking.balance_amount as number).toLocaleString()} — pwede ma-settle on the day ng event 😊`
     }
 
     try {
-      await sendMessage(lead.messenger_sender_id, message)
+      await sendMessage(lead.messenger_sender_id as string, message)
       sent++
     } catch (e) {
       console.error(`Reminder failed for booking ${booking.id}:`, e)

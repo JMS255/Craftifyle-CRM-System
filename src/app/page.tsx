@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { createClient } from '@/lib/supabase'
+import { auth, db, getAllDocs, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
 import type { Lead, Booking } from '@/types'
 
 const MONTH_NAMES = [
@@ -64,39 +64,46 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [openMonth, setOpenMonth] = useState<string | null>(new Date().toISOString().slice(0, 7))
 
-  function reload() {
+  async function reload() {
     setLoading(true)
-    const db = createClient()
+    const user = auth.currentUser
     const now = new Date()
     const thisMonth = now.toISOString().slice(0, 7)
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10)
-    Promise.all([
-      db.from('leads').select('*').order('created_at', { ascending: false }),
-      db.from('bookings').select('*').eq('status', 'upcoming')
-        .gte('event_date', now.toISOString().slice(0, 10)).order('event_date').limit(6),
-      db.from('bookings')
-        .select('package_price, deposit_amount, deposit_paid, balance_amount, balance_paid, status')
-        .gte('event_date', `${thisMonth}-01`).lt('event_date', nextMonth).neq('status', 'cancelled'),
-      db.auth.getUser(),
-    ]).then(([{ data: l }, { data: b }, { data: rev }, { data: { user } }]) => {
-      setLeads(l ?? [])
-      setBookings(b ?? [])
-      const confirmed = (rev ?? []).reduce((s, r) => s + (r.package_price ?? 0), 0)
-      const collected = (rev ?? []).reduce((s, r) => {
-        let c = 0
-        if (r.deposit_paid) c += r.deposit_amount ?? 0
-        if (r.balance_paid) c += r.balance_amount ?? 0
-        return s + c
-      }, 0)
-      setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: (rev ?? []).length })
-      if (user) {
-        db.from('profiles').select('full_name').eq('id', user.id).maybeSingle().then(({ data }) => {
-          const name = data?.full_name?.split(' ')[0]
-          if (name) setFirstName(name)
-        })
-      }
-      setLoading(false)
-    })
+    const todayStr = now.toISOString().slice(0, 10)
+
+    const [allLeads, allBookings] = await Promise.all([
+      getAllDocs<Lead>('leads'),
+      getAllDocs<Booking>('bookings'),
+    ])
+
+    const sortedLeads = [...allLeads].sort((a, b) => b.created_at.localeCompare(a.created_at))
+    const upcomingBookings = allBookings
+      .filter(b => b.status === 'upcoming' && b.event_date >= todayStr)
+      .sort((a, b) => a.event_date.localeCompare(b.event_date))
+      .slice(0, 6)
+    const monthBookings = allBookings.filter(b =>
+      b.event_date >= `${thisMonth}-01` && b.event_date < nextMonth && b.status !== 'cancelled'
+    )
+
+    setLeads(sortedLeads)
+    setBookings(upcomingBookings)
+    const confirmed = monthBookings.reduce((s, r) => s + (r.package_price ?? 0), 0)
+    const collected = monthBookings.reduce((s, r) => {
+      let c = 0
+      if (r.deposit_paid) c += r.deposit_amount ?? 0
+      if (r.balance_paid) c += r.balance_amount ?? 0
+      return s + c
+    }, 0)
+    setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: monthBookings.length })
+
+    if (user) {
+      const profiles = await getAllDocs<{ id: string; full_name: string | null }>('profiles')
+      const p = profiles.find(pr => pr.id === user.uid)
+      const name = p?.full_name?.split(' ')[0]
+      if (name) setFirstName(name)
+    }
+    setLoading(false)
   }
 
   useEffect(() => { reload() }, [])

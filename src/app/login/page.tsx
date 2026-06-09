@@ -2,8 +2,17 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { signInWithEmailAndPassword, FacebookAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+
+async function createSession(user: { getIdToken: () => Promise<string> }) {
+  const idToken = await user.getIdToken()
+  await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  })
+}
 
 function LoginForm() {
   const router = useRouter()
@@ -16,40 +25,40 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [fbLoading, setFbLoading] = useState(false)
 
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) router.replace(next)
+    })
+    return unsub
+  }, [next, router])
+
   async function handleFacebookLogin() {
     setFbLoading(true)
     setError(null)
-    const db = createClient()
-    const { error: fbError } = await db.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: { redirectTo: `${window.location.origin}/` },
-    })
-    if (fbError) setError('Facebook login not configured yet.')
+    try {
+      const provider = new FacebookAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      await createSession(result.user)
+      window.location.href = next
+    } catch {
+      setError('Facebook login failed. Make sure it is enabled in Firebase.')
+    }
     setFbLoading(false)
   }
-
-  useEffect(() => {
-    const db = createClient()
-    db.auth.getUser().then(({ data }) => {
-      if (data.user) router.replace(next)
-    })
-  }, [next, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const db = createClient()
-    const { error: authError } = await db.auth.signInWithPassword({ email, password })
-
-    if (authError) {
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      await createSession(result.user)
+      window.location.href = next
+    } catch {
       setError('Incorrect email or password.')
-      setLoading(false)
-      return
     }
-
-    window.location.href = next
+    setLoading(false)
   }
 
   return (
@@ -57,7 +66,6 @@ function LoginForm() {
       className="min-h-screen flex items-center justify-center p-4 transition-colors"
       style={{ background: 'var(--bg)' }}
     >
-      {/* Background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
         <div
           className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl opacity-10"
@@ -66,7 +74,6 @@ function LoginForm() {
       </div>
 
       <div className="w-full max-w-sm relative">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white mb-4"
@@ -81,13 +88,11 @@ function LoginForm() {
           <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>Sign in to your dashboard</p>
         </div>
 
-        {/* Card */}
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl p-6 space-y-4 transition-colors"
           style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
         >
-          {/* Facebook Login */}
           <div>
             <button type="button" onClick={handleFacebookLogin} disabled={fbLoading}
               className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
@@ -102,11 +107,8 @@ function LoginForm() {
             <div className="flex-1 h-px" style={{ background: 'var(--card-border)' }} />
           </div>
 
-          {/* Email */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              Email
-            </label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Email</label>
             <input
               type="email"
               value={email}
@@ -118,11 +120,8 @@ function LoginForm() {
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              Password
-            </label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Password</label>
             <input
               type="password"
               value={password}
@@ -134,21 +133,15 @@ function LoginForm() {
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div
               className="text-xs rounded-xl px-4 py-2.5"
-              style={{
-                background: 'rgba(239,68,68,0.1)',
-                color: '#f87171',
-                border: '1px solid rgba(239,68,68,0.2)',
-              }}
+              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
             >
               {error}
             </div>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -159,7 +152,6 @@ function LoginForm() {
           </button>
         </form>
 
-        {/* Demo account */}
         <div className="mt-4 rounded-2xl p-4 text-center transition-colors"
           style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
           <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -179,7 +171,6 @@ function LoginForm() {
             Fill demo credentials →
           </button>
         </div>
-
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs, addDocument, deleteDocument } from '@/lib/firebase'
 import type { PersonalIncome, PersonalExpense, IncomeCategory, ExpenseCategory } from '@/types'
 
 const MONTH_NAMES = [
@@ -85,17 +85,13 @@ export default function PersonalPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  const db = createClient()
-
   async function load() {
-    const [{ data: inc, error: incErr }, { data: exp, error: expErr }] = await Promise.all([
-      db.from('personal_income').select('*').order('income_date', { ascending: false }),
-      db.from('personal_expenses').select('*').order('expense_date', { ascending: false }),
+    const [inc, exp] = await Promise.all([
+      getAllDocs<PersonalIncome>('personal_income'),
+      getAllDocs<PersonalExpense>('personal_expenses'),
     ])
-    if (expErr) setError(`Expenses table error: ${expErr.message}. Did you run the SQL migration?`)
-    if (incErr) setError(`Income table error: ${incErr.message}`)
-    setIncome(inc ?? [])
-    setExpenses(exp ?? [])
+    setIncome(inc.sort((a, b) => b.income_date.localeCompare(a.income_date)))
+    setExpenses(exp.sort((a, b) => b.expense_date.localeCompare(a.expense_date)))
     setLoading(false)
   }
 
@@ -126,20 +122,24 @@ export default function PersonalPage() {
     if (!incomeForm.description.trim() || !incomeForm.amount) return
     setSaving(true)
     setError('')
-    const { data: { user } } = await db.auth.getUser()
-    const { error: err } = await db.from('personal_income').insert({
-      description: incomeForm.description.trim(),
-      amount: parseFloat(incomeForm.amount),
-      income_date: incomeForm.income_date,
-      category: incomeForm.category,
-      notes: incomeForm.notes || null,
-      user_id: user?.id,
-    })
-    if (err) { setError(`Could not save income: ${err.message}`); setSaving(false); return }
-    setIncomeForm(EMPTY_INCOME)
-    setFormMode(null)
+    try {
+      const user = auth.currentUser
+      await addDocument('personal_income', {
+        description: incomeForm.description.trim(),
+        amount: parseFloat(incomeForm.amount),
+        income_date: incomeForm.income_date,
+        category: incomeForm.category,
+        notes: incomeForm.notes || null,
+        user_id: user?.uid ?? '',
+        created_at: new Date().toISOString(),
+      })
+      setIncomeForm(EMPTY_INCOME)
+      setFormMode(null)
+      load()
+    } catch (err: unknown) {
+      setError(`Could not save income: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
     setSaving(false)
-    load()
   }
 
   async function saveExpense(ev: React.FormEvent) {
@@ -147,26 +147,30 @@ export default function PersonalPage() {
     if (!expenseForm.description.trim() || !expenseForm.amount) return
     setSaving(true)
     setError('')
-    const { data: { user } } = await db.auth.getUser()
-    const { error: err } = await db.from('personal_expenses').insert({
-      description: expenseForm.description.trim(),
-      amount: parseFloat(expenseForm.amount),
-      expense_date: expenseForm.expense_date,
-      category: expenseForm.category,
-      notes: expenseForm.notes || null,
-      user_id: user?.id,
-    })
-    if (err) { setError(`Could not save expense: ${err.message}`); setSaving(false); return }
-    setExpenseForm(EMPTY_EXPENSE)
-    setFormMode(null)
+    try {
+      const user = auth.currentUser
+      await addDocument('personal_expenses', {
+        description: expenseForm.description.trim(),
+        amount: parseFloat(expenseForm.amount),
+        expense_date: expenseForm.expense_date,
+        category: expenseForm.category,
+        notes: expenseForm.notes || null,
+        user_id: user?.uid ?? '',
+        created_at: new Date().toISOString(),
+      })
+      setExpenseForm(EMPTY_EXPENSE)
+      setFormMode(null)
+      load()
+    } catch (err: unknown) {
+      setError(`Could not save expense: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
     setSaving(false)
-    load()
   }
 
   async function deleteIncome(id: string) {
     if (!confirm('Delete this income entry?')) return
     setDeletingId(id)
-    await db.from('personal_income').delete().eq('id', id)
+    await deleteDocument('personal_income', id)
     setDeletingId(null)
     load()
   }
@@ -174,7 +178,7 @@ export default function PersonalPage() {
   async function deleteExpense(id: string) {
     if (!confirm('Delete this expense?')) return
     setDeletingId(id)
-    await db.from('personal_expenses').delete().eq('id', id)
+    await deleteDocument('personal_expenses', id)
     setDeletingId(null)
     load()
   }

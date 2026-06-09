@@ -1,48 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase-admin'
-import { createClient } from '@/lib/supabase'
+import { adminDb, adminAuth } from '@/lib/firebase-admin'
+import { cookies } from 'next/headers'
 
-// GET — verify token and return owner info
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
   if (!token) return NextResponse.json({ error: 'Token required' }, { status: 400 })
 
-  const admin = createAdminClient()
-  const { data: invite } = await admin.from('team_invites')
-    .select('id, owner_id, status').eq('token', token).maybeSingle()
+  const snap = await adminDb.collection('team_invites').where('token', '==', token).limit(1).get()
+  if (snap.empty) return NextResponse.json({ error: 'Invite not found or expired.' }, { status: 404 })
 
-  if (!invite) return NextResponse.json({ error: 'Invite not found or expired.' }, { status: 404 })
+  const invite = snap.docs[0].data()
   if (invite.status === 'accepted') return NextResponse.json({ error: 'This invite has already been used.' }, { status: 400 })
 
-  // Get owner's profile name
-  const { data: profile } = await admin.from('profiles')
-    .select('full_name, business_name').eq('id', invite.owner_id).maybeSingle()
+  const profilesSnap = await adminDb.collection('profiles').doc(invite.owner_id).get()
+  const profile = profilesSnap.data() as Record<string, string | null> | undefined
   const ownerName = profile?.business_name || profile?.full_name || 'the team owner'
 
   return NextResponse.json({ ownerName })
 }
 
-// POST — accept invite
 export async function POST(req: NextRequest) {
   const { token } = await req.json()
   if (!token) return NextResponse.json({ error: 'Token required' }, { status: 400 })
 
-  const db = createClient()
-  const { data: { user } } = await db.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Not logged in' }, { status: 401 })
+  const cookieStore = await cookies()
+  const sessionCookie = cookieStore.get('__session')?.value
+  if (!sessionCookie) return NextResponse.json({ error: 'Not logged in' }, { status: 401 })
 
-  const admin = createAdminClient()
-  const { data: invite } = await admin.from('team_invites')
-    .select('id, status').eq('token', token).maybeSingle()
+  let userId: string
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true)
+    userId = decoded.uid
+  } catch {
+    return NextResponse.json({ error: 'Not logged in' }, { status: 401 })
+  }
 
-  if (!invite) return NextResponse.json({ error: 'Invite not found or expired.' }, { status: 404 })
-  if (invite.status === 'accepted') return NextResponse.json({ error: 'Already used.' }, { status: 400 })
+  const snap = await adminDb.collection('team_invites').where('token', '==', token).limit(1).get()
+  if (snap.empty) return NextResponse.json({ error: 'Invite not found or expired.' }, { status: 404 })
 
-  const { error } = await admin.from('team_invites').update({
-    member_user_id: user.id,
-    status: 'accepted',
-  }).eq('id', invite.id)
+  const doc = snap.docs[0]
+  if (doc.data().status === 'accepted') return NextResponse.json({ error: 'Already used.' }, { status: 400 })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await doc.ref.update({ member_user_id: userId, status: 'accepted' })
   return NextResponse.json({ ok: true })
 }

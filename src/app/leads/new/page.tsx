@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs, addDocument } from '@/lib/firebase'
 import type { EventType, LeadSource } from '@/types'
 
 const EVENT_TYPES: EventType[] = [
@@ -49,11 +49,9 @@ export default function NewLeadPage() {
     setSaving(true)
     setError('')
 
-    const db = createClient()
-    const { data: { user } } = await db.auth.getUser()
-    const { data, error: err } = await db
-      .from('leads')
-      .insert({
+    try {
+      const user = auth.currentUser
+      const leadData = {
         name: form.name.trim(),
         phone: form.phone || null,
         email: form.email || null,
@@ -67,23 +65,20 @@ export default function NewLeadPage() {
         source: form.source,
         notes: form.notes || null,
         status: 'new',
-        user_id: user?.id,
-      })
-      .select()
-      .single()
-
-    if (err) {
-      setError(err.message)
+        user_id: user?.uid ?? '',
+        created_at: new Date().toISOString(),
+      }
+      const newId = await addDocument('leads', leadData)
+      const allLeads = await getAllDocs('leads')
+      const n = allLeads.length
+      if (n === 1) window.dispatchEvent(new CustomEvent('crafty:first-lead', { detail: { name: leadData.name } }))
+      else if (n === 2) window.dispatchEvent(new CustomEvent('crafty:second-lead', { detail: { name: leadData.name } }))
+      else if (n >= 5) window.dispatchEvent(new CustomEvent('crafty:five-leads'))
+      router.push(`/leads/${newId}`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save lead.')
       setSaving(false)
-      return
     }
-
-    const { count } = await db.from('leads').select('*', { count: 'exact', head: true })
-    const n = count ?? 1
-    if (n === 1) window.dispatchEvent(new CustomEvent('crafty:first-lead', { detail: { name: data.name } }))
-    else if (n === 2) window.dispatchEvent(new CustomEvent('crafty:second-lead', { detail: { name: data.name } }))
-    else if (n >= 5) window.dispatchEvent(new CustomEvent('crafty:five-leads'))
-    router.push(`/leads/${data.id}`)
   }
 
   return (

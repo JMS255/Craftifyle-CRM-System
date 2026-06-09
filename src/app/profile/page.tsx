@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs, addDocumentWithId, updateDocument } from '@/lib/firebase'
 import { useTheme } from '@/components/ThemeProvider'
 
 export default function ProfilePage() {
@@ -20,15 +20,11 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    const db = createClient()
-    db.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.replace('/login'); return }
-      setEmail(data.user.email ?? '')
-      const { data: profile } = await db
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle()
+    const user = auth.currentUser
+    if (!user) { router.replace('/login'); return }
+    setEmail(user.email ?? '')
+    getAllDocs<{ id: string; full_name: string | null; business_name: string | null; location: string | null }>('profiles').then(profiles => {
+      const profile = profiles.find(p => p.id === user.uid)
       if (profile) {
         setForm({
           full_name: profile.full_name ?? '',
@@ -46,23 +42,31 @@ export default function ProfilePage() {
     setError('')
     setSaved(false)
 
-    const db = createClient()
-    const { data: { user } } = await db.auth.getUser()
+    const user = auth.currentUser
     if (!user) return
 
-    const { error: err } = await db.from('profiles').upsert({
-      id: user.id,
-      full_name: form.full_name.trim() || null,
-      business_name: form.business_name.trim() || null,
-      location: form.location.trim() || null,
-    })
+    try {
+      const profiles = await getAllDocs<{ id: string }>('profiles')
+      const exists = profiles.some(p => p.id === user.uid)
+      const data = {
+        full_name: form.full_name.trim() || null,
+        business_name: form.business_name.trim() || null,
+        location: form.location.trim() || null,
+      }
+      if (exists) {
+        await updateDocument('profiles', user.uid, data)
+      } else {
+        await addDocumentWithId('profiles', user.uid, data)
+      }
+    } catch (err) {
+      setSaving(false)
+      setError(err instanceof Error ? err.message : 'Failed to save.')
+      return
+    }
 
     setSaving(false)
-    if (err) { setError(err.message); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
-
-    // Trigger sidebar to refresh
     window.dispatchEvent(new Event('profile-updated'))
   }
 
@@ -199,8 +203,9 @@ export default function ProfilePage() {
         </button>
         <button
           onClick={async () => {
-            const db = createClient()
-            await db.auth.signOut()
+            const { signOut } = await import('firebase/auth')
+            await signOut(auth)
+            await fetch('/api/auth/session', { method: 'DELETE' })
             router.replace('/login')
           }}
           className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium"

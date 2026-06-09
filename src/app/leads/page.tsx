@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { createClient } from '@/lib/supabase'
+import { getAllDocs, updateDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus } from '@/types'
 
 const STATUSES: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed']
@@ -73,17 +73,17 @@ export default function LeadsPage() {
   }, [])
 
   useEffect(() => {
-    const db = createClient()
-    db.from('leads').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setLeads(data ?? []); setLoading(false) })
+    getAllDocs<Lead>('leads').then(data => {
+      setLeads([...data].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      setLoading(false)
+    })
   }, [])
 
   function toggleView(v: 'list' | 'kanban') { setView(v); localStorage.setItem('leads-view', v) }
 
   async function handleSwipeAction(leadId: string, newStatus: LeadStatus, prevStatus: LeadStatus, leadName: string) {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus, updated_at: new Date().toISOString() } : l))
-    const db = createClient()
-    await db.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId)
+    await updateDocument('leads', leadId, { status: newStatus, updated_at: new Date().toISOString() })
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     setUndoInfo({ id: leadId, name: leadName, prevStatus })
     undoTimerRef.current = setTimeout(() => setUndoInfo(null), 4000)
@@ -93,8 +93,7 @@ export default function LeadsPage() {
     if (!undoInfo) return
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     setLeads(prev => prev.map(l => l.id === undoInfo.id ? { ...l, status: undoInfo.prevStatus } : l))
-    const db = createClient()
-    await db.from('leads').update({ status: undoInfo.prevStatus, updated_at: new Date().toISOString() }).eq('id', undoInfo.id)
+    await updateDocument('leads', undoInfo.id, { status: undoInfo.prevStatus, updated_at: new Date().toISOString() })
     setUndoInfo(null)
   }
 
@@ -104,8 +103,7 @@ export default function LeadsPage() {
     if (newStatus === result.source.droppableId) return
     const leadId = result.draggableId
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l))
-    const db = createClient()
-    await db.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId)
+    await updateDocument('leads', leadId, { status: newStatus, updated_at: new Date().toISOString() })
   }
 
   const KANBAN_COLS: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']

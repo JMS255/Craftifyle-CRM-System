@@ -1,9 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-
-type MessageParam = { role: 'user' | 'assistant'; content: string }
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { createAdminClient } from '@/lib/supabase-admin'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
+
+type MessageParam = { role: 'user' | 'assistant'; content: string }
+import { adminDb } from '@/lib/firebase-admin'
 import { createCalendarEvent } from '@/lib/google-calendar'
 
 // All Messenger leads/bookings belong to James's account
@@ -195,24 +196,22 @@ async function sendMessage(recipientId: string, text: string) {
 }
 
 async function getHistory(senderId: string): Promise<MessageParam[]> {
-  const db = createAdminClient()
-  const { data } = await db
-    .from('messenger_conversations')
-    .select('role, content')
-    .eq('sender_id', senderId)
-    .order('created_at', { ascending: true })
+  const snap = await adminDb.collection('messenger_conversations')
+    .where('sender_id', '==', senderId)
+    .orderBy('created_at', 'asc')
     .limit(10)
-  return (data ?? []).map((row) => ({
-    role: row.role as 'user' | 'assistant',
-    content: row.content as string,
+    .get()
+  return snap.docs.map((d: QueryDocumentSnapshot) => ({
+    role: d.data().role as 'user' | 'assistant',
+    content: d.data().content as string,
   }))
 }
 
 async function saveMessages(senderId: string, userMsg: string, assistantMsg: string) {
-  const db = createAdminClient()
-  await db.from('messenger_conversations').insert([
-    { sender_id: senderId, role: 'user', content: userMsg },
-    { sender_id: senderId, role: 'assistant', content: assistantMsg },
+  const now = new Date().toISOString()
+  await Promise.all([
+    adminDb.collection('messenger_conversations').add({ sender_id: senderId, role: 'user', content: userMsg, created_at: now }),
+    adminDb.collection('messenger_conversations').add({ sender_id: senderId, role: 'assistant', content: assistantMsg, created_at: new Date(Date.now() + 1).toISOString() }),
   ])
 }
 
@@ -257,108 +256,67 @@ async function extractAndUpsertLead(
       return
     }
 
-    // Create lead even without name — use "Unknown" as placeholder
     if (!data.name) data.name = 'Unknown (Messenger)'
-
-    const db = createAdminClient()
 
     const notes: string[] = []
     if (data.event_time) notes.push(`Event time: ${data.event_time}`)
     if (adRef) notes.push(`Ad ref: ${adRef}`)
 
     const leadStatus = data.mentioned_paid ? 'booked' : 'contacted'
+    const now = new Date().toISOString()
 
-    const { data: existing } = await db
-      .from('leads')
-      .select('id')
-      .eq('messenger_sender_id', senderId)
-      .maybeSingle()
-
+    // Find existing lead by messenger_sender_id
+    const leadsSnap = await adminDb.collection('leads').where('messenger_sender_id', '==', senderId).limit(1).get()
     let leadId: string | null = null
 
-    if (existing) {
-      await db.from('leads').update({
-        name: data.name,
-        ...(data.event_type ? { event_type: data.event_type } : {}),
-        ...(data.event_date ? { event_date: data.event_date } : {}),
-        ...(data.venue ? { venue: data.venue } : {}),
-        ...(data.guest_count ? { guest_count: data.guest_count } : {}),
-        ...(data.phone ? { phone: data.phone } : {}),
-        ...(data.email ? { email: data.email } : {}),
-        ...(notes.length ? { notes: notes.join(' | ') } : {}),
-        status: leadStatus,
-        updated_at: new Date().toISOString(),
-      }).eq('id', existing.id)
-      leadId = existing.id
+    if (!leadsSnap.empty) {
+      const existingDoc = leadsSnap.docs[0]
+      leadId = existingDoc.id
+      const updates: Record<string, unknown> = { name: data.name, status: leadStatus, updated_at: now }
+      if (data.event_type) updates.event_type = data.event_type
+      if (data.event_date) updates.event_date = data.event_date
+      if (data.venue) updates.venue = data.venue
+      if (data.guest_count) updates.guest_count = data.guest_count
+      if (data.phone) updates.phone = data.phone
+      if (data.email) updates.email = data.email
+      if (notes.length) updates.notes = notes.join(' | ')
+      await existingDoc.ref.update(updates)
     } else {
-      const { data: newLead } = await db.from('leads').insert({
-        messenger_sender_id: senderId,
-        name: data.name,
-        event_type: data.event_type ?? null,
-        event_date: data.event_date ?? null,
-        venue: data.venue ?? null,
-        guest_count: data.guest_count ?? null,
-        phone: data.phone ?? null,
-        email: data.email ?? null,
-        facebook: `messenger:${senderId}`,
-        source: 'facebook',
-        status: leadStatus,
-        ad_ref: adRef ?? null,
-        notes: notes.length ? notes.join(' | ') : null,
-        user_id: ADMIN_USER_ID || null,
-      }).select('id').single()
-      leadId = newLead?.id ?? null
+      const newRef = await adminDb.collection('leads').add({
+        messenger_sender_id: senderId, name: data.name,
+        event_type: data.event_type ?? null, event_date: data.event_date ?? null,
+        venue: data.venue ?? null, guest_count: data.guest_count ?? null,
+        phone: data.phone ?? null, email: data.email ?? null,
+        facebook: `messenger:${senderId}`, source: 'facebook', status: leadStatus,
+        ad_ref: adRef ?? null, notes: notes.length ? notes.join(' | ') : null,
+        user_id: ADMIN_USER_ID || null, created_at: now, updated_at: now,
+      })
+      leadId = newRef.id
     }
 
-    // Auto-create booking when client says PAID
     if (data.mentioned_paid && leadId && data.event_date) {
-      // Check if booking already exists for this lead (strong duplicate guard)
-      const { count } = await db
-        .from('bookings')
-        .select('id', { count: 'exact', head: true })
-        .eq('lead_id', leadId)
-
-      if (!count || count === 0) {
-        const pax = data.guest_count as number ?? 0
-        // Auto-determine price based on pax
+      const bookingsSnap = await adminDb.collection('bookings').where('lead_id', '==', leadId).limit(1).get()
+      if (bookingsSnap.empty) {
+        const pax = (data.guest_count as number) ?? 0
         let packagePrice = 5000
-        let packageName = 'Bundle (Photobooth + Photography)'
-        if (pax > 50) { packagePrice = 6500 }
-
+        const packageName = 'Bundle (Photobooth + Photography)'
+        if (pax > 50) packagePrice = 6500
         const eventName = `${data.name}'s ${data.event_type ?? 'Event'}`
-
-        const { data: newBooking } = await db.from('bookings').insert({
-          lead_id: leadId,
-          event_name: eventName,
-          event_date: data.event_date,
-          event_time: data.event_time ?? null,
-          venue: data.venue ?? null,
-          package_name: packageName,
-          package_price: packagePrice,
-          deposit_amount: 1000,
-          deposit_paid: true,
-          deposit_paid_date: new Date().toISOString().slice(0, 10),
-          balance_amount: packagePrice - 1000,
-          balance_paid: false,
-          status: 'upcoming',
-          craftifyle_income: 0,
-          personal_income: 0,
-          user_id: ADMIN_USER_ID || null,
-        }).select('id').single()
-
-        // Auto-sync to Google Calendar
-        if (newBooking?.id) {
-          const gcalEventId = await createCalendarEvent({
-            title: `📸 ${eventName}`,
-            date: data.event_date as string,
-            time: data.event_time as string ?? null,
-            venue: data.venue as string ?? null,
-            description: `Client: ${data.name}\nGuests: ${pax} pax\nPackage: ${packageName}\nPrice: ₱${packagePrice.toLocaleString()}\nDeposit: ✅ Paid`,
-          })
-          if (gcalEventId) {
-            await db.from('bookings').update({ gcal_event_id: gcalEventId }).eq('id', newBooking.id)
-          }
-        }
+        const bookingRef = await adminDb.collection('bookings').add({
+          lead_id: leadId, event_name: eventName, event_date: data.event_date,
+          event_time: data.event_time ?? null, venue: data.venue ?? null,
+          package_name: packageName, package_price: packagePrice,
+          deposit_amount: 1000, deposit_paid: true,
+          deposit_paid_date: now.slice(0, 10), balance_amount: packagePrice - 1000,
+          balance_paid: false, status: 'upcoming', craftifyle_income: 0, personal_income: 0,
+          user_id: ADMIN_USER_ID || null, gcal_event_id: null, created_at: now, updated_at: now,
+        })
+        const gcalEventId = await createCalendarEvent({
+          title: `📸 ${eventName}`, date: data.event_date as string,
+          time: (data.event_time as string) ?? null, venue: (data.venue as string) ?? null,
+          description: `Client: ${data.name}\nGuests: ${pax} pax\nPackage: ${packageName}\nPrice: ₱${packagePrice.toLocaleString()}\nDeposit: ✅ Paid`,
+        })
+        if (gcalEventId) await bookingRef.update({ gcal_event_id: gcalEventId })
       }
     }
 
@@ -406,13 +364,8 @@ export async function POST(req: NextRequest) {
 
       try {
         // Check if James has taken over this lead (crafty_active = false)
-        const db2 = createAdminClient()
-        const { data: leadCheck } = await db2
-          .from('leads')
-          .select('crafty_active')
-          .eq('messenger_sender_id', senderId)
-          .maybeSingle()
-        if (leadCheck && leadCheck.crafty_active === false) continue
+        const leadCheckSnap = await adminDb.collection('leads').where('messenger_sender_id', '==', senderId).limit(1).get()
+        if (!leadCheckSnap.empty && leadCheckSnap.docs[0].data().crafty_active === false) continue
 
         const history = await getHistory(senderId)
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { getAllDocs } from '@/lib/firebase'
 import type { LeadStatus } from '@/types'
 
 interface ConvoLead {
@@ -44,33 +44,26 @@ export default function InboxPage() {
 
   useEffect(() => {
     async function load() {
-      const db = createClient()
+      const [allLeads, allMsgs] = await Promise.all([
+        getAllDocs<{ id: string; name: string; status: LeadStatus; event_type: string | null; event_date: string | null; messenger_sender_id: string | null }>('leads'),
+        getAllDocs<{ sender_id: string; content: string; role: string; created_at: string }>('messenger_conversations'),
+      ])
 
-      const { data: messengerLeads } = await db
-        .from('leads')
-        .select('id, name, status, event_type, event_date, messenger_sender_id')
-        .not('messenger_sender_id', 'is', null)
-        .order('updated_at', { ascending: false })
+      const messengerLeads = allLeads.filter(l => l.messenger_sender_id)
+      if (!messengerLeads.length) { setLoading(false); return }
 
-      if (!messengerLeads?.length) { setLoading(false); return }
-
-      const enriched = await Promise.all(
-        messengerLeads.map(async (lead) => {
-          const { data: msgs } = await db
-            .from('messenger_conversations')
-            .select('content, role, created_at')
-            .eq('sender_id', lead.messenger_sender_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-          const last = msgs?.[0]
-          return {
-            ...lead,
-            lastMessage: last?.content ?? null,
-            lastRole: last?.role ?? null,
-            lastAt: last?.created_at ?? null,
-          } as ConvoLead
-        })
-      )
+      const enriched = messengerLeads.map(lead => {
+        const msgs = allMsgs
+          .filter(m => m.sender_id === lead.messenger_sender_id)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const last = msgs[0]
+        return {
+          ...lead,
+          lastMessage: last?.content ?? null,
+          lastRole: last?.role ?? null,
+          lastAt: last?.created_at ?? null,
+        } as ConvoLead
+      })
 
       enriched.sort((a, b) =>
         new Date(b.lastAt ?? 0).getTime() - new Date(a.lastAt ?? 0).getTime()

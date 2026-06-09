@@ -1,52 +1,37 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  // Use getSession() — reads JWT from cookie locally, no network round-trip
-  // Safe for a single-user personal CRM
-  const { data: { session } } = await supabase.auth.getSession()
-
   const { pathname } = request.nextUrl
 
-  // Routes that don't need auth (webhooks, crons, static assets)
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/api/auth/check-invite') ||
+    pathname.startsWith('/api/auth/session') ||
     pathname.startsWith('/api/messenger') ||
     pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/contract') ||
+    pathname.startsWith('/api/paymongo/webhook') ||
+    pathname.startsWith('/contract/') ||
+    pathname.startsWith('/confirm/') ||
+    pathname.startsWith('/team/join/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
 
-  if (!session && !isPublic) {
+  if (isPublic) return NextResponse.next()
+
+  const session = request.cookies.get('__session')?.value
+  if (!session) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('next', pathname)
     return NextResponse.redirect(url)
   }
 
-  return supabaseResponse
+  // Verify session cookie server-side via our own API
+  // We use a lightweight check: just verify the cookie exists and is not empty
+  // Full verification happens in individual API routes via adminAuth.verifySessionCookie()
+  return NextResponse.next()
 }
 
 export const config = {

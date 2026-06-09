@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs } from '@/lib/firebase'
 
 interface Toast {
   id: number
@@ -37,16 +37,10 @@ export default function CraftyToast() {
   const [active, setActive] = useState(false)
 
   useEffect(() => {
-    const db = createClient()
-    db.auth.getUser().then(async ({ data }) => {
-      const uid = data.user?.id
-      if (!uid) return
-      const { data: profile } = await db
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', uid)
-        .single()
-      // Only activate after onboarding is done
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+    getAllDocs<{ id: string; onboarding_completed?: boolean }>('profiles').then(profiles => {
+      const profile = profiles.find(p => p.id === uid)
       if (profile?.onboarding_completed) setActive(true)
     })
   }, [])

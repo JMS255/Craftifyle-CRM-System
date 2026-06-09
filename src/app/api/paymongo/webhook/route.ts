@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase-admin'
+import { adminDb } from '@/lib/firebase-admin'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -30,23 +30,14 @@ export async function POST(req: NextRequest) {
     const bookingId = remarks.replace('booking_id:', '').trim()
 
     if (bookingId) {
-      const db = createAdminClient()
       const today = new Date().toISOString().slice(0, 10)
-      // Mark deposit paid if not already; if deposit already paid, mark balance paid
-      const { data: booking } = await db
-        .from('bookings')
-        .select('deposit_paid, balance_paid')
-        .eq('id', bookingId)
-        .single()
+      const bookingDoc = await adminDb.collection('bookings').doc(bookingId).get()
+      const booking = bookingDoc.exists ? bookingDoc.data() : null
 
       if (booking && !booking.deposit_paid) {
-        await db.from('bookings')
-          .update({ deposit_paid: true, deposit_paid_date: today })
-          .eq('id', bookingId)
+        await adminDb.collection('bookings').doc(bookingId).update({ deposit_paid: true, deposit_paid_date: today })
       } else if (booking && booking.deposit_paid && !booking.balance_paid) {
-        await db.from('bookings')
-          .update({ balance_paid: true, balance_paid_date: today })
-          .eq('id', bookingId)
+        await adminDb.collection('bookings').doc(bookingId).update({ balance_paid: true, balance_paid_date: today })
       }
     }
   }

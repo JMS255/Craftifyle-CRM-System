@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs, addDocumentWithId, updateDocument } from '@/lib/firebase'
 
 const BUSINESS_TYPES = [
   { id: 'photobooth',    label: '📸 Photobooth' },
@@ -60,16 +60,11 @@ export default function OnboardingModal() {
   const [closing, setClosing] = useState(false)
 
   useEffect(() => {
-    const db = createClient()
-    db.auth.getUser().then(async ({ data }) => {
-      const uid = data.user?.id
-      if (!uid) return
-      setUserId(uid)
-      const { data: profile } = await db
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', uid)
-        .single()
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+    setUserId(uid)
+    getAllDocs<{ id: string; onboarding_completed?: boolean }>('profiles').then(profiles => {
+      const profile = profiles.find(p => p.id === uid)
       if (!profile?.onboarding_completed) setOpen(true)
     })
   }, [])
@@ -130,14 +125,20 @@ export default function OnboardingModal() {
   async function finish() {
     if (!userId) return
     setClosing(true)
-    const db = createClient()
-    await db.from('profiles').update({
+    const profiles = await getAllDocs<{ id: string }>('profiles')
+    const profileExists = profiles.some(p => p.id === userId)
+    const profileData = {
       onboarding_completed: true,
       ...(bizType ? { business_type: bizType } : {}),
       ...(source  ? { acquisition_source: source } : {}),
       ...(fullName ? { full_name: fullName } : {}),
       ...(bizName  ? { business_name: bizName } : {}),
-    }).eq('id', userId)
+    }
+    if (profileExists) {
+      await updateDocument('profiles', userId, profileData)
+    } else {
+      await addDocumentWithId('profiles', userId, { ...profileData, user_id: userId })
+    }
     setTimeout(() => { setOpen(false); setClosing(false) }, 400)
   }
 

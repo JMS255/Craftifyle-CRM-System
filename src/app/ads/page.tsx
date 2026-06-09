@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { getAllDocs } from '@/lib/firebase'
 import Link from 'next/link'
 
 interface AdStat {
@@ -18,45 +18,26 @@ export default function AdsPage() {
 
   useEffect(() => {
     async function load() {
-      const db = createClient()
+      const [allLeads, allBookings] = await Promise.all([
+        getAllDocs<{ id: string; source: string; ad_ref?: string | null; status: string }>('leads'),
+        getAllDocs<{ lead_id: string | null; craftifyle_income?: number; package_price?: number }>('bookings'),
+      ])
 
-      // Get all leads with source = facebook
-      const { data: leads } = await db
-        .from('leads')
-        .select('ad_ref, status')
-        .eq('source', 'facebook')
-
-      if (!leads) { setLoading(false); return }
-
-      // Get bookings linked to facebook leads for revenue
-      const { data: bookings } = await db
-        .from('bookings')
-        .select('lead_id, craftifyle_income, package_price')
+      const fbLeads = allLeads.filter(l => l.source === 'facebook')
+      if (!fbLeads.length) { setLoading(false); return }
 
       const bookingMap = new Map<string, number>()
-      for (const b of bookings ?? []) {
-        if (b.lead_id) {
-          bookingMap.set(b.lead_id, b.craftifyle_income || b.package_price || 0)
-        }
+      for (const b of allBookings) {
+        if (b.lead_id) bookingMap.set(b.lead_id, b.craftifyle_income || b.package_price || 0)
       }
 
-      // Get lead ids for revenue lookup
-      const { data: leadsFull } = await db
-        .from('leads')
-        .select('id, ad_ref, status')
-        .eq('source', 'facebook')
-
-      // Group by ad_ref
       const map = new Map<string, AdStat>()
       let organic = 0
 
-      for (const lead of leadsFull ?? []) {
+      for (const lead of fbLeads) {
         const ref = lead.ad_ref ?? null
         if (!ref) { organic++; continue }
-
-        if (!map.has(ref)) {
-          map.set(ref, { ad_ref: ref, leads: 0, booked: 0, revenue: 0 })
-        }
+        if (!map.has(ref)) map.set(ref, { ad_ref: ref, leads: 0, booked: 0, revenue: 0 })
         const stat = map.get(ref)!
         stat.leads++
         if (['booked', 'completed'].includes(lead.status)) {

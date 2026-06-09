@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase-admin'
+import { adminDb } from '@/lib/firebase-admin'
 import type { Booking } from '@/types'
 
 function peso(n: number) {
@@ -22,16 +22,9 @@ export default async function ConfirmPage({ params }: { params: Promise<{ token:
     return <ErrorPage message="Invalid booking link." />
   }
 
-  const db = createAdminClient()
-  const { data: booking, error } = await db
-    .from('bookings')
-    .select('*')
-    .eq('id', bookingId)
-    .single()
-
-  if (error || !booking) return <ErrorPage message="Booking not found. Please contact Craftifyle." />
-
-  const b = booking as Booking
+  const bookingDoc = await adminDb.collection('bookings').doc(bookingId).get()
+  if (!bookingDoc.exists) return <ErrorPage message="Booking not found. Please contact Craftifyle." />
+  const b = { id: bookingDoc.id, ...bookingDoc.data() } as Booking
   const totalPaid = (b.deposit_paid ? b.deposit_amount : 0) + (b.balance_paid ? b.balance_amount : 0)
   const outstanding = (b.package_price ?? 0) - totalPaid
 

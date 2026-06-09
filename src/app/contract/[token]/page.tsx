@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase-admin'
+import { adminDb } from '@/lib/firebase-admin'
 import type { Booking } from '@/types'
 import ContractSign from './ContractSign'
 
@@ -27,11 +27,9 @@ export default async function ContractPage({ params }: { params: Promise<{ token
     return <ErrorPage message="Invalid contract link." />
   }
 
-  const db = createAdminClient()
-  const { data: booking, error } = await db.from('bookings').select('*').eq('id', bookingId).single()
-  if (error || !booking) return <ErrorPage message="Booking not found. Please contact Craftifyle." />
-
-  const b = booking as Booking
+  const bookingDoc = await adminDb.collection('bookings').doc(bookingId).get()
+  if (!bookingDoc.exists) return <ErrorPage message="Booking not found. Please contact Craftifyle." />
+  const b = { id: bookingDoc.id, ...bookingDoc.data() } as Booking
 
   return (
     <div className="min-h-screen flex items-start justify-center px-4 py-12"

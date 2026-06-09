@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { getDocById, updateDocument } from '@/lib/firebase'
 import type { Booking, BookingStatus } from '@/types'
 
 function fmt(date: string) {
@@ -35,8 +35,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [linkCopied, setLinkCopied] = useState(false)
   const [contractCopied, setContractCopied] = useState(false)
 
-  const db = createClient()
-
   function copyConfirmLink() {
     const token = btoa(id).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
     navigator.clipboard.writeText(`${window.location.origin}/confirm/${token}`)
@@ -45,7 +43,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }
 
   useEffect(() => {
-    db.from('bookings').select('*').eq('id', id).single().then(({ data }) => {
+    getDocById<Booking>('bookings', id).then(data => {
       setBooking(data)
       if (data) {
         setCraftifyleIncome(data.craftifyle_income > 0 ? String(data.craftifyle_income) : '')
@@ -94,8 +92,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     const today = new Date().toISOString().slice(0, 10)
     setBooking(prev => prev ? { ...prev, deposit_paid: true, deposit_paid_date: today } : prev)
     setJustPaid('deposit'); setTimeout(() => setJustPaid(null), 2500)
-    const { error } = await db.from('bookings').update({ deposit_paid: true, deposit_paid_date: today }).eq('id', id)
-    if (error) {
+    try {
+      await updateDocument('bookings', id, { deposit_paid: true, deposit_paid_date: today })
+    } catch {
       setBooking(prev => prev ? { ...prev, deposit_paid: false, deposit_paid_date: null } : prev)
       setMsg('Error — try again.'); setJustPaid(null)
     }
@@ -104,8 +103,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     const today = new Date().toISOString().slice(0, 10)
     setBooking(prev => prev ? { ...prev, balance_paid: true, balance_paid_date: today } : prev)
     setJustPaid('balance'); setTimeout(() => setJustPaid(null), 2500)
-    const { error } = await db.from('bookings').update({ balance_paid: true, balance_paid_date: today }).eq('id', id)
-    if (error) {
+    try {
+      await updateDocument('bookings', id, { balance_paid: true, balance_paid_date: today })
+    } catch {
       setBooking(prev => prev ? { ...prev, balance_paid: false, balance_paid_date: null } : prev)
       setMsg('Error — try again.'); setJustPaid(null)
     }
@@ -113,14 +113,22 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   async function setStatus(status: BookingStatus) {
     const prev = booking?.status
     setBooking(b => b ? { ...b, status } : b)
-    const { error } = await db.from('bookings').update({ status }).eq('id', id)
-    if (error && prev) { setBooking(b => b ? { ...b, status: prev } : b); setMsg('Error — try again.') }
+    try {
+      await updateDocument('bookings', id, { status })
+    } catch {
+      if (prev) { setBooking(b => b ? { ...b, status: prev } : b); setMsg('Error — try again.') }
+    }
   }
   async function saveIncome(e: React.FormEvent) {
     e.preventDefault(); setSavingIncome(true); setMsg('')
-    const { data, error } = await db.from('bookings').update({ craftifyle_income: craftifyleIncome ? parseFloat(craftifyleIncome) : 0 }).eq('id', id).select().single()
-    if (error) { setMsg('Error: ' + error.message) }
-    else { setBooking(data); setMsg('Income saved!'); setTimeout(() => setMsg(''), 2000) }
+    try {
+      const income = craftifyleIncome ? parseFloat(craftifyleIncome) : 0
+      await updateDocument('bookings', id, { craftifyle_income: income })
+      setBooking(prev => prev ? { ...prev, craftifyle_income: income } : prev)
+      setMsg('Income saved!'); setTimeout(() => setMsg(''), 2000)
+    } catch (err: unknown) {
+      setMsg('Error: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
     setSavingIncome(false)
   }
   async function syncCalendar() {
@@ -129,7 +137,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     const data = await res.json()
     if (data.ok) {
       setCalMsg(booking?.gcal_event_id ? '✅ Calendar updated!' : '✅ Added to Google Calendar!')
-      db.from('bookings').select('*').eq('id', id).single().then(({ data: b }) => { if (b) setBooking(b) })
+      getDocById<Booking>('bookings', id).then(b => { if (b) setBooking(b) })
     } else { setCalMsg('❌ Sync failed') }
     setSyncingCal(false); setTimeout(() => setCalMsg(''), 3000)
   }

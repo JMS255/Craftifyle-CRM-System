@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { auth, getAllDocs, addDocument, deleteDocument } from '@/lib/firebase'
 
 interface Row {
   id?: string
@@ -37,13 +37,12 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
-  const db = createClient()
-
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await db.auth.getUser()
+      const user = auth.currentUser
       if (!user) return
-      const { data } = await db.from('packages').select('*').eq('user_id', user.id).order('sort_order')
+      const allPkgs = await getAllDocs<Row & { id: string; user_id: string; sort_order: number }>('packages')
+      const data = allPkgs.filter(p => p.user_id === user.uid).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       if (!data || data.length === 0) {
         setBases(DEFAULT_BASES)
         setAddons(DEFAULT_ADDONS)
@@ -61,7 +60,7 @@ export default function SettingsPage() {
     setSaved(false)
     setError('')
     try {
-      const { data: { user } } = await db.auth.getUser()
+      const user = auth.currentUser
       if (!user) return
 
       const allRows = [
@@ -69,34 +68,33 @@ export default function SettingsPage() {
         ...addons.map((r, i) => ({ ...r, sort_order: i, is_addon: true })),
       ].filter(r => r.name.trim())
 
-      // Replace all — delete existing then re-insert
-      const { error: delErr } = await db.from('packages').delete().eq('user_id', user.id)
-      if (delErr) throw new Error(delErr.message)
+      // Delete all existing packages for this user
+      const existing = await getAllDocs<{ id: string; user_id: string }>('packages')
+      await Promise.all(
+        existing.filter(p => p.user_id === user.uid).map(p => deleteDocument('packages', p.id))
+      )
 
-      if (allRows.length > 0) {
-        const { error: insertErr } = await db.from('packages').insert(
-          allRows.map((r, i) => ({
-            user_id: user.id,
-            name: r.name.trim(),
-            price: parseFloat(r.price) || 0,
-            description: r.description?.trim() || null,
-            is_addon: r.is_addon,
-            is_active: r.is_active,
-            sort_order: i,
-          }))
-        )
-        if (insertErr) throw new Error(insertErr.message)
-      }
+      // Re-insert all
+      await Promise.all(
+        allRows.map((r, i) => addDocument('packages', {
+          user_id: user.uid,
+          name: r.name.trim(),
+          price: parseFloat(r.price) || 0,
+          description: r.description?.trim() || null,
+          is_addon: r.is_addon,
+          is_active: r.is_active,
+          sort_order: i,
+        }))
+      )
 
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
       setDeletedIds([])
 
-      const { data } = await db.from('packages').select('*').eq('user_id', user.id).order('sort_order')
-      if (data) {
-        setBases(data.filter(p => !p.is_addon).map(p => ({ ...p, price: String(p.price) })))
-        setAddons(data.filter(p => p.is_addon).map(p => ({ ...p, price: String(p.price) })))
-      }
+      const allPkgs = await getAllDocs<Row & { id: string; user_id: string; sort_order: number }>('packages')
+      const fresh = allPkgs.filter(p => p.user_id === user.uid).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      setBases(fresh.filter(p => !p.is_addon).map(p => ({ ...p, price: String(p.price) })))
+      setAddons(fresh.filter(p => p.is_addon).map(p => ({ ...p, price: String(p.price) })))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed — try again.')
     } finally {
@@ -202,12 +200,10 @@ function TeamSection() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const db = createClient()
-    db.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      db.from('team_invites').select('id, member_email, status')
-        .eq('owner_id', user.id).order('created_at')
-        .then(({ data }) => setMembers(data ?? []))
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+    getAllDocs<{ id: string; owner_id: string; member_email: string; status: string; created_at: string }>('team_invites').then(all => {
+      setMembers(all.filter(t => t.owner_id === uid).sort((a, b) => a.created_at.localeCompare(b.created_at)))
     })
   }, [])
 
