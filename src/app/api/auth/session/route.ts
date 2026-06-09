@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
       path: '/',
     })
     return res
-  } catch {
-    return NextResponse.json({ error: 'Invalid ID token' }, { status: 401 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: msg }, { status: 401 })
   }
 }
 
