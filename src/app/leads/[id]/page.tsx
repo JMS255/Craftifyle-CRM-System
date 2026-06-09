@@ -4,7 +4,6 @@ import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import PackagePicker from '@/components/PackagePicker'
 import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
@@ -454,11 +453,21 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                       onChange={e => setBookForm(p => ({ ...p, event_time: e.target.value }))}
                       className="w-full rounded-lg px-3 py-2 text-sm" />
                   </div>
-                  <PackagePicker
-                    value={{ packageName: bookForm.package_name, packagePrice: bookForm.package_price ? parseFloat(bookForm.package_price) : 0 }}
-                    onChange={({ packageName, packagePrice }) => setBookForm(p => ({ ...p, package_name: packageName, package_price: String(packagePrice) }))}
-                    onDepositSuggest={deposit => setBookForm(p => ({ ...p, deposit_amount: String(deposit) }))}
-                  />
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Package</label>
+                    <input type="text" value={bookForm.package_name}
+                      onChange={e => setBookForm(p => ({ ...p, package_name: e.target.value }))}
+                      placeholder="e.g. Photobooth + Photography"
+                      className="w-full rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Price (₱)</label>
+                    <input type="number" value={bookForm.package_price}
+                      onChange={e => setBookForm(p => ({ ...p, package_price: e.target.value }))}
+                      placeholder="6500"
+                      inputMode="numeric"
+                      className="w-full rounded-lg px-3 py-2 text-sm" />
+                  </div>
                   <div>
                     <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Deposit (₱)</label>
                     <input type="number" value={bookForm.deposit_amount}
