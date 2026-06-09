@@ -151,16 +151,19 @@ export default function ChatWidget() {
         </div>
       </div>
 
-      {/* Chat window */}
-      {open && (
-        <div
-          className="crafty-panel fixed bottom-36 md:bottom-24 right-2 md:right-6 z-50 w-[calc(100vw-16px)] sm:w-80 md:w-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-          style={{
-            height: '460px',
-            background: 'var(--card)',
-            border: '1px solid var(--card-border)',
-          }}
-        >
+      {/* Chat window — always mounted so CSS transition plays on close */}
+      <div
+        className="fixed bottom-36 md:bottom-24 right-2 md:right-6 z-50 w-[calc(100vw-16px)] sm:w-80 md:w-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        style={{
+          height: '460px',
+          background: 'var(--card)',
+          border: '1px solid var(--card-border)',
+          transition: 'opacity 0.2s ease, transform 0.2s ease',
+          opacity: open ? 1 : 0,
+          transform: open ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.97)',
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+      >
           {/* Header */}
           <div
             className="px-4 py-3 flex items-center gap-3"
@@ -371,7 +374,6 @@ export default function ChatWidget() {
             </button>
           </div>
         </div>
-      )}
     </>
   )
 }
