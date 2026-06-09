@@ -182,7 +182,7 @@ export default function Dashboard() {
 
       {/* ── KPI row ── */}
       {leads.length > 0 && (
-        <div className="flex gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <KpiCard value={String(yearLeads.length)} label="Total Leads" glow="#c7d2fe" />
           <KpiCard value={String(yearBooked)} label="Converted" glow="#bbf7d0" />
           <KpiCard value={String(yearLost)} label="Lost" glow="#fecaca" />
@@ -474,7 +474,7 @@ function KpiCard({ value, label, glow }: { value: string; label: string; glow: s
         position: 'absolute', top: -28, right: -28, width: 92, height: 92,
         borderRadius: '50%', filter: 'blur(28px)', opacity: 0.5, background: glow,
       }} />
-      <div className="tabular" style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)', lineHeight: 1, position: 'relative' }}>
+      <div className="tabular" style={{ fontSize: 'clamp(28px, 6vw, 40px)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)', lineHeight: 1, position: 'relative' }}>
         {value}
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10, position: 'relative' }}>{label}</div>
