@@ -25,6 +25,9 @@
     "react-dom": "19.2.4",
     "recharts": "^3.8.1"
   },
+  "overrides": {
+    "jose": "^4.15.5"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
