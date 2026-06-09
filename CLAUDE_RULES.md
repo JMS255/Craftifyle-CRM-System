@@ -6,10 +6,11 @@
 - **Zero scope creep.** Fix the precise bug. Do not refactor, optimize, or clean up adjacent code unless explicitly asked.
 - **One sentence explanations.** Let the diff speak. No long preambles.
 
-## Tech Stack Rules (Next.js · Supabase · TypeScript · Groq · Vercel)
+## Tech Stack Rules (Next.js · Firebase · TypeScript · Gemini · Vercel)
 - **TypeScript:** Never use `any` or `@ts-ignore`. Write a proper interface or extend from `src/types/index.ts`.
-- **Supabase:** Make targeted table/query edits. Never rewrite a full query to change one field.
-- **Groq API:** Never change the model IDs unless explicitly asked. Current models: `llama-3.3-70b-versatile` (sales bot), `llama-3.1-8b-instant` (extraction).
+- **Firebase Firestore:** Use `getDocsByUser(col, userId)` helper — always filter by `user_id`. Never query a collection without a user filter.
+- **Firebase Admin SDK:** Always import from `@/lib/firebase-admin` (lazy Proxy init). Never import `firebase-admin` directly in route files.
+- **Gemini API:** Never change model IDs unless explicitly asked. Current model: `gemini-2.5-flash-lite`.
 - **Next.js App Router:** Do not convert Server Components to Client Components just to fix a state issue — find the architectural reason first.
 - **Vercel:** Match import paths with exact casing. Case mismatches cause silent build failures on Linux.
 - **CSS:** Prefer adding a targeted class or inline style over rewriting a stylesheet section. Never touch unrelated CSS rules.
@@ -26,3 +27,6 @@
 - Read only the files relevant to the bug before editing.
 - Build check (`npx next build`) before every commit.
 - One commit per fix — small, descriptive message.
+
+## Debugging Escalation
+- If the same error persists after 2 fix attempts, **stop and tell James to Google or search Stack Overflow for the exact error message**. Paste the key error line so he can search it. Do not keep guessing blindly.

@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 2, 2026 (end of session)
+> Last updated: June 9, 2026 (end of session)
 
 ---
 
@@ -89,6 +89,11 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Google Calendar sync on bookings
 
 **Auth**
+- **Migrated to Firebase Auth** (June 9, 2026) — Supabase paused the project
+- Login → Firebase `signInWithEmailAndPassword` → POST `/api/auth/session` → `__session` httpOnly cookie (5 days)
+- On login → POST `/api/auth/post-login` → auto-migrates old Supabase-UID data to new Firebase UID by email match
+- Session cookie verified via `firebase-admin` (`adminAuth.verifySessionCookie`)
+- **Known issue (June 9):** `jose` ESM/CJS conflict with Turbopack — fix deployed (pin jose to v4.x via `package.json` overrides + `serverExternalPackages`). Awaiting Vercel deploy confirmation.
 - Open beta ready: delete INVITE_CODE from Vercel env → anyone can sign up
 - Signup page auto-skips invite step if open beta is on
 
@@ -291,9 +296,10 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | Layer | Tool |
 |---|---|
 | Framework | Next.js (App Router, TypeScript) |
-| Database | Supabase (PostgreSQL) |
-| AI — Advisor | Groq llama-3.1-8b-instant |
-| AI — CRM Actions | Groq llama-3.3-70b-versatile (tool calling) |
+| Database | **Firebase Firestore** (migrated from Supabase June 9, 2026) |
+| Auth | **Firebase Auth** + server session cookies (`__session`) |
+| AI — Advisor | **Gemini 2.5 Flash Lite** (migrated from Groq) |
+| AI — CRM Actions | **Gemini 2.5 Flash Lite** with tool calling (migrated from Groq) |
 | Hosting | Vercel |
 | Messenger | Meta Messenger API — partially blocked (needs BIR) |
 | Cron | Vercel Cron |
@@ -322,6 +328,10 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | `src/app/api/crafty-assist/route.ts` | Crafty CRM Actions — all DB tools |
 | `src/app/api/chat/route.ts` | Crafty Advisor |
 | `src/app/api/cron/follow-up/route.ts` | Follow-up cron — Messenger + SMS |
+| `src/lib/firebase-admin.ts` | Firebase Admin SDK — lazy Proxy init, `getAdminDb()` / `getAdminAuth()` |
+| `src/lib/firebase.ts` | Firebase client SDK — `db`, `auth`, `getDocsByUser()` helper |
+| `src/app/api/auth/session/route.ts` | POST: exchange Firebase ID token for `__session` cookie |
+| `src/app/api/auth/post-login/route.ts` | POST: auto-migrate Supabase UID data to Firebase UID on first login |
 | `CLAUDE_RULES.md` | Coding rules — read before touching anything |
 
 ---
