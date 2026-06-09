@@ -1,5 +1,6 @@
-import Groq from 'groq-sdk'
-import type { ChatCompletionMessageParam } from 'groq-sdk/resources/chat/completions'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+type MessageParam = { role: 'user' | 'assistant'; content: string }
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase-admin'
@@ -193,7 +194,7 @@ async function sendMessage(recipientId: string, text: string) {
   }
 }
 
-async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[]> {
+async function getHistory(senderId: string): Promise<MessageParam[]> {
   const db = createAdminClient()
   const { data } = await db
     .from('messenger_conversations')
@@ -203,7 +204,7 @@ async function getHistory(senderId: string): Promise<ChatCompletionMessageParam[
     .limit(10)
   return (data ?? []).map((row) => ({
     role: row.role as 'user' | 'assistant',
-    content: row.content,
+    content: row.content as string,
   }))
 }
 
@@ -233,23 +234,20 @@ Extract only info the CLIENT explicitly stated. If uncertain, use null.`
 
 async function extractAndUpsertLead(
   senderId: string,
-  history: ChatCompletionMessageParam[],
+  history: MessageParam[],
   adRef: string | null,
 ) {
   try {
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-    const extraction = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: EXTRACT_PROMPT },
-        ...history,
-        { role: 'user', content: 'Extract the client info now.' },
-      ],
-      temperature: 0,
-      max_tokens: 250,
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) return
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-lite',
+      systemInstruction: EXTRACT_PROMPT,
     })
-
-    const raw = extraction.choices[0]?.message?.content?.trim() ?? ''
+    const conversationText = history.map(m => `${m.role}: ${m.content}`).join('\n')
+    const result = await model.generateContent(`${conversationText}\n\nExtract the client info now.`)
+    const raw = result.response.text().trim()
     let data: Record<string, unknown>
     try {
       // Strip markdown code fences if model adds them
@@ -418,22 +416,23 @@ export async function POST(req: NextRequest) {
 
         const history = await getHistory(senderId)
 
-        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-        const completion = await groq.chat.completions.create({
-          model: 'llama-3.1-8b-instant',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            ...history,
-            { role: 'user', content: messageText },
-          ],
-          temperature: 0.7,
-          max_tokens: 300,
+        const apiKey = process.env.GEMINI_API_KEY ?? ''
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const geminiModel = genAI.getGenerativeModel({
+          model: 'gemini-2.5-flash-lite',
+          systemInstruction: SYSTEM_PROMPT,
         })
+        const geminiHistory = history.map(m => ({
+          role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+          parts: [{ text: m.content }],
+        }))
+        const chat = geminiModel.startChat({ history: geminiHistory })
+        const result = await chat.sendMessage(messageText)
+        const reply = result.response.text()
 
-        const reply = completion.choices[0]?.message?.content ?? ''
         if (reply) {
           await sendMessage(senderId, reply)
-          const updatedHistory: ChatCompletionMessageParam[] = [
+          const updatedHistory: MessageParam[] = [
             ...history,
             { role: 'user', content: messageText },
             { role: 'assistant', content: reply },

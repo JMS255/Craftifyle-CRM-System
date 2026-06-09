@@ -1,4 +1,4 @@
-import Groq from 'groq-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 
 const ALLOWED_ORIGINS = [
@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
   const headers = corsHeaders(origin)
 
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey || apiKey === 'paste-your-groq-api-key-here') {
-    return NextResponse.json({ error: 'Groq API key not configured.' }, { status: 500, headers })
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500, headers })
   }
 
   const { messages } = await req.json()
@@ -102,17 +102,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const groq = new Groq({ apiKey })
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: getSystemPrompt() },
-        ...messages,
-      ],
-      temperature: 0.7,
-      max_tokens: 400,
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-lite',
+      systemInstruction: getSystemPrompt(),
     })
-    const reply = completion.choices[0]?.message?.content ?? ''
+
+    const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+      role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+      parts: [{ text: m.content }],
+    }))
+
+    const chat = model.startChat({ history })
+    const result = await chat.sendMessage(messages[messages.length - 1].content)
+    const reply = result.response.text()
     return NextResponse.json({ reply }, { headers })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

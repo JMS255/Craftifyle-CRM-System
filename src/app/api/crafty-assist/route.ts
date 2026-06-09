@@ -1,4 +1,4 @@
-import Groq from 'groq-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
@@ -61,196 +61,144 @@ ${addonsSection}
 When a client mentions a package by partial name (e.g. "photobooth lang", "bundle", "premium"), match to the closest package above and use that exact price.`
 }
 
-const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
+const TOOLS = [{ functionDeclarations: [
   {
-    type: 'function',
-    function: {
-      name: 'get_leads',
-      description: 'Get leads from the CRM. Can filter by status and limit results.',
-      parameters: {
-        type: 'object',
-        properties: {
-          status: {
-            type: 'string',
-            enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'],
-            description: 'Filter by lead status. Omit to get all leads.',
-          },
-          limit: { type: 'number', description: 'Max number of leads to return. Default 10.' },
-          search: { type: 'string', description: 'Search by name or phone number.' },
-        },
+    name: 'get_leads',
+    description: 'Get leads from the CRM. Can filter by status and limit results.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'], description: 'Filter by lead status. Omit to get all leads.' },
+        limit: { type: 'number', description: 'Max number of leads to return. Default 10.' },
+        search: { type: 'string', description: 'Search by name or phone number.' },
       },
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'create_lead',
-      description: 'Create a new lead in the CRM.',
-      parameters: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Client full name.' },
-          phone: { type: 'string', description: 'Phone number.' },
-          email: { type: 'string', description: 'Email address.' },
-          facebook: { type: 'string', description: 'Facebook profile name or link.' },
-          event_type: {
-            type: 'string',
-            enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'],
-          },
-          event_date: { type: 'string', description: 'Event date in YYYY-MM-DD format.' },
-          venue: { type: 'string' },
-          guest_count: { type: 'number' },
-          package: { type: 'string', description: 'Package name or description.' },
-          budget: { type: 'number', description: 'Budget in PHP, no peso sign.' },
-          source: {
-            type: 'string',
-            enum: ['facebook', 'instagram', 'referral', 'walk-in', 'website', 'tiktok', 'other'],
-            description: 'Where the lead came from. Default: other.',
-          },
-          notes: { type: 'string' },
-        },
-        required: ['name'],
+    name: 'create_lead',
+    description: 'Create a new lead in the CRM.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Client full name.' },
+        phone: { type: 'string', description: 'Phone number.' },
+        email: { type: 'string', description: 'Email address.' },
+        facebook: { type: 'string', description: 'Facebook profile name or link.' },
+        event_type: { type: 'string', enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'] },
+        event_date: { type: 'string', description: 'Event date in YYYY-MM-DD format.' },
+        venue: { type: 'string' },
+        guest_count: { type: 'number' },
+        package: { type: 'string', description: 'Package name or description.' },
+        budget: { type: 'number', description: 'Budget in PHP, no peso sign.' },
+        source: { type: 'string', enum: ['facebook', 'instagram', 'referral', 'walk-in', 'website', 'tiktok', 'other'], description: 'Where the lead came from. Default: other.' },
+        notes: { type: 'string' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'update_lead',
+    description: 'Update an existing lead by ID. Can update status, notes, contact info, event details.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Lead UUID.' },
+        status: { type: 'string', enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'] },
+        name: { type: 'string' },
+        phone: { type: 'string' },
+        email: { type: 'string' },
+        event_type: { type: 'string', enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'] },
+        event_date: { type: 'string', description: 'YYYY-MM-DD' },
+        venue: { type: 'string' },
+        guest_count: { type: 'number' },
+        package: { type: 'string' },
+        budget: { type: 'number' },
+        notes: { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_bookings',
+    description: 'Get bookings from the CRM.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['upcoming', 'completed', 'cancelled'], description: 'Filter by status. Default: upcoming.' },
+        limit: { type: 'number', description: 'Max results. Default 10.' },
       },
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'update_lead',
-      description: 'Update an existing lead by ID. Can update status, notes, contact info, event details.',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Lead UUID.' },
-          status: {
-            type: 'string',
-            enum: ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed'],
-          },
-          name: { type: 'string' },
-          phone: { type: 'string' },
-          email: { type: 'string' },
-          event_type: {
-            type: 'string',
-            enum: ['wedding', 'birthday', 'debut', 'corporate', 'christmas_party', 'reunion', 'baptism', 'other'],
-          },
-          event_date: { type: 'string', description: 'YYYY-MM-DD' },
-          venue: { type: 'string' },
-          guest_count: { type: 'number' },
-          package: { type: 'string' },
-          budget: { type: 'number' },
-          notes: { type: 'string' },
-        },
-        required: ['id'],
+    name: 'create_booking',
+    description: 'Create a new confirmed booking.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        event_name: { type: 'string', description: 'Name of the event, e.g. "Santos Wedding".' },
+        event_date: { type: 'string', description: 'YYYY-MM-DD' },
+        event_time: { type: 'string', description: 'HH:MM format, e.g. "14:00".' },
+        venue: { type: 'string' },
+        package_name: { type: 'string' },
+        package_price: { type: 'number', description: 'Total package price in PHP.' },
+        deposit_amount: { type: 'number', description: 'Deposit amount in PHP.' },
+        deposit_paid: { type: 'boolean', description: 'Whether deposit has been paid. Default false.' },
+        balance_amount: { type: 'number', description: 'Balance amount in PHP.' },
+        notes: { type: 'string' },
+        lead_id: { type: 'string', description: 'Link to an existing lead by UUID.' },
+      },
+      required: ['event_name', 'event_date', 'deposit_amount', 'balance_amount'],
+    },
+  },
+  {
+    name: 'log_payment',
+    description: 'Mark a deposit or balance as paid on a booking.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        booking_id: { type: 'string', description: 'Booking UUID.' },
+        payment_type: { type: 'string', enum: ['deposit', 'balance'], description: 'Which payment to mark as paid.' },
+        paid_date: { type: 'string', description: 'Date payment was received, YYYY-MM-DD. Defaults to today.' },
+      },
+      required: ['booking_id', 'payment_type'],
+    },
+  },
+  {
+    name: 'get_urgent_leads',
+    description: 'Get leads that need immediate attention — sorted by urgency. Returns leads with upcoming events, quiet leads that need follow-up, and leads where the event has passed.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Max results. Default 10.' },
       },
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'get_bookings',
-      description: 'Get bookings from the CRM.',
-      parameters: {
-        type: 'object',
-        properties: {
-          status: {
-            type: 'string',
-            enum: ['upcoming', 'completed', 'cancelled'],
-            description: 'Filter by status. Default: upcoming.',
-          },
-          limit: { type: 'number', description: 'Max results. Default 10.' },
-        },
+    name: 'convert_lead_to_booking',
+    description: "Convert an existing lead to a confirmed booking. Fetches the lead's event details automatically and creates the booking. Updates the lead status to booked.",
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        lead_id: { type: 'string', description: 'Lead UUID to convert.' },
+        lead_name: { type: 'string', description: 'Lead name to search by (used if lead_id not known).' },
+        deposit_amount: { type: 'number', description: 'Deposit amount in PHP. Defaults to 1000 if not specified.' },
+        deposit_paid: { type: 'boolean', description: 'Whether deposit has already been paid. Default false.' },
+        event_time: { type: 'string', description: 'Event time in HH:MM format.' },
+        notes: { type: 'string' },
       },
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'create_booking',
-      description: 'Create a new confirmed booking.',
-      parameters: {
-        type: 'object',
-        properties: {
-          event_name: { type: 'string', description: 'Name of the event, e.g. "Santos Wedding".' },
-          event_date: { type: 'string', description: 'YYYY-MM-DD' },
-          event_time: { type: 'string', description: 'HH:MM format, e.g. "14:00".' },
-          venue: { type: 'string' },
-          package_name: { type: 'string' },
-          package_price: { type: 'number', description: 'Total package price in PHP.' },
-          deposit_amount: { type: 'number', description: 'Deposit amount in PHP.' },
-          deposit_paid: { type: 'boolean', description: 'Whether deposit has been paid. Default false.' },
-          balance_amount: { type: 'number', description: 'Balance amount in PHP.' },
-          notes: { type: 'string' },
-          lead_id: { type: 'string', description: 'Link to an existing lead by UUID.' },
-        },
-        required: ['event_name', 'event_date', 'deposit_amount', 'balance_amount'],
+    name: 'get_revenue_summary',
+    description: 'Get total revenue summary from bookings.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        month: { type: 'string', description: 'Filter by month in YYYY-MM format. Omit for all-time.' },
       },
     },
   },
-  {
-    type: 'function',
-    function: {
-      name: 'log_payment',
-      description: 'Mark a deposit or balance as paid on a booking.',
-      parameters: {
-        type: 'object',
-        properties: {
-          booking_id: { type: 'string', description: 'Booking UUID.' },
-          payment_type: {
-            type: 'string',
-            enum: ['deposit', 'balance'],
-            description: 'Which payment to mark as paid.',
-          },
-          paid_date: { type: 'string', description: 'Date payment was received, YYYY-MM-DD. Defaults to today.' },
-        },
-        required: ['booking_id', 'payment_type'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_urgent_leads',
-      description: 'Get leads that need immediate attention — sorted by urgency. Returns leads with upcoming events, quiet leads that need follow-up, and leads where the event has passed.',
-      parameters: {
-        type: 'object',
-        properties: {
-          limit: { type: 'number', description: 'Max results. Default 10.' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'convert_lead_to_booking',
-      description: 'Convert an existing lead to a confirmed booking. Fetches the lead\'s event details automatically and creates the booking. Updates the lead status to booked.',
-      parameters: {
-        type: 'object',
-        properties: {
-          lead_id: { type: 'string', description: 'Lead UUID to convert.' },
-          lead_name: { type: 'string', description: 'Lead name to search by (used if lead_id not known).' },
-          deposit_amount: { type: 'number', description: 'Deposit amount in PHP. Defaults to 1000 if not specified.' },
-          deposit_paid: { type: 'boolean', description: 'Whether deposit has already been paid. Default false.' },
-          event_time: { type: 'string', description: 'Event time in HH:MM format.' },
-          notes: { type: 'string' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_revenue_summary',
-      description: 'Get total revenue summary from bookings.',
-      parameters: {
-        type: 'object',
-        properties: {
-          month: { type: 'string', description: 'Filter by month in YYYY-MM format. Omit for all-time.' },
-        },
-      },
-    },
-  },
-]
+]}]
 
 async function runTool(
   name: string,
@@ -479,11 +427,10 @@ export async function POST(req: NextRequest) {
   const { messages } = await req.json()
   if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
 
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'Groq API key not configured.' }, { status: 500 })
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
 
   const db = createAdminClient()
-  const groq = new Groq({ apiKey })
 
   // Fetch user's custom packages — fall back to hardcoded defaults if none exist
   const { data: pkgData } = await db
@@ -494,42 +441,38 @@ export async function POST(req: NextRequest) {
     .order('sort_order')
   const packages: PackageRow[] = pkgData ?? []
 
-  const chatMessages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: 'system', content: getSystemPrompt(packages) },
-    ...messages,
-  ]
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash-lite',
+    systemInstruction: getSystemPrompt(packages),
+    tools: TOOLS,
+  })
+
+  const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+    role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+    parts: [{ text: m.content }],
+  }))
+
+  const chat = model.startChat({ history })
+  let result = await chat.sendMessage(messages[messages.length - 1].content)
 
   // Tool-calling loop — max 3 rounds
   for (let round = 0; round < 3; round++) {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: chatMessages,
-      tools: TOOLS,
-      tool_choice: 'auto',
-      temperature: 0.3,
-      max_tokens: 1024,
-    })
+    const calls = result.response.functionCalls()
+    if (!calls?.length) break
 
-    const choice = completion.choices[0]
-    const msg = choice.message
-
-    if (!msg.tool_calls?.length) {
-      return NextResponse.json({ reply: msg.content ?? '' })
-    }
-
-    // Execute each tool call
-    chatMessages.push({ role: 'assistant', tool_calls: msg.tool_calls, content: msg.content ?? '' })
-
-    for (const call of msg.tool_calls) {
-      const args = JSON.parse(call.function.arguments) as Record<string, unknown>
-      const result = await runTool(call.function.name, args, db, user.id)
-      chatMessages.push({
-        role: 'tool',
-        tool_call_id: call.id,
-        content: result,
-      })
-    }
+    const toolResults = await Promise.all(
+      calls.map(async call => ({
+        functionResponse: {
+          name: call.name,
+          response: { result: await runTool(call.name, call.args as Record<string, unknown>, db, user.id) },
+        },
+      }))
+    )
+    result = await chat.sendMessage(toolResults)
   }
 
-  return NextResponse.json({ reply: 'Done processing your request.' })
+  let reply = ''
+  try { reply = result.response.text() } catch { reply = 'Done.' }
+  return NextResponse.json({ reply })
 }

@@ -1,4 +1,4 @@
-import Groq from 'groq-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 
 const SYSTEM_PROMPT = `You are James Ignacio, owner of Craftifyle — a photobooth and photography business based in Zamboanga City, Philippines. You are replying to potential clients on Facebook Messenger or Instagram DMs.
@@ -59,12 +59,9 @@ HOW YOU TALK TO CLIENTS:
 - Never use generic sign-offs like "Best regards" or "Sincerely"`
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey || apiKey === 'paste-your-groq-api-key-here') {
-    return NextResponse.json(
-      { error: 'Groq API key not configured. Add GROQ_API_KEY to .env.local and restart the server.' },
-      { status: 500 }
-    )
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
   }
 
   const { clientMessage, leadContext } = await req.json()
@@ -89,21 +86,16 @@ export async function POST(req: NextRequest) {
   const userPrompt = `${contextBlock}\n\nThe client sent this message:\n"${clientMessage}"\n\nWrite a reply from James (Craftifyle) to this client.`
 
   try {
-    const groq = new Groq({ apiKey })
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 300,
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-lite',
+      systemInstruction: SYSTEM_PROMPT,
     })
-
-    const reply = completion.choices[0]?.message?.content ?? ''
+    const result = await model.generateContent(userPrompt)
+    const reply = result.response.text()
     return NextResponse.json({ reply })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: `Groq error: ${message}` }, { status: 500 })
+    return NextResponse.json({ error: `Gemini error: ${message}` }, { status: 500 })
   }
 }
