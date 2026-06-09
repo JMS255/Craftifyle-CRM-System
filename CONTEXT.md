@@ -16,7 +16,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 1. **craftifyle-crm** — THIS PROJECT — internal CRM, now in open beta
 2. **james-portfolio** — Public website (craftifyle.business) — booking wizard, referral system
 3. **craftycrm-website** — Marketing + dev docs website for the CRM product
-
+4. **laagan-adventure** - THIS Project is a travel and tours website for the second company
 ---
 
 ## CRM Current Status (June 1, 2026 — after full-day build session)
@@ -341,4 +341,4 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 1. Read this file ✅
 2. Ask James what he wants to fix or build
 3. Check relevant source files before touching anything
-4. Reminder: SEMAPHORE_API_KEY needs to be in Vercel env vars
+4. 

@@ -1,21 +1,34 @@
 /**
  * One-time script to import Supabase data-export JSON files into Firestore.
- * Run: npx ts-node --project tsconfig.json scripts/import-firebase.ts
- * Or:  npx tsx scripts/import-firebase.ts
+ * Run: npx tsx scripts/import-firebase.ts
  *
  * Requires FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env.local
  */
 
-import * as admin from 'firebase-admin'
 import * as fs from 'fs'
 import * as path from 'path'
-import * as dotenv from 'dotenv'
 
-dotenv.config({ path: '.env.local' })
+// Load .env.local manually — no dotenv dependency needed
+const envPath = path.join(process.cwd(), '.env.local')
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const key = trimmed.slice(0, eqIdx).trim()
+    const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
+    if (key && !(key in process.env)) process.env[key] = val
+  }
+}
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
+import { initializeApp, getApps, cert } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -23,14 +36,14 @@ if (!admin.apps.length) {
   })
 }
 
-const db = admin.firestore()
+const db = getFirestore()
 
 const COLLECTIONS = [
-  { file: 'leads.json',                  collection: 'leads' },
-  { file: 'bookings.json',               collection: 'bookings' },
-  { file: 'packages.json',               collection: 'packages' },
-  { file: 'profiles.json',               collection: 'profiles' },
-  { file: 'team_invites.json',           collection: 'team_invites' },
+  { file: 'leads.json',                   collection: 'leads' },
+  { file: 'bookings.json',                collection: 'bookings' },
+  { file: 'packages.json',                collection: 'packages' },
+  { file: 'profiles.json',                collection: 'profiles' },
+  { file: 'team_invites.json',            collection: 'team_invites' },
   { file: 'messenger_conversations.json', collection: 'messenger_conversations' },
 ]
 
@@ -49,7 +62,6 @@ async function importCollection(file: string, collection: string) {
     return
   }
 
-  // Batch writes in groups of 500 (Firestore limit)
   let written = 0
   for (let i = 0; i < records.length; i += 500) {
     const batch = db.batch()
@@ -70,7 +82,7 @@ async function importCollection(file: string, collection: string) {
 async function main() {
   console.log('Starting Firestore import...\n')
   for (const { file, collection } of COLLECTIONS) {
-    process.stdout.write(`Importing ${collection}...`)
+    process.stdout.write(`Importing ${collection}... `)
     try {
       await importCollection(file, collection)
     } catch (err) {
