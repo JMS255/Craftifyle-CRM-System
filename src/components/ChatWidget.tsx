@@ -142,7 +142,7 @@ export default function ChatWidget() {
           )}
           <button
             onClick={handleOpen}
-            className="relative w-12 h-12 md:w-14 md:h-14 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
+            className="crafty-fab relative w-12 h-12 md:w-14 md:h-14 text-white rounded-full shadow-lg flex items-center justify-center text-xl md:text-2xl transition-all"
             style={{ background: isCrm && open ? 'linear-gradient(135deg, #7c3aed, #6366f1)' : '#4f46e5' }}
             title="Ask Craft AI"
           >
@@ -154,7 +154,7 @@ export default function ChatWidget() {
       {/* Chat window */}
       {open && (
         <div
-          className="fixed bottom-36 md:bottom-24 right-2 md:right-6 z-50 w-[calc(100vw-16px)] sm:w-80 md:w-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          className="crafty-panel fixed bottom-36 md:bottom-24 right-2 md:right-6 z-50 w-[calc(100vw-16px)] sm:w-80 md:w-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           style={{
             height: '460px',
             background: 'var(--card)',
@@ -229,12 +229,13 @@ export default function ChatWidget() {
                     : 'Ask me anything about your business 👇'}
                 </p>
                 <div className="space-y-2">
-                  {suggestions.map((s) => (
+                  {suggestions.map((s, idx) => (
                     <button
                       key={s}
                       onClick={() => send(s)}
-                      className="w-full text-left text-xs px-3 py-2 rounded-lg transition-colors"
+                      className="crafty-chip-in w-full text-left text-xs px-3 py-2 rounded-lg transition-colors"
                       style={{
+                        animationDelay: `${idx * 60}ms`,
                         background: 'var(--subtle-bg)',
                         border: '1px solid var(--card-border)',
                         color: 'var(--text-muted)',
@@ -258,7 +259,7 @@ export default function ChatWidget() {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className="max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap"
+                  className="crafty-msg-in max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap"
                   style={
                     m.role === 'user'
                       ? {
@@ -282,10 +283,12 @@ export default function ChatWidget() {
             {loading && (
               <div className="flex justify-start">
                 <div
-                  className="text-sm px-4 py-2 rounded-2xl rounded-bl-sm"
+                  className="flex items-center gap-1 px-4 py-3 rounded-2xl rounded-bl-sm"
                   style={{ background: 'var(--subtle-bg)', color: 'var(--text-faint)', border: '1px solid var(--card-border)' }}
                 >
-                  {isCrm ? 'Working on it…' : 'Typing…'}
+                  <span className="crafty-dot" style={{ animationDelay: '0ms' }} />
+                  <span className="crafty-dot" style={{ animationDelay: '160ms' }} />
+                  <span className="crafty-dot" style={{ animationDelay: '320ms' }} />
                 </div>
               </div>
             )}

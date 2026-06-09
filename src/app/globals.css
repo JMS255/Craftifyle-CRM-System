@@ -247,6 +247,37 @@ tbody td:last-child { text-align: right; }
 .invoice-print-root .bg-gray-50 {
   background-color: white !important;
 }
+
+/* ─── Crafty AI animations ─── */
+@keyframes crafty-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40%            { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes crafty-msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes crafty-chip-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes crafty-glow {
+  0%, 100% { box-shadow: 0 4px 20px rgba(79,70,229,0.35); }
+  50%       { box-shadow: 0 4px 28px rgba(99,102,241,0.65), 0 0 0 6px rgba(99,102,241,0.12); }
+}
+@keyframes crafty-slide-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.crafty-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; display: inline-block;
+  animation: crafty-bounce 1.3s ease-in-out infinite;
+}
+.crafty-msg-in  { animation: crafty-msg-in  0.22s ease forwards; }
+.crafty-chip-in { animation: crafty-chip-in 0.28s ease forwards; opacity: 0; }
+.crafty-fab     { animation: crafty-glow 2.8s ease-in-out infinite; }
+.crafty-panel   { animation: crafty-slide-up 0.2s ease forwards; }
 .invoice-print-root .text-gray-900,
 .invoice-print-root .text-gray-800,
 .invoice-print-root .text-gray-700,
