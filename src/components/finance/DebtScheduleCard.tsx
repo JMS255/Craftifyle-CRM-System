@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth, getDocsByUser, addDocument, updateDocument, deleteDocument } from '@/lib/firebase'
+import { onSnapshot } from 'firebase/firestore'
+import { auth, db, collection, query, where, addDocument, updateDocument, deleteDocument } from '@/lib/firebase'
 import type { PersonalDebt, PersonalDebtPayment, DebtPaymentStatus } from '@/types'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -23,6 +24,10 @@ function getDebtMonths(debt: PersonalDebt): string[] {
   })
 }
 
+function getMonthAmount(debt: PersonalDebt, idx: number): number {
+  return debt.monthly_amounts?.[idx] ?? debt.monthly_amount
+}
+
 function nextStatus(s: DebtPaymentStatus): DebtPaymentStatus {
   if (s === 'unpaid') return 'planning'
   if (s === 'planning') return 'paid'
@@ -37,12 +42,20 @@ const STATUS: Record<DebtPaymentStatus, { bg: string; color: string; icon: strin
 
 const EMPTY_FORM = {
   name: '',
-  monthly_amount: '',
   start_month: new Date().toISOString().slice(0, 7),
-  total_months: '6',
+  total_months: '1',
   interest_type: 'none' as 'none' | 'monthly_addon',
   type: 'formal' as 'formal' | 'pautang',
   person: '',
+}
+
+function buildMonthRows(start: string, n: number): Array<{ ym: string; label: string }> {
+  if (!start || !n) return []
+  const [sy, sm] = start.split('-').map(Number)
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(sy, sm - 1 + i, 1)
+    return { ym: d.toISOString().slice(0, 7), label: `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear()).slice(2)}` }
+  })
 }
 
 export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?: () => void; refreshKey?: number }) {
@@ -52,23 +65,49 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [monthAmounts, setMonthAmounts] = useState<string[]>([''])
   const [saving, setSaving] = useState(false)
   const [updatingKey, setUpdatingKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function load() {
+  useEffect(() => {
     const user = auth.currentUser
-    if (!user) return
-    const [d, p] = await Promise.all([
-      getDocsByUser<PersonalDebt>('personal_debts', user.uid),
-      getDocsByUser<PersonalDebtPayment>('personal_debt_payments', user.uid),
-    ])
-    setDebts(d.sort((a, b) => a.start_month.localeCompare(b.start_month)))
-    setPayments(p)
-    setLoading(false)
+    if (!user) { setLoading(false); return }
+
+    const debtQ = query(collection(db, 'personal_debts'), where('user_id', '==', user.uid))
+    const payQ = query(collection(db, 'personal_debt_payments'), where('user_id', '==', user.uid))
+
+    const unsub1 = onSnapshot(debtQ, snap => {
+      setDebts(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }) as PersonalDebt)
+          .sort((a, b) => a.start_month.localeCompare(b.start_month))
+      )
+      setLoading(false)
+    }, () => setLoading(false))
+
+    const unsub2 = onSnapshot(payQ, snap => {
+      setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PersonalDebtPayment))
+    })
+
+    return () => { unsub1(); unsub2() }
+  }, [refreshKey])
+
+  function handleTotalMonthsChange(val: string) {
+    const n = Math.max(1, parseInt(val) || 1)
+    setForm(f => ({ ...f, total_months: String(n) }))
+    setMonthAmounts(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
   }
 
-  useEffect(() => { load() }, [refreshKey])
+  function handleStartMonthChange(val: string) {
+    setForm(f => ({ ...f, start_month: val }))
+  }
+
+  function resetForm() {
+    setForm(EMPTY_FORM)
+    setMonthAmounts([''])
+    setShowForm(false)
+  }
 
   function getStatus(debtId: string, month: string): DebtPaymentStatus {
     return payments.find(p => p.debt_id === debtId && p.month === month)?.status ?? 'unpaid'
@@ -94,31 +133,35 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
       })
     }
     setUpdatingKey(null)
-    await load()
     onRefresh?.()
   }
 
   async function addDebt() {
-    if (!form.name.trim() || !form.monthly_amount || !form.start_month) return
+    if (!form.name.trim() || !form.start_month) return
+    const amounts = monthAmounts.map(a => parseFloat(a))
+    if (amounts.some(isNaN) || amounts.some(a => a <= 0)) {
+      setError('Enter a valid amount for every month.')
+      return
+    }
     setError(null)
     setSaving(true)
     const user = auth.currentUser
     if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
-    try { await addDocument('personal_debts', {
-      user_id: user.uid,
-      name: form.name.trim(),
-      monthly_amount: parseFloat(form.monthly_amount),
-      start_month: form.start_month,
-      total_months: parseInt(form.total_months),
-      interest_type: form.interest_type,
-      type: form.type,
-      person: form.type === 'pautang' ? (form.person.trim() || null) : null,
-      created_at: new Date().toISOString(),
-    })
-    setForm(EMPTY_FORM)
-    setShowForm(false)
-    await load()
-    onRefresh?.()
+    try {
+      await addDocument('personal_debts', {
+        user_id: user.uid,
+        name: form.name.trim(),
+        monthly_amount: amounts[0],
+        monthly_amounts: amounts,
+        start_month: form.start_month,
+        total_months: amounts.length,
+        interest_type: form.interest_type,
+        type: form.type,
+        person: form.type === 'pautang' ? (form.person.trim() || null) : null,
+        created_at: new Date().toISOString(),
+      })
+      resetForm()
+      onRefresh?.()
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
     setSaving(false)
   }
@@ -126,35 +169,39 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
   async function removeDebt(id: string) {
     if (!confirm('Delete this debt?')) return
     await deleteDocument('personal_debts', id)
-    await load()
     onRefresh?.()
   }
 
   function nextPaymentInfo(debt: PersonalDebt) {
     const today = new Date().toISOString().slice(0, 7)
-    const upcoming = getDebtMonths(debt).find(m => m >= today && getStatus(debt.id, m) !== 'paid')
-    if (!upcoming) return null
-    return { month: upcoming, status: getStatus(debt.id, upcoming) }
+    const months = getDebtMonths(debt)
+    const upcomingIdx = months.findIndex(m => m >= today && getStatus(debt.id, m) !== 'paid')
+    if (upcomingIdx === -1) return null
+    return { month: months[upcomingIdx], status: getStatus(debt.id, months[upcomingIdx]) }
   }
 
   const totalRemaining = debts.reduce((sum, debt) => {
     const today = new Date().toISOString().slice(0, 7)
-    const unpaid = getDebtMonths(debt).filter(m => m >= today && getStatus(debt.id, m) !== 'paid')
-    return sum + unpaid.length * debt.monthly_amount
+    return sum + getDebtMonths(debt).reduce((s, m, idx) => {
+      if (m < today || getStatus(debt.id, m) === 'paid') return s
+      return s + getMonthAmount(debt, idx)
+    }, 0)
   }, 0)
+
+  const monthRows = buildMonthRows(form.start_month, parseInt(form.total_months) || 0)
 
   return (
     <div className="card p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Debt Schedule</h2>
-            {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
+          {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
           {totalRemaining > 0 && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--danger)' }}>{peso(totalRemaining)} remaining</p>
           )}
         </div>
         <button
-          onClick={() => setShowForm(s => !s)}
+          onClick={() => showForm ? resetForm() : setShowForm(true)}
           className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
           style={{ background: 'var(--danger-muted)', color: 'var(--danger)' }}
         >
@@ -164,7 +211,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
 
       {showForm && (
         <div className="mb-3 p-3 rounded-xl space-y-2" style={{ background: 'var(--danger-muted)' }}>
-          {/* Debt type toggle */}
+          {/* Type toggle */}
           <div className="flex gap-2">
             {(['formal', 'pautang'] as const).map(t => (
               <button
@@ -196,14 +243,12 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
           />
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Monthly amount (₱)</label>
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Start month</label>
               <input
-                type="number"
-                inputMode="numeric"
+                type="month"
                 className="w-full rounded-lg px-3 py-2.5 text-sm"
-                placeholder="11665"
-                value={form.monthly_amount}
-                onChange={e => setForm(f => ({ ...f, monthly_amount: e.target.value }))}
+                value={form.start_month}
+                onChange={e => handleStartMonthChange(e.target.value)}
               />
             </div>
             <div>
@@ -211,22 +256,50 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
               <input
                 type="number"
                 inputMode="numeric"
+                min="1"
                 className="w-full rounded-lg px-3 py-2.5 text-sm"
                 placeholder="6"
                 value={form.total_months}
-                onChange={e => setForm(f => ({ ...f, total_months: e.target.value }))}
+                onChange={e => handleTotalMonthsChange(e.target.value)}
               />
             </div>
           </div>
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Start month</label>
-            <input
-              type="month"
-              className="w-full rounded-lg px-3 py-2.5 text-sm"
-              value={form.start_month}
-              onChange={e => setForm(f => ({ ...f, start_month: e.target.value }))}
-            />
-          </div>
+
+          {/* Per-month amount inputs */}
+          {monthRows.length > 0 && (
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
+              <p className="text-xs px-3 py-2 font-medium" style={{ background: 'var(--card-bg)', color: 'var(--text-muted)' }}>
+                Amount per month
+              </p>
+              {monthRows.map((row, i) => (
+                <div
+                  key={row.ym}
+                  className="flex items-center gap-3 px-3 py-2"
+                  style={{ borderTop: '1px solid var(--card-border)' }}
+                >
+                  <span className="text-xs w-16 shrink-0 font-medium" style={{ color: 'var(--text-heading)' }}>
+                    {row.label}
+                  </span>
+                  <div className="flex items-center flex-1 rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
+                    <span className="px-2 text-sm" style={{ color: 'var(--text-muted)' }}>₱</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      className="flex-1 py-2 pr-2 text-sm bg-transparent outline-none"
+                      placeholder="0"
+                      value={monthAmounts[i] ?? ''}
+                      onChange={e => setMonthAmounts(prev => {
+                        const next = [...prev]
+                        next[i] = e.target.value
+                        return next
+                      })}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <select
             className="w-full rounded-lg px-3 py-2.5 text-sm"
             value={form.interest_type}
@@ -259,6 +332,10 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
             const months = getDebtMonths(debt)
             const paidCount = months.filter(m => getStatus(debt.id, m) === 'paid').length
             const next = nextPaymentInfo(debt)
+            const allSame = !debt.monthly_amounts || debt.monthly_amounts.every(a => a === debt.monthly_amounts![0])
+            const amtLabel = allSame
+              ? `${peso(debt.monthly_amounts?.[0] ?? debt.monthly_amount)}/mo`
+              : `${peso(Math.min(...(debt.monthly_amounts ?? [debt.monthly_amount])))}–${peso(Math.max(...(debt.monthly_amounts ?? [debt.monthly_amount])))}/mo`
 
             return (
               <div key={debt.id} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
@@ -273,7 +350,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
                       {debt.person && <span className="font-normal ml-1" style={{ color: 'var(--text-muted)' }}>· {debt.person}</span>}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                      {peso(debt.monthly_amount)}/mo · {paidCount}/{debt.total_months} paid
+                      {amtLabel} · {paidCount}/{debt.total_months} paid
                       {next && (
                         <span style={{ color: next.status === 'planning' ? '#f59e0b' : 'var(--danger)' }}>
                           {' '}· Next: {monthLabel(next.month)}
@@ -294,20 +371,22 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
                 {isOpen && (
                   <div className="px-4 py-3" style={{ borderTop: '1px solid var(--card-border)' }}>
                     <div className="flex flex-wrap gap-2">
-                      {months.map(month => {
+                      {months.map((month, idx) => {
                         const status = getStatus(debt.id, month)
                         const style = STATUS[status]
                         const key = `${debt.id}-${month}`
+                        const amt = getMonthAmount(debt, idx)
                         return (
                           <button
                             key={month}
                             onClick={() => cycleStatus(debt, month)}
                             disabled={updatingKey === key}
                             className="flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all"
-                            style={{ background: style.bg, color: style.color, minWidth: '52px' }}
+                            style={{ background: style.bg, color: style.color, minWidth: '56px' }}
                           >
                             <span>{style.icon}</span>
                             <span className="mt-0.5">{monthLabel(month)}</span>
+                            <span className="opacity-70 mt-0.5">{peso(amt)}</span>
                           </button>
                         )
                       })}

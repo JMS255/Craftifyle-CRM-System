@@ -49,7 +49,8 @@ function computeProjection(
       if (idx < 0 || idx >= debt.total_months) return sum
       const payment = payments.find(p => p.debt_id === debt.id && p.month === ym)
       if (payment?.status === 'paid') return sum
-      return sum + debt.monthly_amount
+      const amt = debt.monthly_amounts?.[idx] ?? debt.monthly_amount
+      return sum + amt
     }, 0)
 
     const monthIncoming = pendingIncoming

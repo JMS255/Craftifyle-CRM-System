@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth, getDocsByUser, addDocument, updateDocument, deleteDocument } from '@/lib/firebase'
+import { onSnapshot } from 'firebase/firestore'
+import { auth, db, collection, query, where, addDocument, updateDocument, deleteDocument } from '@/lib/firebase'
 import type { PersonalCashPosition } from '@/types'
 
 function peso(n: number) {
@@ -19,15 +20,20 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function load() {
+  useEffect(() => {
     const user = auth.currentUser
-    if (!user) return
-    const data = await getDocsByUser<PersonalCashPosition>('personal_cash_positions', user.uid)
-    setPositions(data.sort((a, b) => a.source_name.localeCompare(b.source_name)))
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [refreshKey])
+    if (!user) { setLoading(false); return }
+    const q = query(collection(db, 'personal_cash_positions'), where('user_id', '==', user.uid))
+    const unsub = onSnapshot(q, snap => {
+      setPositions(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }) as PersonalCashPosition)
+          .sort((a, b) => a.source_name.localeCompare(b.source_name))
+      )
+      setLoading(false)
+    }, () => setLoading(false))
+    return () => unsub()
+  }, [refreshKey])
 
   const total = positions.reduce((s, p) => s + p.amount, 0)
 
@@ -64,7 +70,6 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
       setForm(EMPTY_FORM)
       setShowForm(false)
       setEditingId(null)
-      await load()
       onRefresh?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed — check console for details.')
@@ -75,15 +80,16 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
   async function remove(id: string) {
     if (!confirm('Remove this cash source?')) return
     await deleteDocument('personal_cash_positions', id)
-    await load()
     onRefresh?.()
   }
 
   return (
     <div className="card p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Cash Position</h2>
-        {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
+        <div>
+          <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Cash Position</h2>
+          {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
+        </div>
         <button
           onClick={() => showForm ? setShowForm(false) : openAdd()}
           className="text-xs px-3 py-1.5 rounded-[10px] font-medium"

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth, getDocsByUser, addDocument, updateDocument } from '@/lib/firebase'
+import { onSnapshot } from 'firebase/firestore'
+import { auth, db, collection, query, where, addDocument, updateDocument } from '@/lib/firebase'
 import type { PersonalIncoming } from '@/types'
 
 function peso(n: number) {
@@ -23,19 +24,21 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function load() {
+  useEffect(() => {
     const user = auth.currentUser
-    if (!user) return
-    const data = await getDocsByUser<PersonalIncoming>('personal_incoming', user.uid)
-    setItems(
-      data
-        .filter(i => i.status === 'pending')
-        .sort((a, b) => a.expected_date.localeCompare(b.expected_date))
-    )
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [refreshKey])
+    if (!user) { setLoading(false); return }
+    const q = query(collection(db, 'personal_incoming'), where('user_id', '==', user.uid))
+    const unsub = onSnapshot(q, snap => {
+      setItems(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }) as PersonalIncoming)
+          .filter(i => i.status === 'pending')
+          .sort((a, b) => a.expected_date.localeCompare(b.expected_date))
+      )
+      setLoading(false)
+    }, () => setLoading(false))
+    return () => unsub()
+  }, [refreshKey])
 
   const total = items.reduce((s, i) => s + i.amount, 0)
 
@@ -45,19 +48,19 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
     setSaving(true)
     const user = auth.currentUser
     if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
-    try { await addDocument('personal_incoming', {
-      user_id: user.uid,
-      source: form.source.trim(),
-      amount: parseFloat(form.amount),
-      expected_date: form.expected_date,
-      status: 'pending',
-      notes: form.notes || null,
-      created_at: new Date().toISOString(),
-    })
-    setForm(EMPTY_FORM)
-    setShowForm(false)
-    await load()
-    onRefresh?.()
+    try {
+      await addDocument('personal_incoming', {
+        user_id: user.uid,
+        source: form.source.trim(),
+        amount: parseFloat(form.amount),
+        expected_date: form.expected_date,
+        status: 'pending',
+        notes: form.notes || null,
+        created_at: new Date().toISOString(),
+      })
+      setForm(EMPTY_FORM)
+      setShowForm(false)
+      onRefresh?.()
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
     setSaving(false)
   }
@@ -81,7 +84,6 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
       created_at: new Date().toISOString(),
     })
     setMarkingId(null)
-    await load()
     onRefresh?.()
   }
 
@@ -90,7 +92,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Confirmed Incoming</h2>
-            {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
+          {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
           {items.length > 0 && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
               Not yet received · {peso(total)} total

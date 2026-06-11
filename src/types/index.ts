@@ -149,6 +149,7 @@ export interface PersonalDebt {
   id: string
   name: string
   monthly_amount: number
+  monthly_amounts?: number[]
   start_month: string
   total_months: number
   interest_type: DebtInterestType
