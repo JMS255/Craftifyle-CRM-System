@@ -152,7 +152,8 @@ ${projectionRows.join('\n')}
 "bayad na / paid na / nabayaran / planong bayaran" → mark_debt_payment
 "GCash ko ay / balance ko ay / nag-update ang" → update_cash_position
 "earned / kita / naka-book / down payment / tip" → log_income
-"mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry
+"mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry (for expenses/income only)
+"wrong start / wrong date / mali yung buwan / dapat June / start June not May / change start / change end / change amount" → update_debt (modifies existing debt dates/amount — do NOT use add_debt for this)
 
 === CATEGORY AUTO-INFERENCE ===
 food / kain / lunch / merienda / breakfast / dinner / snack / kape / rice → food
@@ -280,6 +281,21 @@ const TOOLS = [{ functionDeclarations: [
         person: { type: 'string', description: 'Person name for pautang debts only.' },
       },
       required: ['name', 'monthly_amount', 'start_month'],
+    },
+  },
+  {
+    name: 'update_debt',
+    description: 'Update an existing debt — change its start month, end month, monthly amount, or name. Use when user says a debt has the wrong dates or amount.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        debt_name: { type: 'string', description: 'Partial or full name of the debt to update, e.g. "lens", "camera".' },
+        new_start_month: { type: 'string', description: 'New first payment month, e.g. "June 2026" or YYYY-MM.' },
+        new_end_month: { type: 'string', description: 'New last payment month, e.g. "August 2026" or YYYY-MM.' },
+        new_monthly_amount: { type: 'number', description: 'New monthly payment amount in PHP.' },
+        new_name: { type: 'string', description: 'New name for the debt.' },
+      },
+      required: ['debt_name'],
     },
   },
 ]}]
@@ -461,6 +477,40 @@ async function runTool(
         return d.toISOString().slice(0, 7)
       })()
       return `Added debt "${args.name}" — ${peso(monthlyAmount)}/mo for ${totalMonths} months (${monthLabel(startYM)} to ${monthLabel(endYM)}).`
+    }
+
+    if (name === 'update_debt') {
+      const searchName = (args.debt_name as string).toLowerCase()
+      const debt = ctx.debts.find(d => d.name.toLowerCase().includes(searchName))
+      if (!debt) return `Debt not found matching "${args.debt_name}". Available: ${ctx.debts.map(d => d.name).join(', ')}`
+
+      const updates: Record<string, unknown> = { updated_at: now }
+
+      const newStartYM = args.new_start_month ? toYYYYMM(args.new_start_month as string) : debt.start_month
+      const currentEndYM = (() => {
+        const [sy, sm] = debt.start_month.split('-').map(Number)
+        const d = new Date(sy, sm - 1 + debt.total_months - 1, 1)
+        return d.toISOString().slice(0, 7)
+      })()
+      const newEndYM = args.new_end_month ? toYYYYMM(args.new_end_month as string) : currentEndYM
+      const newTotalMonths = monthsBetween(newStartYM, newEndYM)
+
+      if (args.new_start_month || args.new_end_month) {
+        updates.start_month = newStartYM
+        updates.total_months = newTotalMonths
+        const amount = (args.new_monthly_amount as number) ?? debt.monthly_amount
+        updates.monthly_amounts = Array.from({ length: newTotalMonths }, () => amount)
+      }
+      if (args.new_monthly_amount) {
+        updates.monthly_amount = args.new_monthly_amount
+        if (!updates.monthly_amounts) {
+          updates.monthly_amounts = Array.from({ length: debt.total_months }, () => args.new_monthly_amount as number)
+        }
+      }
+      if (args.new_name) updates.name = args.new_name
+
+      await adminDb.collection('personal_debts').doc(debt.id).update(updates)
+      return `Updated "${debt.name}" — now ${monthLabel(newStartYM)} to ${monthLabel(newEndYM)}, ${newTotalMonths} months.`
     }
 
     return `Unknown tool: ${name}`
