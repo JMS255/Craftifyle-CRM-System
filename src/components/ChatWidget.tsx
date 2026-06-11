@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -22,6 +23,7 @@ const CRM_SUGGESTIONS = [
 ]
 
 export default function ChatWidget() {
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'advisor' | 'crm'>('advisor')
   const [advisorMessages, setAdvisorMessages] = useState<Message[]>([])
@@ -120,6 +122,8 @@ export default function ChatWidget() {
 
   const suggestions = mode === 'advisor' ? ADVISOR_SUGGESTIONS : CRM_SUGGESTIONS
   const isCrm = mode === 'crm'
+
+  if (pathname === '/login' || pathname === '/signup' || pathname?.startsWith('/confirm') || pathname?.startsWith('/contract')) return null
 
   return (
     <>
