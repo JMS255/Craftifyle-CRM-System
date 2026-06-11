@@ -83,7 +83,9 @@ export default function BookingsPage() {
         })
         .catch(() => setLoading(false))
       // Silently backfill any fully-paid bookings missing from personal finance
-      fetch('/api/bookings/sync-finance', { method: 'POST' }).catch(() => {})
+      fetch('/api/bookings/sync-finance', { method: 'POST' }).catch(err => {
+        import('@sentry/nextjs').then(({ captureException }) => captureException(err))
+      })
     })
     return () => unsub()
   }, [])
