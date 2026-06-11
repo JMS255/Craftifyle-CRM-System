@@ -56,11 +56,6 @@ function buildMonths(income: PersonalIncome[], expenses: PersonalExpense[], year
       net: totalIncome - totalExpenses,
     }
   })
-    .filter(({ yearMonth }) => {
-      const [y, mo] = yearMonth.split('-').map(Number)
-      if (y < now.getFullYear()) return true
-      return mo <= now.getMonth() + 1
-    })
     .reverse()
 }
 
