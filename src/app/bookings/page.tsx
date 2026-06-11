@@ -267,7 +267,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
             </button>
 
             {isOpen && (
-              <div className="border-t border-gray-100">
+              <div style={{ borderTop: '1px solid var(--border-secondary)' }}>
                 {/* Desktop table */}
                 <table className="hidden md:table w-full text-sm">
                   <thead>
@@ -281,25 +281,26 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                       <th>Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody style={{ borderTop: '1px solid var(--border-secondary)' }}>
                     {month.bookings.map((b) => (
                       <tr
                         key={b.id}
                         className={b.status === 'cancelled' ? 'opacity-40' : ''}
+                        style={{ borderBottom: '1px solid var(--border-secondary)' }}
                       >
                         <td className="px-5 py-3">
                           <Link href={`/bookings/${b.id}`} className="font-medium hover:underline" style={{ color: 'var(--text-heading)' }}>
                             {b.event_name}
                           </Link>
-                          {b.venue && <p className="text-xs text-gray-400">{b.venue}</p>}
+                          {b.venue && <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{b.venue}</p>}
                         </td>
-                        <td className="px-5 py-3 text-gray-600">
+                        <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>
                           {fmt(b.event_date)}
-                          {b.event_time && <p className="text-xs text-gray-400">{b.event_time}</p>}
+                          {b.event_time && <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{b.event_time}</p>}
                         </td>
-                        <td className="px-5 py-3 text-gray-600">
+                        <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>
                           <p>{b.package_name ?? '—'}</p>
-                          {b.package_price != null && <p className="text-xs text-gray-400">{peso(b.package_price)}</p>}
+                          {b.package_price != null && <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{peso(b.package_price)}</p>}
                         </td>
                         <td className="px-5 py-3"><PayCell amount={b.deposit_amount} paid={b.deposit_paid} /></td>
                         <td className="px-5 py-3"><PayCell amount={b.balance_amount} paid={b.balance_paid} /></td>
@@ -316,21 +317,22 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                 </table>
 
                 {/* Mobile cards */}
-                <div className="md:hidden divide-y divide-gray-50">
+                <div className="md:hidden" style={{ borderTop: '1px solid var(--border-secondary)' }}>
                   {month.bookings.map((b) => (
                     <Link
                       key={b.id}
                       href={`/bookings/${b.id}`}
                       className={`flex items-start justify-between px-4 py-4 transition-colors ${b.status === 'cancelled' ? 'opacity-40' : ''}`}
+                      style={{ borderBottom: '1px solid var(--border-secondary)' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{b.event_name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{fmtShort(b.event_date)}{b.venue ? ` · ${b.venue}` : ''}</p>
+                        <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-heading)' }}>{b.event_name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{fmtShort(b.event_date)}{b.venue ? ` · ${b.venue}` : ''}</p>
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           {b.package_name && (
-                            <span className="text-xs text-gray-500">{b.package_name}</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{b.package_name}</span>
                           )}
                           {b.craftifyle_income ? (
                             <span className="text-xs font-medium" style={{ color: 'var(--accent-text)' }}>{peso(b.craftifyle_income)} income</span>

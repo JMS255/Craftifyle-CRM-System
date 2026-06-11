@@ -349,7 +349,9 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | Auth | **Firebase Auth** + server session cookies (`__session`) |
 | AI — Advisor | **Gemini 2.5 Flash Lite** (migrated from Groq) |
 | AI — CRM Actions | **Gemini 2.5 Flash Lite** with tool calling (migrated from Groq) |
+| AI — Finance | **Gemini 2.5 Flash Lite** with tool calling |
 | Hosting | Vercel |
+| Error Monitoring | **Sentry** (DSN in sentry.*.config.ts, `maxDuration = 60` on all AI routes) |
 | Messenger | Meta Messenger API — partially blocked (needs BIR) |
 | Cron | Vercel Cron |
 | SMS | Semaphore PH (SEMAPHORE_API_KEY) |
@@ -382,7 +384,16 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | `src/app/api/auth/session/route.ts` | POST: exchange Firebase ID token for `__session` cookie |
 | `src/app/api/auth/post-login/route.ts` | POST: auto-migrate Supabase UID data to Firebase UID on first login |
 | `src/app/personal/page.tsx` | Personal Finance Manager — cash position, debt tracker, survival projection, AI entry |
-| `src/app/api/personal-finance-assist/route.ts` | Personal Finance AI — Gemini with 5 tools for natural language finance entry (planned) |
+| `src/app/api/personal-finance-assist/route.ts` | Personal Finance AI — Gemini with tools: log_expense, log_income, mark_debt_payment, mark_incoming_received, update_cash_position, update_debt, delete_debt, delete_incoming |
+| `src/app/api/bookings/sync-finance/route.ts` | POST: idempotent backfill — creates personal_income entries for fully-paid bookings missing from finance |
+| `src/components/finance/CashPositionCard.tsx` | Multi-source cash tracker, inline edit |
+| `src/components/finance/ConfirmedIncomingCard.tsx` | Pending non-revenue income, "Mark Received" converts to income entry |
+| `src/components/finance/DebtScheduleCard.tsx` | Per-debt card with monthly payment grid, pure-arithmetic month helpers |
+| `src/components/finance/SurvivalProjectionCard.tsx` | Swipeable month-by-month cash flow projection |
+| `src/components/finance/FinanceAIInput.tsx` | Sticky AI input bar for personal finance page |
+| `src/components/finance/FinanceStatusBanner.tsx` | AI-generated one-liner status banner |
+| `sentry.client.config.ts` | Sentry client config (Session Replay enabled) |
+| `sentry.server.config.ts` | Sentry server config |
 | `CLAUDE_RULES.md` | Coding rules — read before touching anything |
 
 ---
