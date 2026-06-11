@@ -152,6 +152,8 @@ export interface PersonalDebt {
   start_month: string
   total_months: number
   interest_type: DebtInterestType
+  type?: 'formal' | 'pautang'
+  person?: string | null
   user_id: string
   created_at: string
 }

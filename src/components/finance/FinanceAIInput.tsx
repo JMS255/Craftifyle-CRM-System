@@ -45,10 +45,10 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
 
   return (
     <div
-      className="sticky bottom-0 z-10"
+      className="rounded-2xl mb-4 overflow-hidden"
       style={{
-        background: 'var(--sidebar-bg)',
-        borderTop: '1px solid var(--card-border)',
+        background: 'var(--card-elevated)',
+        border: '1px solid var(--accent)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >

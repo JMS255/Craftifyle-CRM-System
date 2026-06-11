@@ -41,6 +41,8 @@ const EMPTY_FORM = {
   start_month: new Date().toISOString().slice(0, 7),
   total_months: '6',
   interest_type: 'none' as 'none' | 'monthly_addon',
+  type: 'formal' as 'formal' | 'pautang',
+  person: '',
 }
 
 export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?: () => void; refreshKey?: number }) {
@@ -107,6 +109,8 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
       start_month: form.start_month,
       total_months: parseInt(form.total_months),
       interest_type: form.interest_type,
+      type: form.type,
+      person: form.type === 'pautang' ? (form.person.trim() || null) : null,
       created_at: new Date().toISOString(),
     })
     setForm(EMPTY_FORM)
@@ -156,9 +160,33 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
 
       {showForm && (
         <div className="mb-3 p-3 rounded-xl space-y-2" style={{ background: 'var(--danger-muted)' }}>
+          {/* Debt type toggle */}
+          <div className="flex gap-2">
+            {(['formal', 'pautang'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, type: t }))}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold"
+                style={form.type === t
+                  ? { background: 'var(--danger)', color: '#fff' }
+                  : { background: 'var(--card-elevated)', color: 'var(--text-muted)' }}
+              >
+                {t === 'formal' ? '🏦 Formal Loan' : '🤝 Pautang'}
+              </button>
+            ))}
+          </div>
+          {form.type === 'pautang' && (
+            <input
+              className="w-full rounded-lg px-3 py-2.5 text-sm"
+              placeholder="Person (e.g. Kuya Renz, Aling Maria)"
+              value={form.person}
+              onChange={e => setForm(f => ({ ...f, person: e.target.value }))}
+            />
+          )}
           <input
             className="w-full rounded-lg px-3 py-2.5 text-sm"
-            placeholder="Debt name (e.g. Camera EWB)"
+            placeholder={form.type === 'pautang' ? 'What for? (e.g. borrowed for equipment)' : 'Debt name (e.g. Camera EWB)'}
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           />
@@ -236,7 +264,10 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
                   style={{ background: 'var(--card-elevated)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-heading)' }}>{debt.name}</p>
+                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-heading)' }}>
+                      {debt.type === 'pautang' ? '🤝 ' : '🏦 '}{debt.name}
+                      {debt.person && <span className="font-normal ml-1" style={{ color: 'var(--text-muted)' }}>· {debt.person}</span>}
+                    </p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
                       {peso(debt.monthly_amount)}/mo · {paidCount}/{debt.total_months} paid
                       {next && (
