@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getAllDocs } from '@/lib/firebase'
+import { auth, getDocsByUser } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import type { Booking, BookingStatus } from '@/types'
 
 const STATUSES: BookingStatus[] = ['upcoming', 'completed', 'cancelled']
@@ -72,10 +73,17 @@ export default function BookingsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
 
   useEffect(() => {
-    getAllDocs<Booking>('bookings').then(data => {
-      setBookings([...data].sort((a, b) => b.event_date.localeCompare(a.event_date)))
-      setLoading(false)
+    const unsub = onAuthStateChanged(auth, user => {
+      if (!user) { setLoading(false); return }
+      unsub()
+      getDocsByUser<Booking>('bookings', user.uid)
+        .then(data => {
+          setBookings([...data].sort((a, b) => b.event_date.localeCompare(a.event_date)))
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
     })
+    return () => unsub()
   }, [])
 
   const years = Array.from(
