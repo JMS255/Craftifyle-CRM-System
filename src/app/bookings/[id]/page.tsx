@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getDocById, updateDocument, deleteDocument } from '@/lib/firebase'
+import { auth, db, getDocById, updateDocument, deleteDocument, addDocument, collection, query, where, getDocs, deleteDoc } from '@/lib/firebase'
 import type { Booking, BookingStatus } from '@/types'
 
 function fmt(date: string) {
@@ -107,6 +107,19 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     setJustPaid('balance'); setTimeout(() => setJustPaid(null), 2500)
     try {
       await updateDocument('bookings', id, { balance_paid: true, balance_paid_date: today })
+      const user = auth.currentUser
+      if (user && booking) {
+        await addDocument('personal_income', {
+          user_id: user.uid,
+          description: booking.event_name,
+          amount: booking.package_price ?? (booking.deposit_amount + booking.balance_amount),
+          income_date: booking.event_date,
+          category: 'booking',
+          notes: booking.package_name ? `Package: ${booking.package_name}` : null,
+          booking_id: id,
+          created_at: new Date().toISOString(),
+        })
+      }
     } catch {
       setBooking(prev => prev ? { ...prev, balance_paid: false, balance_paid_date: null } : prev)
       setMsg('Error — try again.'); setJustPaid(null)
@@ -117,6 +130,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     setBooking(b => b ? { ...b, status } : b)
     try {
       await updateDocument('bookings', id, { status })
+      if (status === 'cancelled' && booking?.balance_paid) {
+        const user = auth.currentUser
+        if (user) {
+          const snap = await getDocs(query(collection(db, 'personal_income'), where('booking_id', '==', id), where('user_id', '==', user.uid)))
+          await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
+        }
+      }
     } catch {
       if (prev) { setBooking(b => b ? { ...b, status: prev } : b); setMsg('Error — try again.') }
     }
