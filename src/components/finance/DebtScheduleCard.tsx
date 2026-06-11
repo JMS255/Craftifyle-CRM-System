@@ -64,6 +64,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [monthAmounts, setMonthAmounts] = useState<string[]>([''])
   const [saving, setSaving] = useState(false)
@@ -104,9 +105,26 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
   }
 
   function resetForm() {
+    setEditingId(null)
     setForm(EMPTY_FORM)
     setMonthAmounts([''])
     setShowForm(false)
+  }
+
+  function startEditDebt(debt: PersonalDebt) {
+    setEditingId(debt.id)
+    setForm({
+      name: debt.name,
+      start_month: debt.start_month,
+      total_months: String(debt.total_months),
+      interest_type: debt.interest_type as 'none' | 'monthly_addon',
+      type: (debt.type ?? 'formal') as 'formal' | 'pautang',
+      person: debt.person ?? '',
+    })
+    const amounts = debt.monthly_amounts?.map(String) ?? Array(debt.total_months).fill(String(debt.monthly_amount))
+    setMonthAmounts(amounts)
+    setShowForm(true)
+    setExpanded(null)
   }
 
   function getStatus(debtId: string, month: string): DebtPaymentStatus {
@@ -147,19 +165,22 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
     setSaving(true)
     const user = auth.currentUser
     if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
+    const payload = {
+      name: form.name.trim(),
+      monthly_amount: amounts[0],
+      monthly_amounts: amounts,
+      start_month: form.start_month,
+      total_months: amounts.length,
+      interest_type: form.interest_type,
+      type: form.type,
+      person: form.type === 'pautang' ? (form.person.trim() || null) : null,
+    }
     try {
-      await addDocument('personal_debts', {
-        user_id: user.uid,
-        name: form.name.trim(),
-        monthly_amount: amounts[0],
-        monthly_amounts: amounts,
-        start_month: form.start_month,
-        total_months: amounts.length,
-        interest_type: form.interest_type,
-        type: form.type,
-        person: form.type === 'pautang' ? (form.person.trim() || null) : null,
-        created_at: new Date().toISOString(),
-      })
+      if (editingId) {
+        await updateDocument('personal_debts', editingId, payload)
+      } else {
+        await addDocument('personal_debts', { user_id: user.uid, ...payload, created_at: new Date().toISOString() })
+      }
       resetForm()
       onRefresh?.()
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
@@ -314,7 +335,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
             className="w-full py-2.5 rounded-[10px] text-sm font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--danger)' }}
           >
-            {saving ? 'Saving…' : 'Add Debt'}
+            {saving ? 'Saving…' : editingId ? 'Update Debt' : 'Add Debt'}
           </button>
         </div>
       )}
@@ -358,7 +379,12 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <button
+                      onClick={e => { e.stopPropagation(); startEditDebt(debt) }}
+                      className="px-2 py-1 rounded-lg text-xs font-medium"
+                      style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)' }}
+                    >Edit</button>
                     <button
                       onClick={e => { e.stopPropagation(); removeDebt(debt.id) }}
                       className="p-1 leading-none"

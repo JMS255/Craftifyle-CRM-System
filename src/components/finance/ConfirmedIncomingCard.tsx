@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { onSnapshot } from 'firebase/firestore'
-import { auth, db, collection, query, where, addDocument, updateDocument } from '@/lib/firebase'
+import { auth, db, collection, query, where, addDocument, updateDocument, deleteDocument } from '@/lib/firebase'
 import type { PersonalIncoming } from '@/types'
 
 function peso(n: number) {
@@ -19,6 +19,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
   const [items, setItems] = useState<PersonalIncoming[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [markingId, setMarkingId] = useState<string | null>(null)
@@ -42,27 +43,62 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
 
   const total = items.reduce((s, i) => s + i.amount, 0)
 
-  async function add() {
+  function openAdd() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    setShowForm(true)
+  }
+
+  function startEdit(item: PersonalIncoming) {
+    setEditingId(item.id)
+    setForm({
+      source: item.source,
+      amount: String(item.amount),
+      expected_date: item.expected_date,
+      notes: item.notes ?? '',
+    })
+    setShowForm(true)
+  }
+
+  function resetForm() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    setShowForm(false)
+  }
+
+  async function save() {
     if (!form.source.trim() || !form.amount || !form.expected_date) return
     setError(null)
     setSaving(true)
     const user = auth.currentUser
     if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
     try {
-      await addDocument('personal_incoming', {
-        user_id: user.uid,
+      const payload = {
         source: form.source.trim(),
         amount: parseFloat(form.amount),
         expected_date: form.expected_date,
-        status: 'pending',
         notes: form.notes || null,
-        created_at: new Date().toISOString(),
-      })
-      setForm(EMPTY_FORM)
-      setShowForm(false)
+      }
+      if (editingId) {
+        await updateDocument('personal_incoming', editingId, payload)
+      } else {
+        await addDocument('personal_incoming', {
+          user_id: user.uid,
+          ...payload,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        })
+      }
+      resetForm()
       onRefresh?.()
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
     setSaving(false)
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Remove this incoming entry?')) return
+    await deleteDocument('personal_incoming', id)
+    onRefresh?.()
   }
 
   async function markReceived(item: PersonalIncoming) {
@@ -100,7 +136,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
           )}
         </div>
         <button
-          onClick={() => setShowForm(s => !s)}
+          onClick={() => showForm ? resetForm() : openAdd()}
           className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
           style={{ background: 'var(--success-muted)', color: 'var(--success)' }}
         >
@@ -140,12 +176,12 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
             onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
           />
           <button
-            onClick={add}
+            onClick={save}
             disabled={saving}
             className="w-full py-2.5 rounded-[10px] text-sm font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--success)' }}
           >
-            {saving ? 'Saving…' : 'Add Incoming'}
+            {saving ? 'Saving…' : editingId ? 'Update' : 'Add Incoming'}
           </button>
         </div>
       )}
@@ -163,17 +199,20 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
           {items.map((item, i) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 py-2.5"
+              className="flex items-center justify-between gap-2 py-2.5"
               style={{ borderBottom: i < items.length - 1 ? '1px solid var(--border-secondary)' : 'none' }}
             >
-              <div className="min-w-0">
+              <button
+                onClick={() => startEdit(item)}
+                className="min-w-0 text-left"
+              >
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-heading)' }}>
                   {item.source}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
                   Expected {fmtDate(item.expected_date)}
                 </p>
-              </div>
+              </button>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-bold tabular text-sm" style={{ color: 'var(--success)' }}>
                   {peso(item.amount)}
@@ -185,6 +224,13 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
                   style={{ background: 'var(--success-muted)', color: 'var(--success)' }}
                 >
                   {markingId === item.id ? '…' : 'Received'}
+                </button>
+                <button
+                  onClick={() => remove(item.id)}
+                  className="text-xs leading-none p-1"
+                  style={{ color: 'var(--text-faint)' }}
+                >
+                  ✕
                 </button>
               </div>
             </div>

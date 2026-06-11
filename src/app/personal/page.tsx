@@ -463,9 +463,6 @@ export default function PersonalPage() {
         <div className="hidden md:block md:col-span-2 md:sticky md:top-4 md:self-start">
           {authReady && (
             <>
-              <p className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
-                ✨ Ask Crafty
-              </p>
               <FinanceAIInput onRefresh={handleRefresh} />
             </>
           )}
