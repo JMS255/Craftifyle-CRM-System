@@ -120,3 +120,47 @@ export interface Activity {
   completed: boolean
   created_at: string
 }
+
+// Personal Finance Manager
+export type DebtPaymentStatus = 'paid' | 'planning' | 'unpaid'
+export type DebtInterestType = 'none' | 'monthly_addon'
+export type IncomingStatus = 'pending' | 'received'
+
+export interface PersonalCashPosition {
+  id: string
+  source_name: string
+  amount: number
+  user_id: string
+  updated_at: string
+}
+
+export interface PersonalIncoming {
+  id: string
+  source: string
+  amount: number
+  expected_date: string
+  status: IncomingStatus
+  notes: string | null
+  user_id: string
+  created_at: string
+}
+
+export interface PersonalDebt {
+  id: string
+  name: string
+  monthly_amount: number
+  start_month: string
+  total_months: number
+  interest_type: DebtInterestType
+  user_id: string
+  created_at: string
+}
+
+export interface PersonalDebtPayment {
+  id: string
+  debt_id: string
+  month: string
+  status: DebtPaymentStatus
+  user_id: string
+  updated_at: string
+}

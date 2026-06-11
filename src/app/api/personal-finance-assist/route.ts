@@ -1,0 +1,416 @@
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { NextRequest, NextResponse } from 'next/server'
+import { adminDb, adminAuth } from '@/lib/firebase-admin'
+import { cookies } from 'next/headers'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+
+function toYYYYMM(input: string): string {
+  // Accepts: "July 2026", "july", "next month", "2026-07", "07/2026"
+  const now = new Date()
+  const lower = input.toLowerCase().trim()
+  if (lower === 'this month') return now.toISOString().slice(0, 7)
+  if (lower === 'next month') {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    return d.toISOString().slice(0, 7)
+  }
+  // YYYY-MM already
+  if (/^\d{4}-\d{2}$/.test(input)) return input
+  // Try matching month name
+  const monthIdx = MONTH_NAMES.findIndex(m => lower.startsWith(m.toLowerCase()))
+  if (monthIdx !== -1) {
+    const yearMatch = input.match(/\d{4}/)
+    const year = yearMatch ? yearMatch[0] : String(now.getFullYear())
+    return `${year}-${String(monthIdx + 1).padStart(2, '0')}`
+  }
+  // Fallback: current month
+  return now.toISOString().slice(0, 7)
+}
+
+function monthLabel(yyyymm: string): string {
+  const [y, m] = yyyymm.split('-')
+  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`
+}
+
+function peso(n: number) {
+  return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 })
+}
+
+interface ContextData {
+  cashTotal: number
+  cashSources: { source_name: string; amount: number }[]
+  debts: { id: string; name: string; monthly_amount: number; start_month: string; total_months: number; interest_type: string }[]
+  debtPayments: { debt_id: string; month: string; status: string }[]
+  pendingIncoming: { id: string; source: string; amount: number; expected_date: string }[]
+  avgMonthlyRevenue: number
+  currentMonth: string
+}
+
+function buildSystemPrompt(ctx: ContextData): string {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  const cashSection = ctx.cashSources.length
+    ? ctx.cashSources.map(s => `  - ${s.source_name}: ${peso(s.amount)}`).join('\n') +
+      `\n  TOTAL CASH: ${peso(ctx.cashTotal)}`
+    : '  No cash positions recorded yet.'
+
+  const debtSection = ctx.debts.length ? ctx.debts.map(debt => {
+    const [sy, sm] = debt.start_month.split('-').map(Number)
+    const months = Array.from({ length: debt.total_months }, (_, i) => {
+      const d = new Date(sy, sm - 1 + i, 1)
+      const ym = d.toISOString().slice(0, 7)
+      const payment = ctx.debtPayments.find(p => p.debt_id === debt.id && p.month === ym)
+      const status = payment?.status ?? 'unpaid'
+      const icon = status === 'paid' ? '✅' : status === 'planning' ? '🔄' : '⏳'
+      return `${icon} ${monthLabel(ym)}: ${peso(debt.monthly_amount)}`
+    }).join(' | ')
+    return `  - ${debt.name} (${peso(debt.monthly_amount)}/mo × ${debt.total_months} months)\n    ${months}`
+  }).join('\n') : '  No debts recorded.'
+
+  const incomingSection = ctx.pendingIncoming.length
+    ? ctx.pendingIncoming.map(i => `  - ${i.source}: ${peso(i.amount)} expected ${i.expected_date}`).join('\n')
+    : '  None.'
+
+  // Compute next 3 months survival projection
+  const projectionRows: string[] = []
+  let runningCash = ctx.cashTotal
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const ym = d.toISOString().slice(0, 7)
+    const monthDebt = ctx.debts.reduce((sum, debt) => {
+      const [sy, sm] = debt.start_month.split('-').map(Number)
+      const [dy, dm] = ym.split('-').map(Number)
+      const monthIdx = (dy - sy) * 12 + (dm - sm)
+      if (monthIdx < 0 || monthIdx >= debt.total_months) return sum
+      const payment = ctx.debtPayments.find(p => p.debt_id === debt.id && p.month === ym)
+      if (payment?.status === 'paid') return sum
+      return sum + debt.monthly_amount
+    }, 0)
+    const incoming = i === 0
+      ? ctx.pendingIncoming.filter(p => p.expected_date.startsWith(ym)).reduce((s, p) => s + p.amount, 0)
+      : 0
+    const expenses = 5000 // estimated
+    const endCash = runningCash + ctx.avgMonthlyRevenue + incoming - monthDebt - expenses
+    const flag = endCash < 0 ? '🔴 DANGER' : endCash < 10000 ? '🟡 Tight' : '🟢 OK'
+    projectionRows.push(`  ${monthLabel(ym)}: open ${peso(Math.round(runningCash))} +rev ${peso(ctx.avgMonthlyRevenue)} +inc ${peso(incoming)} -debt ${peso(monthDebt)} -exp ${peso(expenses)} = ${peso(Math.round(endCash))} ${flag}`)
+    runningCash = endCash
+  }
+
+  return `You are James's personal finance manager — an AI embedded inside Craftifyle CRM. You help James track his cash, log income and expenses, manage debt payments, and understand his financial survival month by month.
+
+TODAY: ${dateStr}
+CURRENT MONTH: ${monthLabel(ctx.currentMonth)}
+
+=== CASH POSITION ===
+${cashSection}
+
+=== DEBT SCHEDULE ===
+${debtSection}
+
+=== CONFIRMED INCOMING (not yet received) ===
+${incomingSection}
+
+=== 3-MONTH SURVIVAL PROJECTION ===
+(Revenue estimate: ${peso(ctx.avgMonthlyRevenue)}/mo trailing average, expenses ~₱5,000/mo estimated)
+${projectionRows.join('\n')}
+
+=== YOUR ROLE ===
+- Log expenses, income, and debt payments when James tells you what happened
+- Update cash positions when he tells you his balance changed
+- Mark incoming money as received and convert it to an income entry
+- Warn him proactively if a month looks dangerous based on the projection above
+- Use the EXACT debt names shown above when matching (fuzzy match is ok — "camera" matches "Camera EWB")
+- For dates, accept natural language ("today", "yesterday", "June 11") — convert to YYYY-MM-DD
+- Keep replies SHORT and conversational — confirm what you did, flag anything important
+- Start replies with "Done —" when you complete an action
+- If a month looks critical (🔴), warn James even if he didn't ask`
+}
+
+const TOOLS = [{ functionDeclarations: [
+  {
+    name: 'log_expense',
+    description: 'Log a personal expense.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Amount in PHP, no peso sign.' },
+        description: { type: 'string', description: 'What the expense was for.' },
+        category: { type: 'string', enum: ['food', 'transport', 'equipment', 'bills', 'personal', 'other'] },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD. Defaults to today.' },
+      },
+      required: ['amount', 'description'],
+    },
+  },
+  {
+    name: 'log_income',
+    description: 'Log personal income (non-business revenue).',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Amount in PHP.' },
+        description: { type: 'string', description: 'Source or description of income.' },
+        category: { type: 'string', enum: ['tips', 'personal_gig', 'salary', 'freelance', 'other'] },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD. Defaults to today.' },
+      },
+      required: ['amount', 'description'],
+    },
+  },
+  {
+    name: 'mark_debt_payment',
+    description: 'Mark a debt payment month as paid, planning, or unpaid.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        debt_name: { type: 'string', description: 'Partial or full debt name, e.g. "camera", "lens", "loan".' },
+        month: { type: 'string', description: 'Month as "July 2026", "this month", "next month", or YYYY-MM.' },
+        status: { type: 'string', enum: ['paid', 'planning', 'unpaid'] },
+      },
+      required: ['debt_name', 'month', 'status'],
+    },
+  },
+  {
+    name: 'mark_incoming_received',
+    description: 'Mark a confirmed incoming amount as received — converts it to an income entry.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Partial or full source name, e.g. "CHED", "Irene".' },
+        received_date: { type: 'string', description: 'Date received in YYYY-MM-DD. Defaults to today.' },
+      },
+      required: ['source'],
+    },
+  },
+  {
+    name: 'update_cash_position',
+    description: 'Update or add a cash position source (e.g. Maribank balance changed).',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        source_name: { type: 'string', description: 'Name of the cash source, e.g. "Maribank savings", "Cash on hand".' },
+        amount: { type: 'number', description: 'New balance in PHP.' },
+      },
+      required: ['source_name', 'amount'],
+    },
+  },
+]}]
+
+async function runTool(
+  name: string,
+  args: Record<string, unknown>,
+  userId: string,
+  ctx: ContextData
+): Promise<string> {
+  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date().toISOString()
+
+  try {
+    if (name === 'log_expense') {
+      await adminDb.collection('personal_expenses').add({
+        user_id: userId,
+        description: args.description,
+        amount: args.amount,
+        expense_date: (args.date as string) ?? today,
+        category: (args.category as string) ?? 'other',
+        notes: null,
+        created_at: now,
+      })
+      return `Logged expense: ${args.description} — ${peso(args.amount as number)} on ${(args.date as string) ?? today}`
+    }
+
+    if (name === 'log_income') {
+      await adminDb.collection('personal_income').add({
+        user_id: userId,
+        description: args.description,
+        amount: args.amount,
+        income_date: (args.date as string) ?? today,
+        category: (args.category as string) ?? 'other',
+        notes: null,
+        created_at: now,
+      })
+      return `Logged income: ${args.description} — ${peso(args.amount as number)} on ${(args.date as string) ?? today}`
+    }
+
+    if (name === 'mark_debt_payment') {
+      const targetMonth = toYYYYMM(args.month as string)
+      const searchName = (args.debt_name as string).toLowerCase()
+      const debt = ctx.debts.find(d => d.name.toLowerCase().includes(searchName))
+      if (!debt) return `Debt not found matching "${args.debt_name}". Available: ${ctx.debts.map(d => d.name).join(', ')}`
+
+      // Check if payment record exists
+      const snap = await adminDb.collection('personal_debt_payments')
+        .where('debt_id', '==', debt.id)
+        .where('month', '==', targetMonth)
+        .where('user_id', '==', userId)
+        .get()
+
+      if (snap.empty) {
+        await adminDb.collection('personal_debt_payments').add({
+          user_id: userId,
+          debt_id: debt.id,
+          month: targetMonth,
+          status: args.status,
+          updated_at: now,
+        })
+      } else {
+        await snap.docs[0].ref.update({ status: args.status, updated_at: now })
+      }
+      return `${debt.name} — ${monthLabel(targetMonth)} marked as ${args.status} (${peso(debt.monthly_amount)})`
+    }
+
+    if (name === 'mark_incoming_received') {
+      const searchSource = (args.source as string).toLowerCase()
+      const incoming = ctx.pendingIncoming.find(i => i.source.toLowerCase().includes(searchSource))
+      if (!incoming) return `Incoming source not found matching "${args.source}".`
+
+      const receivedDate = (args.received_date as string) ?? today
+
+      // Mark as received
+      await adminDb.collection('personal_incoming').doc(incoming.id).update({
+        status: 'received',
+        updated_at: now,
+      })
+
+      // Create income entry
+      await adminDb.collection('personal_income').add({
+        user_id: userId,
+        description: incoming.source,
+        amount: incoming.amount,
+        income_date: receivedDate,
+        category: 'other',
+        notes: 'Converted from confirmed incoming',
+        created_at: now,
+      })
+
+      return `${incoming.source} — ${peso(incoming.amount)} marked as received and added to income.`
+    }
+
+    if (name === 'update_cash_position') {
+      const sourceName = args.source_name as string
+      const amount = args.amount as number
+
+      const snap = await adminDb.collection('personal_cash_positions')
+        .where('user_id', '==', userId)
+        .where('source_name', '==', sourceName)
+        .get()
+
+      if (snap.empty) {
+        await adminDb.collection('personal_cash_positions').add({
+          user_id: userId,
+          source_name: sourceName,
+          amount,
+          updated_at: now,
+        })
+      } else {
+        await snap.docs[0].ref.update({ amount, updated_at: now })
+      }
+
+      const newTotal = ctx.cashSources
+        .filter(s => s.source_name !== sourceName)
+        .reduce((sum, s) => sum + s.amount, 0) + amount
+
+      return `${sourceName} updated to ${peso(amount)}. New total cash: ${peso(newTotal)}`
+    }
+
+    return `Unknown tool: ${name}`
+  } catch (err) {
+    return `Tool error: ${err instanceof Error ? err.message : String(err)}`
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const cookieStore = await cookies()
+  const sessionCookie = cookieStore.get('__session')?.value
+  if (!sessionCookie) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let userId: string
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true)
+    userId = decoded.uid
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { messages } = await req.json()
+  if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
+
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
+
+  // Fetch all context in parallel
+  const [cashSnap, debtSnap, paymentSnap, incomingSnap, incomeSnap] = await Promise.all([
+    adminDb.collection('personal_cash_positions').where('user_id', '==', userId).get(),
+    adminDb.collection('personal_debts').where('user_id', '==', userId).get(),
+    adminDb.collection('personal_debt_payments').where('user_id', '==', userId).get(),
+    adminDb.collection('personal_incoming').where('user_id', '==', userId).where('status', '==', 'pending').get(),
+    adminDb.collection('personal_income').where('user_id', '==', userId).get(),
+  ])
+
+  const cashSources = cashSnap.docs.map((d: QueryDocumentSnapshot) => ({
+    id: d.id, ...d.data() as { source_name: string; amount: number },
+  }))
+  const cashTotal = cashSources.reduce((s, c) => s + c.amount, 0)
+
+  const debts = debtSnap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() as {
+    name: string; monthly_amount: number; start_month: string; total_months: number; interest_type: string
+  }}))
+
+  const debtPayments = paymentSnap.docs.map((d: QueryDocumentSnapshot) => ({
+    id: d.id, ...d.data() as { debt_id: string; month: string; status: string },
+  }))
+
+  const pendingIncoming = incomingSnap.docs.map((d: QueryDocumentSnapshot) => ({
+    id: d.id, ...d.data() as { source: string; amount: number; expected_date: string },
+  }))
+
+  // Trailing 3-month revenue average from personal income
+  const now = new Date()
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10)
+  const recentIncome = incomeSnap.docs
+    .map((d: QueryDocumentSnapshot) => d.data() as { income_date: string; amount: number })
+    .filter(e => e.income_date >= threeMonthsAgo)
+  const avgMonthlyRevenue = recentIncome.length
+    ? Math.round(recentIncome.reduce((s, e) => s + e.amount, 0) / 3)
+    : 21000 // fallback to known average
+
+  const ctx: ContextData = {
+    cashTotal, cashSources, debts, debtPayments, pendingIncoming,
+    avgMonthlyRevenue, currentMonth: now.toISOString().slice(0, 7),
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash-lite',
+    systemInstruction: buildSystemPrompt(ctx),
+    tools: TOOLS,
+  })
+
+  const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+    role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+    parts: [{ text: m.content }],
+  }))
+
+  const chat = model.startChat({ history })
+  let result = await chat.sendMessage(messages[messages.length - 1].content)
+
+  // Tool-calling loop — max 3 rounds
+  for (let round = 0; round < 3; round++) {
+    const calls = result.response.functionCalls()
+    if (!calls?.length) break
+    const toolResults = await Promise.all(
+      calls.map(async call => ({
+        functionResponse: {
+          name: call.name,
+          response: { result: await runTool(call.name, call.args as Record<string, unknown>, userId, ctx) },
+        },
+      }))
+    )
+    result = await chat.sendMessage(toolResults)
+  }
+
+  let reply = ''
+  try { reply = result.response.text() } catch { reply = 'Done.' }
+  return NextResponse.json({ reply })
+}
