@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 9, 2026 (session 2 — animations + polish)
+> Last updated: June 11, 2026 (session 3 — Personal Finance Manager planned)
 
 ---
 
@@ -108,6 +108,62 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 
 ## What to Build Next
 
+### Active Sprint — Personal Finance Manager (June 11, 2026)
+
+A full rebuild of `/personal` from a basic income/expense log into a **personal cash flow command center**. Mobile-first (sticky AI bar at bottom, swipeable month cards, expandable debt cards).
+
+**5-phase build plan:**
+
+**Phase 1 — Data Layer** (`src/types/index.ts`)
+- `PersonalCashPosition` — `{ id, source_name, amount, user_id, updated_at }`
+- `PersonalIncoming` — `{ id, source, amount, expected_date, status: 'pending'|'received', user_id }`
+- `PersonalDebt` — `{ id, name, monthly_amount, start_month, total_months, interest_type: 'none'|'monthly_addon', user_id }`
+- `PersonalDebtPayment` — `{ id, debt_id, month, status: 'paid'|'planning'|'unpaid', user_id }`
+
+**Phase 2 — AI Route** (`src/app/api/personal-finance-assist/route.ts`)
+- Gemini 2.5 Flash Lite with 5 tools: `log_expense`, `log_income`, `mark_debt_payment`, `mark_incoming_received`, `update_cash_position`
+- System prompt includes live context: cash total, debt schedule, confirmed incoming — so it reasons, not just records
+
+**Phase 3 — Components** (build in order)
+1. `FinanceStatusBanner` — AI-generated one-liner at top ("August is tight — ₱2K shortfall projected")
+2. `CashPositionCard` — multi-source cash tracker, editable inline, shows total
+3. `ConfirmedIncomingCard` — pending non-revenue money, "Mark Received" converts to income entry
+4. `DebtScheduleCard` — one card per debt, next payment shown, tap to expand full month grid
+5. `SurvivalProjectionCard` — swipeable month cards (Opening → +Revenue → +Incoming → −Debt → −Expenses → End cash), color-coded
+6. `FinanceAIInput` — sticky bottom bar, single input, instant confirmation response
+
+**Phase 4 — Page Restructure** (`src/app/personal/page.tsx`)
+```
+FinanceStatusBanner
+[ Total Cash ]  [ Survival Score ]   ← 2 KPI pills
+CashPositionCard
+ConfirmedIncomingCard
+DebtScheduleCard × N
+SurvivalProjectionCard (swipeable)
+─── existing monthly accordion ───
+[sticky bottom: FinanceAIInput]
+```
+Remove old "+ Add Income / + Add Expense" header buttons — entry moves to AI bar.
+
+**Phase 5 — Polish**
+- Empty states with guidance per section
+- Skeleton loaders on all new cards
+- Build check before commit
+
+**New Firestore collections:**
+- `personal_cash_positions`
+- `personal_incoming`
+- `personal_debts`
+- `personal_debt_payments`
+
+**Design decisions locked:**
+- Revenue in survival projection = trailing 3-month average (auto), manual override per month
+- Cash reserve = manual input per source (Maribank, cash on hand, collections)
+- AI entry = dedicated input bar on this page (not Crafty widget — keeps CRM vs personal contexts separate)
+- Confirmed incoming: "Mark Received" auto-converts to income entry, removes from pending list
+
+---
+
 ### Immediate — UI Redesign from Design Handoff
 A full high-fidelity design handoff has been completed by Claude Design. Files are at:
 `c:\Users\james\OneDrive\Desktop\Craftifyle-photobooth software\craftifyle-crm\` (attached to session June 3 2026)
@@ -118,7 +174,7 @@ Implement in this order (one page per session):
 3. **Lead detail** — back link, 2-col desktop layout, pipeline stage pills, details grid, AI reply draft card.
 4. **Bookings** — 3 revenue cards (tinted), status tabs, month section, 6-col table.
 5. **Sidebar** — already close; minor tweaks to active state (2px left border accent).
-6. **Login + Signup** — apply research findings: Google login first, 3 fields max, warm error messages, Taglish trust line, centered card on brand-tinted bg.
+6. ~~**Login + Signup**~~ ✅ **Shipped June 11** — Google sign-in added, invite code removed, confirm password removed.
 
 Design tokens to apply from handoff `colors_and_type.css`:
 - KPI hero: 52px weight 700 amber | KPI mid: 36px | KPI data: 13px muted
@@ -339,6 +395,8 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | `src/lib/firebase.ts` | Firebase client SDK — `db`, `auth`, `getDocsByUser()` helper |
 | `src/app/api/auth/session/route.ts` | POST: exchange Firebase ID token for `__session` cookie |
 | `src/app/api/auth/post-login/route.ts` | POST: auto-migrate Supabase UID data to Firebase UID on first login |
+| `src/app/personal/page.tsx` | Personal Finance Manager — cash position, debt tracker, survival projection, AI entry |
+| `src/app/api/personal-finance-assist/route.ts` | Personal Finance AI — Gemini with 5 tools for natural language finance entry (planned) |
 | `CLAUDE_RULES.md` | Coding rules — read before touching anything |
 
 ---
