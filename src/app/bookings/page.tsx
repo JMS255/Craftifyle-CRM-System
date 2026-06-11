@@ -78,7 +78,7 @@ export default function BookingsPage() {
       unsub()
       getDocsByUser<Booking>('bookings', user.uid)
         .then(data => {
-          setBookings([...data].sort((a, b) => b.event_date.localeCompare(a.event_date)))
+          setBookings([...data].filter(b => b.event_date).sort((a, b) => b.event_date.localeCompare(a.event_date)))
           setLoading(false)
         })
         .catch(() => setLoading(false))
