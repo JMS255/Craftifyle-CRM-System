@@ -111,7 +111,9 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
                     : { background: 'var(--card-bg)', color: 'var(--text-body)', border: '1px solid var(--card-border)', borderBottomLeftRadius: '4px' }
                   }
                 >
-                  {msg.content}
+                  {msg.content.split('\n').map((line, j) => (
+                    <span key={j}>{line}{j < msg.content.split('\n').length - 1 && <br />}</span>
+                  ))}
                 </div>
               </div>
             ))}

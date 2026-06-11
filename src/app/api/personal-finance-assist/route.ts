@@ -141,6 +141,7 @@ ${projectionRows.join('\n')}
    - "next month" → ${monthLabel((() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7) })())}
 5. If the user says "mali", "cancel", "undo", "wrong" → use delete_last_entry to remove it.
 6. If any month is 🔴 DANGER, warn James at the end of your reply even if he didn't ask.
+7. REPLY FORMAT: Plain conversational text only. NO markdown tables, NO | pipes, NO # headers, NO ** bold. Use plain sentences and line breaks. Keep replies short — 1-3 sentences max unless listing multiple items.
 
 === LANGUAGE UNDERSTANDING (Filipino/Taglish/Bisaya) ===
 "nagbayad / nagastos / ginastos / spent / gastos ko" → log_expense
