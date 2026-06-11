@@ -29,6 +29,12 @@ function toYYYYMM(input: string): string {
   return now.toISOString().slice(0, 7)
 }
 
+function monthsBetween(start: string, end: string): number {
+  const [sy, sm] = start.split('-').map(Number)
+  const [ey, em] = end.split('-').map(Number)
+  return Math.max(1, (ey - sy) * 12 + (em - sm) + 1)
+}
+
 function monthLabel(yyyymm: string): string {
   const [y, m] = yyyymm.split('-')
   return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`
@@ -120,6 +126,7 @@ ${projectionRows.join('\n')}
 === YOUR ROLE ===
 - Log expenses, income, and debt payments when James tells you what happened
 - Update cash positions when he tells you his balance changed
+- Add new debts when James tells you about a loan or pautang
 - Mark incoming money as received and convert it to an income entry
 - Warn him proactively if a month looks dangerous based on the projection above
 - Use the EXACT debt names shown above when matching (fuzzy match is ok — "camera" matches "Camera EWB")
@@ -193,6 +200,23 @@ const TOOLS = [{ functionDeclarations: [
         amount: { type: 'number', description: 'New balance in PHP.' },
       },
       required: ['source_name', 'amount'],
+    },
+  },
+  {
+    name: 'add_debt',
+    description: 'Add a new debt or loan to the debt schedule.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Name of the debt, e.g. "Camera EWB", "SSS Loan".' },
+        monthly_amount: { type: 'number', description: 'Monthly payment amount in PHP.' },
+        start_month: { type: 'string', description: 'First payment month, e.g. "July 2026" or YYYY-MM.' },
+        end_month: { type: 'string', description: 'Last payment month, e.g. "November 2026" or YYYY-MM. Use this OR total_months.' },
+        total_months: { type: 'number', description: 'Number of monthly payments. Use this OR end_month.' },
+        type: { type: 'string', enum: ['formal', 'pautang'], description: 'formal = bank/institution loan, pautang = borrowed from a person.' },
+        person: { type: 'string', description: 'Person name for pautang debts only.' },
+      },
+      required: ['name', 'monthly_amount', 'start_month'],
     },
   },
 ]}]
@@ -312,6 +336,36 @@ async function runTool(
         .reduce((sum, s) => sum + s.amount, 0) + amount
 
       return `${sourceName} updated to ${peso(amount)}. New total cash: ${peso(newTotal)}`
+    }
+
+    if (name === 'add_debt') {
+      const startYM = toYYYYMM(args.start_month as string)
+      let totalMonths: number
+      if (args.end_month) {
+        totalMonths = monthsBetween(startYM, toYYYYMM(args.end_month as string))
+      } else {
+        totalMonths = Math.max(1, Math.round((args.total_months as number) ?? 1))
+      }
+      const monthlyAmount = args.monthly_amount as number
+      const monthly_amounts = Array.from({ length: totalMonths }, () => monthlyAmount)
+      await adminDb.collection('personal_debts').add({
+        user_id: userId,
+        name: args.name,
+        monthly_amount: monthlyAmount,
+        monthly_amounts,
+        start_month: startYM,
+        total_months: totalMonths,
+        interest_type: 'none',
+        type: (args.type as string) ?? 'formal',
+        person: (args.person as string) ?? null,
+        created_at: now,
+      })
+      const endYM = (() => {
+        const [sy, sm] = startYM.split('-').map(Number)
+        const d = new Date(sy, sm - 1 + totalMonths - 1, 1)
+        return d.toISOString().slice(0, 7)
+      })()
+      return `Added debt "${args.name}" — ${peso(monthlyAmount)}/mo for ${totalMonths} months (${monthLabel(startYM)} to ${monthLabel(endYM)}).`
     }
 
     return `Unknown tool: ${name}`
