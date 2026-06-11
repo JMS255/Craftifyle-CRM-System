@@ -63,7 +63,7 @@ function computeProjection(
 
     return {
       yyyymm: ym,
-      label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`,
+      label: `${MONTH_NAMES[parseInt(ym.split('-')[1]) - 1]} ${ym.split('-')[0]}`,
       openingCash,
       revenue: avgRevenue,
       incoming: monthIncoming,
