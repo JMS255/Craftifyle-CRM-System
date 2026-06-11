@@ -36,17 +36,25 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
     const newHistory: Message[] = [...history, { role: 'user', content: msg }]
     setHistory(newHistory)
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     try {
       const res = await fetch('/api/personal-finance-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newHistory }),
+        signal: controller.signal,
       })
       const data = await res.json()
       setHistory(h => [...h, { role: 'assistant', content: data.reply ?? 'Done.' }])
       onRefresh?.()
-    } catch {
-      setHistory(h => [...h, { role: 'assistant', content: 'Something went wrong. Please try again.' }])
+    } catch (err) {
+      const msg = err instanceof Error && err.name === 'AbortError'
+        ? 'Request timed out. Try again.'
+        : 'Something went wrong. Please try again.'
+      setHistory(h => [...h, { role: 'assistant', content: msg }])
+    } finally {
+      clearTimeout(timeoutId)
     }
 
     setLoading(false)

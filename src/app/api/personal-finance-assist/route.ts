@@ -4,6 +4,8 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
+export const maxDuration = 60
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 

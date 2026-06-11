@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 11, 2026 (session 3 — Personal Finance Manager planned)
+> Last updated: June 11, 2026 (session 4 — Personal Finance Manager shipped, Sentry, Bookings→Finance sync)
 
 ---
 
@@ -19,7 +19,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 4. **laagan-adventure** - THIS Project is a travel and tours website for the second company
 ---
 
-## CRM Current Status (June 1, 2026 — after full-day build session)
+## CRM Current Status (June 11, 2026 — after Sprint 4–5 build sessions)
 
 ### Everything that's working
 
@@ -103,64 +103,50 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - **Fixed (June 9):** `jose` ESM/CJS conflict with Turbopack — resolved by pinning jose to v4.x via `package.json` overrides + `serverExternalPackages` in next.config.ts. Deployed to Vercel.
 - Open beta ready: delete INVITE_CODE from Vercel env → anyone can sign up
 - Signup page auto-skips invite step if open beta is on
+- **Login redesign (June 11):** Facebook login removed, Google sign-in added (matches signup page style). `__session` cookie auth flow unchanged.
+
+**Personal Finance Manager (June 11, 2026) — Sprint 5**
+- Full `/personal` page rebuilt as cash flow command center
+- **CashPositionCard** — multi-source cash tracker (Maribank, cash on hand, etc.), inline edit, shows running total
+- **ConfirmedIncomingCard** — pending non-revenue income, "Mark Received" converts to income entry + removes from pending list
+- **DebtScheduleCard** — one card per debt, next payment shown, tap to expand full month grid, month markers use pure arithmetic (no timezone bug)
+- **SurvivalProjectionCard** — swipeable month cards showing Opening → +Revenue → +Incoming → −Debt → −Expenses → End cash, color-coded; fixed timezone bug on month labels
+- **FinanceStatusBanner** — AI-generated one-liner at top (e.g. "August is tight — ₱2K shortfall projected")
+- **FinanceAIInput** — sticky input bar, mobile-top / desktop-right column, message history with newlines rendered as `<br />`
+- Future months (e.g. July) now show in income/expenses history — removed filter that hid them
+- AI chat: system prompt rule bans markdown tables → plain text responses only
+
+**Bookings → Finance Link (June 11, 2026)**
+- When "Mark Balance Paid" is tapped on a booking, a `personal_income` entry is auto-created with `income_date = booking.event_date` (accrual accounting)
+- If a fully-paid booking is cancelled, its income entry is deleted
+- `booking_id` field on income entries enables reverse lookup and deduplication
+- **Backfill sync:** POST `/api/bookings/sync-finance` — runs fire-and-forget on bookings page load; creates missing income entries for all existing fully-paid bookings; idempotent (skips if `booking_id` already exists in personal_income)
+
+**Crafty AI — Personal Finance Tools (June 11, 2026)**
+- New tools: `update_debt`, `delete_debt`, `delete_incoming`
+- `delete_debt` deletes the debt document + all associated payment records
+- `log_income` now accepts `booking` as a category
+- All timezone bugs fixed: replaced `new Date().toISOString().slice(0,7)` with pure arithmetic `currentYYYYMM()` / `offsetYYYYMM()` helpers throughout
+- Language understanding improved: recognizes "remove", "delete", "cancel" patterns for destructive tools
+- Tool loop: 5 rounds max
+
+**Error Monitoring — Sentry (June 11, 2026)**
+- Sentry Next.js SDK installed via official wizard
+- DSN: `https://e2d6907da9ad8292b932922e4940b2dd@o4511545595854848.ingest.us.sentry.io/4511545603981312`
+- Client config: tracesSampleRate 0.2, Session Replay enabled (1.0 on error, 0.05 baseline)
+- Server + Edge config: tracesSampleRate 1.0
+- `next.config.ts` wrapped with `withSentryConfig` (org: craftifyle, project: craftifyle-crm)
+- Catches Firebase errors, API route errors, Vercel serverless errors, client JS crashes
+
+**Chat Widget**
+- Crafty AI FAB hidden on `/login`, `/signup`, `/confirm/*`, `/contract/*` pages (usePathname early return)
 
 ---
 
 ## What to Build Next
 
-### Active Sprint — Personal Finance Manager (June 11, 2026)
-
-A full rebuild of `/personal` from a basic income/expense log into a **personal cash flow command center**. Mobile-first (sticky AI bar at bottom, swipeable month cards, expandable debt cards).
-
-**5-phase build plan:**
-
-**Phase 1 — Data Layer** (`src/types/index.ts`)
-- `PersonalCashPosition` — `{ id, source_name, amount, user_id, updated_at }`
-- `PersonalIncoming` — `{ id, source, amount, expected_date, status: 'pending'|'received', user_id }`
-- `PersonalDebt` — `{ id, name, monthly_amount, start_month, total_months, interest_type: 'none'|'monthly_addon', user_id }`
-- `PersonalDebtPayment` — `{ id, debt_id, month, status: 'paid'|'planning'|'unpaid', user_id }`
-
-**Phase 2 — AI Route** (`src/app/api/personal-finance-assist/route.ts`)
-- Gemini 2.5 Flash Lite with 5 tools: `log_expense`, `log_income`, `mark_debt_payment`, `mark_incoming_received`, `update_cash_position`
-- System prompt includes live context: cash total, debt schedule, confirmed incoming — so it reasons, not just records
-
-**Phase 3 — Components** (build in order)
-1. `FinanceStatusBanner` — AI-generated one-liner at top ("August is tight — ₱2K shortfall projected")
-2. `CashPositionCard` — multi-source cash tracker, editable inline, shows total
-3. `ConfirmedIncomingCard` — pending non-revenue money, "Mark Received" converts to income entry
-4. `DebtScheduleCard` — one card per debt, next payment shown, tap to expand full month grid
-5. `SurvivalProjectionCard` — swipeable month cards (Opening → +Revenue → +Incoming → −Debt → −Expenses → End cash), color-coded
-6. `FinanceAIInput` — sticky bottom bar, single input, instant confirmation response
-
-**Phase 4 — Page Restructure** (`src/app/personal/page.tsx`)
-```
-FinanceStatusBanner
-[ Total Cash ]  [ Survival Score ]   ← 2 KPI pills
-CashPositionCard
-ConfirmedIncomingCard
-DebtScheduleCard × N
-SurvivalProjectionCard (swipeable)
-─── existing monthly accordion ───
-[sticky bottom: FinanceAIInput]
-```
-Remove old "+ Add Income / + Add Expense" header buttons — entry moves to AI bar.
-
-**Phase 5 — Polish**
-- Empty states with guidance per section
-- Skeleton loaders on all new cards
-- Build check before commit
-
-**New Firestore collections:**
-- `personal_cash_positions`
-- `personal_incoming`
-- `personal_debts`
-- `personal_debt_payments`
-
-**Design decisions locked:**
-- Revenue in survival projection = trailing 3-month average (auto), manual override per month
-- Cash reserve = manual input per source (Maribank, cash on hand, collections)
-- AI entry = dedicated input bar on this page (not Crafty widget — keeps CRM vs personal contexts separate)
-- Confirmed incoming: "Mark Received" auto-converts to income entry, removes from pending list
+### ✅ Shipped Sprint 5 — Personal Finance Manager (June 11, 2026)
+All 5 phases complete. See "Personal Finance Manager" section above.
 
 ---
 

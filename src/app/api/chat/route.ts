@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const maxDuration = 60
+
 const ALLOWED_ORIGINS = [
   'https://craftifyle.business',
   'https://www.craftifyle.business',

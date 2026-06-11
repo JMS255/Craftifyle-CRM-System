@@ -81,19 +81,27 @@ export default function ChatWidget() {
 
     const endpoint = mode === 'crm' ? '/api/crafty-assist' : '/api/chat'
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: updated }),
+        signal: controller.signal,
       })
       const data = await res.json()
       setMessages([...updated, {
         role: 'assistant',
         content: data.error ? `Error: ${data.error}` : (data.reply ?? ''),
       }])
-    } catch {
-      setMessages([...updated, { role: 'assistant', content: 'Something went wrong. Try again.' }])
+    } catch (err) {
+      const msg = err instanceof Error && err.name === 'AbortError'
+        ? 'Request timed out. Try a shorter message or try again.'
+        : 'Something went wrong. Try again.'
+      setMessages([...updated, { role: 'assistant', content: msg }])
+    } finally {
+      clearTimeout(timeoutId)
     }
     setLoading(false)
   }

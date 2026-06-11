@@ -4,6 +4,8 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
+export const maxDuration = 60
+
 interface PackageRow { name: string; price: number; description: string | null; is_addon: boolean }
 
 function getSystemPrompt(packages: PackageRow[]) {
