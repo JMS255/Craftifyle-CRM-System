@@ -45,7 +45,7 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50"
+      className="sticky bottom-0 z-10"
       style={{
         background: 'var(--sidebar-bg)',
         borderTop: '1px solid var(--card-border)',

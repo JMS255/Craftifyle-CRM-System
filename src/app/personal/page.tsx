@@ -168,8 +168,8 @@ export default function PersonalPage() {
   }
 
   return (
-    // pb-36 ensures sticky AI bar doesn't cover the last accordion row
-    <div className="p-4 md:p-8 pb-36">
+    <div className="flex flex-col min-h-screen">
+    <div className="p-4 md:p-8 pb-4 flex-1">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -431,7 +431,8 @@ export default function PersonalPage() {
         </div>
       )}
 
-      {/* Sticky AI finance input */}
+    </div>
+      {/* AI bar outside the padded section — spans full content column width */}
       <FinanceAIInput onRefresh={handleRefresh} />
     </div>
   )
