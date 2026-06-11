@@ -111,7 +111,18 @@ export default function SurvivalProjectionCard({
 
   if (loading) return (
     <div className="card p-4 mb-3">
-      <div className="skeleton h-52 rounded-xl" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="skeleton h-4 w-36 rounded" />
+        <div className="skeleton h-6 w-20 rounded-full" />
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="skeleton h-8 w-8 rounded-full" />
+        <div className="skeleton h-4 w-28 rounded" />
+        <div className="skeleton h-8 w-8 rounded-full" />
+      </div>
+      <div className="space-y-1.5">
+        {[1,2,3,4,5].map(i => <div key={i} className="skeleton h-9 rounded-lg" />)}
+      </div>
     </div>
   )
 

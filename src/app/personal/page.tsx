@@ -442,10 +442,82 @@ export default function PersonalPage() {
 
         {/* RIGHT / AI sidebar — desktop only, stays visible while left scrolls */}
         <div className="hidden md:block md:col-span-2 md:sticky md:top-4 md:self-start">
-          <FinanceAIInput onRefresh={handleRefresh} />
-          <p className="text-xs text-center mt-2 mb-1" style={{ color: 'var(--text-faint)' }}>
-            Type anything — Crafty records it for you
+          <p className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+            ✨ Ask Crafty
           </p>
+          <FinanceAIInput onRefresh={handleRefresh} />
+
+          {/* Quick Stats */}
+          <div className="card p-4 mt-1">
+            <p className="section-label mb-3">
+              {months[0]?.monthLabel ?? 'This Month'}
+            </p>
+            {loading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="skeleton h-5 rounded" />)}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: 'var(--text-muted)' }}>Income</span>
+                  <span className="font-semibold tabular" style={{ color: 'var(--success)' }}>
+                    +{peso(months[0]?.totalIncome ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: 'var(--text-muted)' }}>Expenses</span>
+                  <span className="font-semibold tabular" style={{ color: 'var(--danger)' }}>
+                    −{peso(months[0]?.totalExpenses ?? 0)}
+                  </span>
+                </div>
+                {projectionMonths[0]?.debt > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span style={{ color: 'var(--text-muted)' }}>Debt due</span>
+                    <span className="font-semibold tabular" style={{ color: 'var(--danger)' }}>
+                      −{peso(projectionMonths[0].debt)}
+                    </span>
+                  </div>
+                )}
+                {projectionMonths[0]?.incoming > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span style={{ color: 'var(--text-muted)' }}>Expected in</span>
+                    <span className="font-semibold tabular" style={{ color: 'var(--accent-text)' }}>
+                      +{peso(projectionMonths[0].incoming)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--card-border)' }}>
+                  <span className="font-medium" style={{ color: 'var(--text-heading)' }}>Net so far</span>
+                  <span className="font-bold tabular" style={{ color: (months[0]?.net ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {(months[0]?.net ?? 0) >= 0 ? '+' : ''}{peso(months[0]?.net ?? 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Projection runway pill */}
+          {projectionMonths.length > 0 && (
+            <div className="card p-4 mt-3">
+              <p className="section-label mb-3">6-Month Outlook</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {projectionMonths.map(m => {
+                  const isGood = m.endCash >= 10000
+                  const isTight = m.endCash >= 0 && m.endCash < 10000
+                  const bg = isGood ? 'var(--success-muted)' : isTight ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.12)'
+                  const color = isGood ? 'var(--success)' : isTight ? '#f59e0b' : '#ef4444'
+                  return (
+                    <div key={m.yyyymm} className="flex-1 min-w-[64px] rounded-xl px-2 py-2 text-center" style={{ background: bg }}>
+                      <p className="text-xs font-medium truncate" style={{ color }}>{m.label.split(' ')[0]}</p>
+                      <p className="text-xs font-bold tabular mt-0.5" style={{ color }}>
+                        ₱{Math.round(m.endCash / 1000)}k
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

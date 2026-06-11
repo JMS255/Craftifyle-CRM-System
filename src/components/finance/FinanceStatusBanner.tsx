@@ -3,7 +3,19 @@
 import type { ProjectionMonth } from './SurvivalProjectionCard'
 
 export default function FinanceStatusBanner({ months }: { months: ProjectionMonth[] }) {
-  if (!months.length) return null
+  if (!months.length) return (
+    <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--card-elevated)', border: '1px solid var(--card-border)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="skeleton h-3 w-20 rounded mb-2" />
+          <div className="skeleton h-8 w-36 rounded" />
+          <div className="skeleton h-3 w-32 rounded mt-2" />
+        </div>
+        <div className="skeleton h-6 w-20 rounded-full" />
+      </div>
+      <div className="skeleton h-3 w-full rounded mt-2" />
+    </div>
+  )
 
   const currentCash = months[0].openingCash
   const dailyOutflow = (months[0].debt + months[0].expenses) / 30
