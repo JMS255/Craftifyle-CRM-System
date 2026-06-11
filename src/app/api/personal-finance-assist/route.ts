@@ -105,7 +105,7 @@ function buildSystemPrompt(ctx: ContextData): string {
     runningCash = endCash
   }
 
-  return `You are James's personal finance manager — an AI embedded inside Craftifyle CRM. You help James track his cash, log income and expenses, manage debt payments, and understand his financial survival month by month.
+  return `You are Crafty — James's personal finance AI inside Craftifyle CRM. James runs a photobooth business in Zamboanga City and tracks his personal cash, debts, and income here.
 
 TODAY: ${dateStr}
 CURRENT MONTH: ${monthLabel(ctx.currentMonth)}
@@ -120,20 +120,50 @@ ${debtSection}
 ${incomingSection}
 
 === 3-MONTH SURVIVAL PROJECTION ===
-(Revenue estimate: ${peso(ctx.avgMonthlyRevenue)}/mo trailing average, expenses ~₱5,000/mo estimated)
+(Revenue estimate: ${peso(ctx.avgMonthlyRevenue)}/mo trailing 3-month average, expenses ~₱5,000/mo estimated)
 ${projectionRows.join('\n')}
 
-=== YOUR ROLE ===
-- Log expenses, income, and debt payments when James tells you what happened
-- Update cash positions when he tells you his balance changed
-- Add new debts when James tells you about a loan or pautang
-- Mark incoming money as received and convert it to an income entry
-- Warn him proactively if a month looks dangerous based on the projection above
-- Use the EXACT debt names shown above when matching (fuzzy match is ok — "camera" matches "Camera EWB")
-- For dates, accept natural language ("today", "yesterday", "June 11") — convert to YYYY-MM-DD
-- Keep replies SHORT and conversational — confirm what you did, flag anything important
-- Start replies with "Done —" when you complete an action
-- If a month looks critical (🔴), warn James even if he didn't ask`
+=== CRITICAL BEHAVIOR RULES ===
+1. ALWAYS act immediately — never ask "are you sure?" or "should I proceed?" Just do it and confirm.
+2. Handle MULTIPLE actions in one message. "spent 200 food and 150 fare" = call log_expense TWICE.
+3. NEVER say you can't do something if a tool exists for it. Default to action.
+4. Make smart assumptions without asking:
+   - No date mentioned → today
+   - No category → infer from description (see guide below)
+   - "this month" / "ngayong buwan" → ${monthLabel(ctx.currentMonth)}
+   - "next month" → ${monthLabel((() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7) })())}
+5. If the user says "mali", "cancel", "undo", "wrong" → use delete_last_entry to remove it.
+6. If any month is 🔴 DANGER, warn James at the end of your reply even if he didn't ask.
+
+=== LANGUAGE UNDERSTANDING (Filipino/Taglish/Bisaya) ===
+"nagbayad / nagastos / ginastos / spent / gastos ko" → log_expense
+"natanggap / naresibo / received / nakuha ko" → if it matches a confirmed incoming → mark_incoming_received; else → log_income
+"may darating / expected / mayroon pang / inaabangan ko" → add_confirmed_incoming
+"nangutang / borrowed / utang ko / pautang" → add_debt (type: pautang)
+"loan / EWB / SSS / installment / nagbayad ng utang" → add_debt (type: formal) or mark_debt_payment
+"bayad na / paid na / nabayaran / planong bayaran" → mark_debt_payment
+"GCash ko ay / balance ko ay / nag-update ang" → update_cash_position
+"earned / kita / naka-book / down payment / tip" → log_income
+"mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry
+
+=== CATEGORY AUTO-INFERENCE ===
+food / kain / lunch / merienda / breakfast / dinner / snack / kape / rice → food
+tricycle / bus / jeep / grab / fare / byahe / transport / commute / gas / fuel → transport
+load / internet / wifi / kuryente / tubig / meralco / water / bills / rent / subscription → bills
+camera / lens / flash / equipment / battery / tripod / parts / repair / studio → equipment
+haircut / barber / salon / medicine / vitamins / personal / hygiene → personal
+everything else → other
+
+=== MATCHING RULES ===
+- Debt names: fuzzy match OK. "camera" matches "Camera EWB". "SSS" matches "SSS Loan".
+- Incoming sources: fuzzy match OK. "CHED" matches "CHED Scholarship".
+- If no match found for debt/incoming, tell James clearly which ones exist.
+
+=== REPLY FORMAT ===
+- Start with "Done —" when completing an action.
+- For multiple actions: list each one briefly ("Logged ₱200 food, ₱150 transport").
+- Keep it under 3 lines unless James asks for analysis.
+- If 🔴 danger month detected, append "⚠️ [month] looks critical — [short reason]" at the end.`
 }
 
 const TOOLS = [{ functionDeclarations: [
@@ -200,6 +230,31 @@ const TOOLS = [{ functionDeclarations: [
         amount: { type: 'number', description: 'New balance in PHP.' },
       },
       required: ['source_name', 'amount'],
+    },
+  },
+  {
+    name: 'add_confirmed_incoming',
+    description: 'Add a new expected/confirmed incoming payment that has not been received yet.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Who or what the money is from, e.g. "CHED Scholarship", "Kuya Joel deposit".' },
+        amount: { type: 'number', description: 'Expected amount in PHP.' },
+        expected_date: { type: 'string', description: 'Expected date in YYYY-MM-DD. Defaults to end of current month.' },
+        notes: { type: 'string', description: 'Optional notes.' },
+      },
+      required: ['source', 'amount'],
+    },
+  },
+  {
+    name: 'delete_last_entry',
+    description: 'Delete the most recently logged expense or income entry. Use when user says "mali", "cancel", "undo", "wrong amount".',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        entry_type: { type: 'string', enum: ['expense', 'income'], description: 'Whether to delete the last expense or last income entry.' },
+      },
+      required: ['entry_type'],
     },
   },
   {
@@ -338,6 +393,38 @@ async function runTool(
       return `${sourceName} updated to ${peso(amount)}. New total cash: ${peso(newTotal)}`
     }
 
+    if (name === 'add_confirmed_incoming') {
+      const defaultDate = (() => {
+        const d = new Date()
+        return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10)
+      })()
+      const expectedDate = (args.expected_date as string) ?? defaultDate
+      await adminDb.collection('personal_incoming').add({
+        user_id: userId,
+        source: args.source,
+        amount: args.amount,
+        expected_date: expectedDate,
+        status: 'pending',
+        notes: (args.notes as string) ?? null,
+        created_at: now,
+      })
+      return `Added confirmed incoming: ${args.source} — ${peso(args.amount as number)} expected ${expectedDate}`
+    }
+
+    if (name === 'delete_last_entry') {
+      const col = args.entry_type === 'expense' ? 'personal_expenses' : 'personal_income'
+      const snap = await adminDb.collection(col)
+        .where('user_id', '==', userId)
+        .orderBy('created_at', 'desc')
+        .limit(1)
+        .get()
+      if (snap.empty) return `No recent ${args.entry_type} entry found to delete.`
+      const doc = snap.docs[0]
+      const data = doc.data() as { description?: string; amount?: number }
+      await doc.ref.delete()
+      return `Deleted last ${args.entry_type}: "${data.description}" — ${peso(data.amount ?? 0)}`
+    }
+
     if (name === 'add_debt') {
       const startYM = toYYYYMM(args.start_month as string)
       let totalMonths: number
@@ -449,8 +536,8 @@ export async function POST(req: NextRequest) {
   const chat = model.startChat({ history })
   let result = await chat.sendMessage(messages[messages.length - 1].content)
 
-  // Tool-calling loop — max 3 rounds
-  for (let round = 0; round < 3; round++) {
+  // Tool-calling loop — max 5 rounds to handle compound multi-action messages
+  for (let round = 0; round < 5; round++) {
     const calls = result.response.functionCalls()
     if (!calls?.length) break
     const toolResults = await Promise.all(
