@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
 import { auth, getAllDocs, deleteDocument } from '@/lib/firebase'
 import type { PersonalIncome, PersonalExpense, IncomeCategory, ExpenseCategory } from '@/types'
 import CashPositionCard from '@/components/finance/CashPositionCard'
@@ -72,6 +73,14 @@ export default function PersonalPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [projectionMonths, setProjectionMonths] = useState<ProjectionMonth[]>([])
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, user => {
+      if (user) setAuthReady(true)
+    })
+    return () => unsub()
+  }, [])
 
   // Manual entry form state (fallback for when AI isn't preferred)
   const [showManual, setShowManual] = useState(false)
@@ -256,23 +265,33 @@ export default function PersonalPage() {
       )}
 
       {/* AI bar — mobile only, top of page */}
-      <div className="md:hidden">
-        <FinanceAIInput onRefresh={handleRefresh} />
-      </div>
+      {authReady && (
+        <div className="md:hidden">
+          <FinanceAIInput onRefresh={handleRefresh} />
+        </div>
+      )}
 
       {/* Responsive two-column layout */}
       <div className="md:grid md:grid-cols-5 md:gap-6 md:items-start">
 
         {/* LEFT / main column — all content on mobile, left 3/5 on desktop */}
         <div className="md:col-span-3">
-          <FinanceStatusBanner months={projectionMonths} />
-          <SurvivalProjectionCard
-            refreshKey={refreshKey}
-            onProjectionReady={setProjectionMonths}
-          />
-          <CashPositionCard refreshKey={refreshKey} onRefresh={handleRefresh} />
-          <ConfirmedIncomingCard refreshKey={refreshKey} onRefresh={handleRefresh} />
-          <DebtScheduleCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+          {!authReady ? (
+            <div className="space-y-3">
+              {[1,2,3,4].map(i => <div key={i} className="skeleton h-28 rounded-2xl" />)}
+            </div>
+          ) : (
+            <>
+              <FinanceStatusBanner months={projectionMonths} />
+              <SurvivalProjectionCard
+                refreshKey={refreshKey}
+                onProjectionReady={setProjectionMonths}
+              />
+              <CashPositionCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+              <ConfirmedIncomingCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+              <DebtScheduleCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+            </>
+          )}
 
           {/* History */}
           <div className="mt-5 mb-3 flex items-center justify-between">
@@ -442,13 +461,17 @@ export default function PersonalPage() {
 
         {/* RIGHT / AI sidebar — desktop only, stays visible while left scrolls */}
         <div className="hidden md:block md:col-span-2 md:sticky md:top-4 md:self-start">
-          <p className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
-            ✨ Ask Crafty
-          </p>
-          <FinanceAIInput onRefresh={handleRefresh} />
+          {authReady && (
+            <>
+              <p className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+                ✨ Ask Crafty
+              </p>
+              <FinanceAIInput onRefresh={handleRefresh} />
+            </>
+          )}
 
           {/* Quick Stats */}
-          <div className="card p-4 mt-1">
+          {authReady && <div className="card p-4 mt-1">
             <p className="section-label mb-3">
               {months[0]?.monthLabel ?? 'This Month'}
             </p>
@@ -494,10 +517,10 @@ export default function PersonalPage() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Projection runway pill */}
-          {projectionMonths.length > 0 && (
+          {authReady && projectionMonths.length > 0 && (
             <div className="card p-4 mt-3">
               <p className="section-label mb-3">6-Month Outlook</p>
               <div className="flex gap-1.5 flex-wrap">
