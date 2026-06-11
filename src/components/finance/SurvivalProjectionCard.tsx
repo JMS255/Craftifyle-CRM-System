@@ -39,8 +39,8 @@ function computeProjection(
   let runningCash = cashPositions.reduce((s, p) => s + p.amount, 0)
 
   return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    const ym = d.toISOString().slice(0, 7)
+    const totalM = now.getMonth() + i
+    const ym = `${now.getFullYear() + Math.floor(totalM / 12)}-${String((totalM % 12) + 1).padStart(2, '0')}`
 
     const monthDebt = debts.reduce((sum, debt) => {
       const [sy, sm] = debt.start_month.split('-').map(Number)

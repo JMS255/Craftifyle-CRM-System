@@ -16,12 +16,16 @@ function monthLabel(yyyymm: string) {
   return `${MONTH_NAMES[parseInt(m) - 1]} '${y.slice(2)}`
 }
 
+function addMonths(yyyymm: string, i: number): string {
+  const [sy, sm] = yyyymm.split('-').map(Number)
+  const total = (sm - 1) + i
+  const year = sy + Math.floor(total / 12)
+  const month = (total % 12) + 1
+  return `${year}-${String(month).padStart(2, '0')}`
+}
+
 function getDebtMonths(debt: PersonalDebt): string[] {
-  const [sy, sm] = debt.start_month.split('-').map(Number)
-  return Array.from({ length: debt.total_months }, (_, i) => {
-    const d = new Date(sy, sm - 1 + i, 1)
-    return d.toISOString().slice(0, 7)
-  })
+  return Array.from({ length: debt.total_months }, (_, i) => addMonths(debt.start_month, i))
 }
 
 function getMonthAmount(debt: PersonalDebt, idx: number): number {
@@ -51,10 +55,10 @@ const EMPTY_FORM = {
 
 function buildMonthRows(start: string, n: number): Array<{ ym: string; label: string }> {
   if (!start || !n) return []
-  const [sy, sm] = start.split('-').map(Number)
   return Array.from({ length: n }, (_, i) => {
-    const d = new Date(sy, sm - 1 + i, 1)
-    return { ym: d.toISOString().slice(0, 7), label: `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear()).slice(2)}` }
+    const ym = addMonths(start, i)
+    const [y, m] = ym.split('-')
+    return { ym, label: `${MONTH_NAMES[parseInt(m) - 1]} '${y.slice(2)}` }
   })
 }
 
