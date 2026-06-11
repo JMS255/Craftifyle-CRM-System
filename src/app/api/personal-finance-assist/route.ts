@@ -7,8 +7,9 @@ import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 
+const MONTH_ABBREVS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+
 function toYYYYMM(input: string): string {
-  // Accepts: "July 2026", "july", "next month", "2026-07", "07/2026"
   const now = new Date()
   const lower = input.toLowerCase().trim()
   if (lower === 'this month') return now.toISOString().slice(0, 7)
@@ -18,13 +19,19 @@ function toYYYYMM(input: string): string {
   }
   // YYYY-MM already
   if (/^\d{4}-\d{2}$/.test(input)) return input
-  // Try matching month name
-  const monthIdx = MONTH_NAMES.findIndex(m => lower.startsWith(m.toLowerCase()))
-  if (monthIdx !== -1) {
-    const yearMatch = input.match(/\d{4}/)
-    const year = yearMatch ? yearMatch[0] : String(now.getFullYear())
-    return `${year}-${String(monthIdx + 1).padStart(2, '0')}`
-  }
+  // MM/YYYY or M/YYYY
+  const slashMatch = input.match(/^(\d{1,2})\/(\d{4})$/)
+  if (slashMatch) return `${slashMatch[2]}-${slashMatch[1].padStart(2, '0')}`
+  // Extract year if present
+  const yearMatch = input.match(/\d{4}/)
+  const year = yearMatch ? yearMatch[0] : String(now.getFullYear())
+  // Full month name: "July 2026", "july"
+  const fullIdx = MONTH_NAMES.findIndex(m => lower.startsWith(m.toLowerCase()))
+  if (fullIdx !== -1) return `${year}-${String(fullIdx + 1).padStart(2, '0')}`
+  // 3-letter abbreviation: "Jul 2026", "jul", "Nov", "nov"
+  const abbrev = lower.slice(0, 3)
+  const abbrevIdx = MONTH_ABBREVS.indexOf(abbrev)
+  if (abbrevIdx !== -1) return `${year}-${String(abbrevIdx + 1).padStart(2, '0')}`
   // Fallback: current month
   return now.toISOString().slice(0, 7)
 }
