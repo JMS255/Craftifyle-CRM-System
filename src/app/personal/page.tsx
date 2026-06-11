@@ -189,7 +189,7 @@ export default function PersonalPage() {
         </button>
       </div>
 
-      {/* Manual entry fallback form */}
+      {/* Manual entry fallback */}
       {showManual && (
         <div className="card p-4 mb-4">
           <div className="flex gap-2 mb-3">
@@ -255,184 +255,200 @@ export default function PersonalPage() {
         </div>
       )}
 
-      {/* AI bar — primary entry point */}
-      <FinanceAIInput onRefresh={handleRefresh} />
-
-      {/* Finance hero banner — fed by SurvivalProjectionCard */}
-      <FinanceStatusBanner months={projectionMonths} />
-
-      {/* New finance manager sections */}
-      <CashPositionCard refreshKey={refreshKey} onRefresh={handleRefresh} />
-      <ConfirmedIncomingCard refreshKey={refreshKey} onRefresh={handleRefresh} />
-      <DebtScheduleCard refreshKey={refreshKey} onRefresh={handleRefresh} />
-      <SurvivalProjectionCard
-        refreshKey={refreshKey}
-        onProjectionReady={setProjectionMonths}
-      />
-
-      {/* ── Historical monthly view ── */}
-      <div className="mt-6 mb-3 flex items-center justify-between">
-        <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Income &amp; Expenses History</h2>
+      {/* AI bar — mobile only, top of page */}
+      <div className="md:hidden">
+        <FinanceAIInput onRefresh={handleRefresh} />
       </div>
 
-      {/* Year selector */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Year:</span>
-        {years.map(y => (
-          <button
-            key={y}
-            onClick={() => {
-              setSelectedYear(y)
-              setOpenMonth(y === currentYear ? new Date().toISOString().slice(0, 7) : null)
-            }}
-            className="text-sm px-4 py-1.5 rounded-full font-semibold"
-            style={selectedYear === y
-              ? { background: 'var(--accent)', color: '#fff' }
-              : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
+      {/* Responsive two-column layout */}
+      <div className="md:grid md:grid-cols-5 md:gap-6 md:items-start">
 
-      {/* Year summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <SummaryCard label="Total Income"  value={peso(yearTotalIncome)}  color="purple" />
-        <SummaryCard label="Total Expenses" value={peso(yearTotalExpenses)} color="red" />
-        <SummaryCard label="Net Income"    value={peso(yearNet)}            color={yearNet >= 0 ? 'green' : 'red'} />
-        <SummaryCard
-          label="Best Month"
-          value={bestMonth?.net > 0 ? bestMonth.monthLabel : '—'}
-          color="indigo"
-          sub={bestMonth?.net > 0 ? peso(bestMonth.net) : ''}
-        />
-      </div>
+        {/* LEFT / main column — all content on mobile, left 3/5 on desktop */}
+        <div className="md:col-span-3">
+          <FinanceStatusBanner months={projectionMonths} />
+          <SurvivalProjectionCard
+            refreshKey={refreshKey}
+            onProjectionReady={setProjectionMonths}
+          />
+          <CashPositionCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+          <ConfirmedIncomingCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+          <DebtScheduleCard refreshKey={refreshKey} onRefresh={handleRefresh} />
 
-      {/* Monthly accordion */}
-      {loading ? (
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="card px-5 py-3.5 flex items-center justify-between">
-              <div className="skeleton h-4 w-24" />
-              <div className="skeleton h-4 w-20" />
+          {/* History */}
+          <div className="mt-5 mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>
+              Income &amp; Expenses History
+            </h2>
+          </div>
+
+          {/* Year selector */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Year:</span>
+            {years.map(y => (
+              <button
+                key={y}
+                onClick={() => {
+                  setSelectedYear(y)
+                  setOpenMonth(y === currentYear ? new Date().toISOString().slice(0, 7) : null)
+                }}
+                className="text-sm px-4 py-1.5 rounded-full font-semibold"
+                style={selectedYear === y
+                  ? { background: 'var(--accent)', color: '#fff' }
+                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+
+          {/* Year summary KPIs */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <SummaryCard label="Total Income"   value={peso(yearTotalIncome)}   color="purple" />
+            <SummaryCard label="Total Expenses" value={peso(yearTotalExpenses)} color="red" />
+            <SummaryCard label="Net Income"     value={peso(yearNet)}            color={yearNet >= 0 ? 'green' : 'red'} />
+            <SummaryCard
+              label="Best Month"
+              value={bestMonth?.net > 0 ? bestMonth.monthLabel : '—'}
+              color="indigo"
+              sub={bestMonth?.net > 0 ? peso(bestMonth.net) : ''}
+            />
+          </div>
+
+          {/* Monthly accordion */}
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="card px-5 py-3.5 flex items-center justify-between">
+                  <div className="skeleton h-4 w-24" />
+                  <div className="skeleton h-4 w-20" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {months.map(month => {
-            const isOpen = openMonth === month.yearMonth
-            const hasData = month.income.length > 0 || month.expenses.length > 0
-            return (
-              <div key={month.yearMonth} className="card overflow-hidden">
-                <button
-                  onClick={() => hasData && setOpenMonth(isOpen ? null : month.yearMonth)}
-                  disabled={!hasData}
-                  className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors ${hasData ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
-                  onMouseEnter={e => hasData && ((e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)')}
-                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '')}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs transition-transform ${isOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--text-faint)' }}>
-                      {hasData ? '▶' : '—'}
-                    </span>
-                    <span className="font-semibold w-24" style={{ color: 'var(--text-heading)' }}>{month.monthLabel}</span>
-                    {hasData ? (
-                      <div className="flex gap-3 text-xs">
-                        <span className="font-medium" style={{ color: 'var(--accent-text)' }}>+{peso(month.totalIncome)}</span>
-                        {month.totalExpenses > 0 && (
-                          <span className="font-medium" style={{ color: 'var(--danger)' }}>−{peso(month.totalExpenses)}</span>
+          ) : (
+            <div className="space-y-2">
+              {months.map(month => {
+                const isOpen = openMonth === month.yearMonth
+                const hasData = month.income.length > 0 || month.expenses.length > 0
+                return (
+                  <div key={month.yearMonth} className="card overflow-hidden">
+                    <button
+                      onClick={() => hasData && setOpenMonth(isOpen ? null : month.yearMonth)}
+                      disabled={!hasData}
+                      className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors ${hasData ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
+                      onMouseEnter={e => hasData && ((e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)')}
+                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '')}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs transition-transform ${isOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--text-faint)' }}>
+                          {hasData ? '▶' : '—'}
+                        </span>
+                        <span className="font-semibold w-24" style={{ color: 'var(--text-heading)' }}>{month.monthLabel}</span>
+                        {hasData ? (
+                          <div className="flex gap-3 text-xs">
+                            <span className="font-medium" style={{ color: 'var(--accent-text)' }}>+{peso(month.totalIncome)}</span>
+                            {month.totalExpenses > 0 && (
+                              <span className="font-medium" style={{ color: 'var(--danger)' }}>−{peso(month.totalExpenses)}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs" style={{ color: 'var(--text-faint)' }}>No entries</span>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-xs" style={{ color: 'var(--text-faint)' }}>No entries</span>
-                    )}
-                  </div>
-                  {hasData && (
-                    <span className="text-sm font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                      {month.net >= 0 ? '+' : ''}{peso(month.net)} net
-                    </span>
-                  )}
-                </button>
+                      {hasData && (
+                        <span className="text-sm font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          {month.net >= 0 ? '+' : ''}{peso(month.net)} net
+                        </span>
+                      )}
+                    </button>
 
-                {isOpen && hasData && (
-                  <div style={{ borderTop: '1px solid var(--card-border)' }}>
-                    {month.income.length > 0 && (
-                      <div>
-                        <div className="px-5 py-2" style={{ background: 'var(--accent-subtle)', borderBottom: '1px solid var(--card-border)' }}>
-                          <span className="section-label" style={{ color: 'var(--accent-text)' }}>
-                            Income — {peso(month.totalIncome)}
+                    {isOpen && hasData && (
+                      <div style={{ borderTop: '1px solid var(--card-border)' }}>
+                        {month.income.length > 0 && (
+                          <div>
+                            <div className="px-5 py-2" style={{ background: 'var(--accent-subtle)', borderBottom: '1px solid var(--card-border)' }}>
+                              <span className="section-label" style={{ color: 'var(--accent-text)' }}>
+                                Income — {peso(month.totalIncome)}
+                              </span>
+                            </div>
+                            <table className="w-full text-sm">
+                              <tbody>
+                                {month.income.map(e => (
+                                  <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                                    <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
+                                    <td className="px-3 py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.income_date)}</td>
+                                    <td className="px-3 py-2.5 hidden sm:table-cell">
+                                      <span className="badge capitalize" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)' }}>
+                                        {e.category.replace('_', ' ')}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 tabular text-right font-bold" style={{ color: 'var(--accent-text)' }}>{peso(e.amount)}</td>
+                                    <td className="px-3 py-2.5">
+                                      <button onClick={() => deleteIncome(e.id)} disabled={deletingId === e.id} className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
+                                        {deletingId === e.id ? '…' : 'Del'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {month.expenses.length > 0 && (
+                          <div>
+                            <div className="px-5 py-2" style={{ background: 'var(--danger-muted)', borderTop: '1px solid var(--card-border)', borderBottom: '1px solid var(--card-border)' }}>
+                              <span className="section-label" style={{ color: 'var(--danger)' }}>
+                                Expenses — {peso(month.totalExpenses)}
+                              </span>
+                            </div>
+                            <table className="w-full text-sm">
+                              <tbody>
+                                {month.expenses.map(e => (
+                                  <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                                    <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
+                                    <td className="px-3 py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.expense_date)}</td>
+                                    <td className="px-3 py-2.5 hidden sm:table-cell">
+                                      <span className="badge capitalize" style={{ background: 'var(--danger-muted)', color: 'var(--danger)' }}>
+                                        {e.category}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 tabular text-right font-bold" style={{ color: 'var(--danger)' }}>−{peso(e.amount)}</td>
+                                    <td className="px-3 py-2.5">
+                                      <button onClick={() => deleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
+                                        {deletingId === e.id ? '…' : 'Del'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--card-elevated)', borderTop: '1px solid var(--card-border)' }}>
+                          <span className="section-label">{month.monthLabel} Net</span>
+                          <span className="font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                            {month.net >= 0 ? '+' : ''}{peso(month.net)}
                           </span>
                         </div>
-                        <table className="w-full text-sm">
-                          <tbody>
-                            {month.income.map(e => (
-                              <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
-                                <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
-                                <td className="px-3 py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.income_date)}</td>
-                                <td className="px-3 py-2.5 hidden sm:table-cell">
-                                  <span className="badge capitalize" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)' }}>
-                                    {e.category.replace('_', ' ')}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5 tabular text-right font-bold" style={{ color: 'var(--accent-text)' }}>{peso(e.amount)}</td>
-                                <td className="px-3 py-2.5">
-                                  <button onClick={() => deleteIncome(e.id)} disabled={deletingId === e.id} className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
-                                    {deletingId === e.id ? '…' : 'Del'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
                       </div>
                     )}
-
-                    {month.expenses.length > 0 && (
-                      <div>
-                        <div className="px-5 py-2" style={{ background: 'var(--danger-muted)', borderTop: '1px solid var(--card-border)', borderBottom: '1px solid var(--card-border)' }}>
-                          <span className="section-label" style={{ color: 'var(--danger)' }}>
-                            Expenses — {peso(month.totalExpenses)}
-                          </span>
-                        </div>
-                        <table className="w-full text-sm">
-                          <tbody>
-                            {month.expenses.map(e => (
-                              <tr key={e.id} style={{ borderTop: '1px solid var(--border-secondary)' }}>
-                                <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--text-heading)' }}>{e.description}</td>
-                                <td className="px-3 py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--text-faint)' }}>{fmtDate(e.expense_date)}</td>
-                                <td className="px-3 py-2.5 hidden sm:table-cell">
-                                  <span className="badge capitalize" style={{ background: 'var(--danger-muted)', color: 'var(--danger)' }}>
-                                    {e.category}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5 tabular text-right font-bold" style={{ color: 'var(--danger)' }}>−{peso(e.amount)}</td>
-                                <td className="px-3 py-2.5">
-                                  <button onClick={() => deleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs disabled:opacity-50" style={{ color: 'var(--danger)' }}>
-                                    {deletingId === e.id ? '…' : 'Del'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--card-elevated)', borderTop: '1px solid var(--card-border)' }}>
-                      <span className="section-label">{month.monthLabel} Net</span>
-                      <span className="font-bold tabular" style={{ color: month.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                        {month.net >= 0 ? '+' : ''}{peso(month.net)}
-                      </span>
-                    </div>
                   </div>
-                )}
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          )}
         </div>
-      )}
 
+        {/* RIGHT / AI sidebar — desktop only, stays visible while left scrolls */}
+        <div className="hidden md:block md:col-span-2 md:sticky md:top-4 md:self-start">
+          <FinanceAIInput onRefresh={handleRefresh} />
+          <p className="text-xs text-center mt-2 mb-1" style={{ color: 'var(--text-faint)' }}>
+            Type anything — Crafty records it for you
+          </p>
+        </div>
+
+      </div>
     </div>
   )
 }
