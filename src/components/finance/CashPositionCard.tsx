@@ -17,6 +17,7 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     const user = auth.currentUser
@@ -44,26 +45,31 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
 
   async function save() {
     if (!form.source_name.trim() || !form.amount) return
+    setError(null)
     setSaving(true)
-    const user = auth.currentUser
-    if (!user) return
-    const payload = {
-      source_name: form.source_name.trim(),
-      amount: parseFloat(form.amount),
-      user_id: user.uid,
-      updated_at: new Date().toISOString(),
+    try {
+      const user = auth.currentUser
+      if (!user) { setError('Not signed in — please refresh and try again.'); setSaving(false); return }
+      const payload = {
+        source_name: form.source_name.trim(),
+        amount: parseFloat(form.amount),
+        user_id: user.uid,
+        updated_at: new Date().toISOString(),
+      }
+      if (editingId) {
+        await updateDocument('personal_cash_positions', editingId, payload)
+      } else {
+        await addDocument('personal_cash_positions', payload)
+      }
+      setForm(EMPTY_FORM)
+      setShowForm(false)
+      setEditingId(null)
+      await load()
+      onRefresh?.()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed — check console for details.')
     }
-    if (editingId) {
-      await updateDocument('personal_cash_positions', editingId, payload)
-    } else {
-      await addDocument('personal_cash_positions', payload)
-    }
-    setForm(EMPTY_FORM)
-    setShowForm(false)
-    setEditingId(null)
     setSaving(false)
-    await load()
-    onRefresh?.()
   }
 
   async function remove(id: string) {
@@ -77,6 +83,7 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
     <div className="card p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Cash Position</h2>
+        {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
         <button
           onClick={() => showForm ? setShowForm(false) : openAdd()}
           className="text-xs px-3 py-1.5 rounded-[10px] font-medium"

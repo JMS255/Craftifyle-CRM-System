@@ -54,6 +54,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [updatingKey, setUpdatingKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     const user = auth.currentUser
@@ -99,10 +100,11 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
 
   async function addDebt() {
     if (!form.name.trim() || !form.monthly_amount || !form.start_month) return
+    setError(null)
     setSaving(true)
     const user = auth.currentUser
-    if (!user) return
-    await addDocument('personal_debts', {
+    if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
+    try { await addDocument('personal_debts', {
       user_id: user.uid,
       name: form.name.trim(),
       monthly_amount: parseFloat(form.monthly_amount),
@@ -115,9 +117,10 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
     })
     setForm(EMPTY_FORM)
     setShowForm(false)
-    setSaving(false)
     await load()
     onRefresh?.()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
+    setSaving(false)
   }
 
   async function removeDebt(id: string) {
@@ -145,6 +148,7 @@ export default function DebtScheduleCard({ onRefresh, refreshKey }: { onRefresh?
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Debt Schedule</h2>
+            {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
           {totalRemaining > 0 && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--danger)' }}>{peso(totalRemaining)} remaining</p>
           )}

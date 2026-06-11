@@ -21,6 +21,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [markingId, setMarkingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     const user = auth.currentUser
@@ -40,10 +41,11 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
 
   async function add() {
     if (!form.source.trim() || !form.amount || !form.expected_date) return
+    setError(null)
     setSaving(true)
     const user = auth.currentUser
-    if (!user) return
-    await addDocument('personal_incoming', {
+    if (!user) { setError('Not signed in — please refresh.'); setSaving(false); return }
+    try { await addDocument('personal_incoming', {
       user_id: user.uid,
       source: form.source.trim(),
       amount: parseFloat(form.amount),
@@ -54,9 +56,10 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
     })
     setForm(EMPTY_FORM)
     setShowForm(false)
-    setSaving(false)
     await load()
     onRefresh?.()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Save failed.') }
+    setSaving(false)
   }
 
   async function markReceived(item: PersonalIncoming) {
@@ -87,6 +90,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="font-semibold text-sm" style={{ color: 'var(--text-heading)' }}>Confirmed Incoming</h2>
+            {error && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{error}</p>}
           {items.length > 0 && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
               Not yet received · {peso(total)} total
