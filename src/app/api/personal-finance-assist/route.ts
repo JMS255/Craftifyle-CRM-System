@@ -12,11 +12,8 @@ const MONTH_ABBREVS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oc
 function toYYYYMM(input: string): string {
   const now = new Date()
   const lower = input.toLowerCase().trim()
-  if (lower === 'this month') return now.toISOString().slice(0, 7)
-  if (lower === 'next month') {
-    const d = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    return d.toISOString().slice(0, 7)
-  }
+  if (lower === 'this month') return currentYYYYMM()
+  if (lower === 'next month') return offsetYYYYMM(currentYYYYMM(), 1)
   // YYYY-MM already
   if (/^\d{4}-\d{2}$/.test(input)) return input
   // MM/YYYY or M/YYYY
@@ -51,6 +48,19 @@ function peso(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 })
 }
 
+function currentYYYYMM(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function offsetYYYYMM(base: string, offset: number): string {
+  const [y, m] = base.split('-').map(Number)
+  const total = (m - 1) + offset
+  const year = y + Math.floor(total / 12)
+  const month = ((total % 12) + 12) % 12 + 1
+  return `${year}-${String(month).padStart(2, '0')}`
+}
+
 interface ContextData {
   cashTotal: number
   cashSources: { source_name: string; amount: number }[]
@@ -71,10 +81,8 @@ function buildSystemPrompt(ctx: ContextData): string {
     : '  No cash positions recorded yet.'
 
   const debtSection = ctx.debts.length ? ctx.debts.map(debt => {
-    const [sy, sm] = debt.start_month.split('-').map(Number)
     const months = Array.from({ length: debt.total_months }, (_, i) => {
-      const d = new Date(sy, sm - 1 + i, 1)
-      const ym = d.toISOString().slice(0, 7)
+      const ym = offsetYYYYMM(debt.start_month, i)
       const payment = ctx.debtPayments.find(p => p.debt_id === debt.id && p.month === ym)
       const status = payment?.status ?? 'unpaid'
       const icon = status === 'paid' ? '✅' : status === 'planning' ? '🔄' : '⏳'
@@ -91,8 +99,7 @@ function buildSystemPrompt(ctx: ContextData): string {
   const projectionRows: string[] = []
   let runningCash = ctx.cashTotal
   for (let i = 0; i < 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    const ym = d.toISOString().slice(0, 7)
+    const ym = offsetYYYYMM(ctx.currentMonth, i)
     const monthDebt = ctx.debts.reduce((sum, debt) => {
       const [sy, sm] = debt.start_month.split('-').map(Number)
       const [dy, dm] = ym.split('-').map(Number)
@@ -138,7 +145,7 @@ ${projectionRows.join('\n')}
    - No date mentioned → today
    - No category → infer from description (see guide below)
    - "this month" / "ngayong buwan" → ${monthLabel(ctx.currentMonth)}
-   - "next month" → ${monthLabel((() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7) })())}
+   - "next month" → ${monthLabel(offsetYYYYMM(ctx.currentMonth, 1))}
 5. If the user says "mali", "cancel", "undo", "wrong" → use delete_last_entry to remove it.
 6. If any month is 🔴 DANGER, warn James at the end of your reply even if he didn't ask.
 7. REPLY FORMAT: Plain conversational text only. NO markdown tables, NO | pipes, NO # headers, NO ** bold. Use plain sentences and line breaks. Keep replies short — 1-3 sentences max unless listing multiple items.
@@ -154,6 +161,9 @@ ${projectionRows.join('\n')}
 "earned / kita / naka-book / down payment / tip" → log_income
 "mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry (for expenses/income only)
 "wrong start / wrong date / mali yung buwan / dapat June / start June not May / change start / change end / change amount" → update_debt (modifies existing debt dates/amount — do NOT use add_debt for this)
+"alisin / tanggalin ang utang / delete debt / remove debt / bayad na lahat / fully paid off / wala na yung utang" → delete_debt
+"alisin / cancel / tanggalin yung incoming / hindi na darating / hindi na matutuloy" → delete_incoming
+"down payment received / DP paid / nagbayad ng DP / booking income / photobooth income" → log_income (category: booking)
 
 === CATEGORY AUTO-INFERENCE ===
 food / kain / lunch / merienda / breakfast / dinner / snack / kape / rice → food
@@ -198,7 +208,7 @@ const TOOLS = [{ functionDeclarations: [
       properties: {
         amount: { type: 'number', description: 'Amount in PHP.' },
         description: { type: 'string', description: 'Source or description of income.' },
-        category: { type: 'string', enum: ['tips', 'personal_gig', 'salary', 'freelance', 'other'] },
+        category: { type: 'string', enum: ['booking', 'tips', 'personal_gig', 'salary', 'freelance', 'other'] },
         date: { type: 'string', description: 'Date in YYYY-MM-DD. Defaults to today.' },
       },
       required: ['amount', 'description'],
@@ -281,6 +291,28 @@ const TOOLS = [{ functionDeclarations: [
         person: { type: 'string', description: 'Person name for pautang debts only.' },
       },
       required: ['name', 'monthly_amount', 'start_month'],
+    },
+  },
+  {
+    name: 'delete_debt',
+    description: 'Permanently delete a debt and all its payment records. Use when user says "alisin", "remove", "delete", "tanggalin", "paid off completely", "wala na".',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        debt_name: { type: 'string', description: 'Partial or full name of the debt to delete, e.g. "lens", "camera", "40k".' },
+      },
+      required: ['debt_name'],
+    },
+  },
+  {
+    name: 'delete_incoming',
+    description: 'Remove a confirmed incoming entry that is no longer expected.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Partial or full source name, e.g. "CHED", "Kuya".' },
+      },
+      required: ['source'],
     },
   },
   {
@@ -471,11 +503,7 @@ async function runTool(
         person: (args.person as string) ?? null,
         created_at: now,
       })
-      const endYM = (() => {
-        const [sy, sm] = startYM.split('-').map(Number)
-        const d = new Date(sy, sm - 1 + totalMonths - 1, 1)
-        return d.toISOString().slice(0, 7)
-      })()
+      const endYM = offsetYYYYMM(startYM, totalMonths - 1)
       return `Added debt "${args.name}" — ${peso(monthlyAmount)}/mo for ${totalMonths} months (${monthLabel(startYM)} to ${monthLabel(endYM)}).`
     }
 
@@ -487,11 +515,7 @@ async function runTool(
       const updates: Record<string, unknown> = { updated_at: now }
 
       const newStartYM = args.new_start_month ? toYYYYMM(args.new_start_month as string) : debt.start_month
-      const currentEndYM = (() => {
-        const [sy, sm] = debt.start_month.split('-').map(Number)
-        const d = new Date(sy, sm - 1 + debt.total_months - 1, 1)
-        return d.toISOString().slice(0, 7)
-      })()
+      const currentEndYM = offsetYYYYMM(debt.start_month, debt.total_months - 1)
       const newEndYM = args.new_end_month ? toYYYYMM(args.new_end_month as string) : currentEndYM
       const newTotalMonths = monthsBetween(newStartYM, newEndYM)
 
@@ -511,6 +535,26 @@ async function runTool(
 
       await adminDb.collection('personal_debts').doc(debt.id).update(updates)
       return `Updated "${debt.name}" — now ${monthLabel(newStartYM)} to ${monthLabel(newEndYM)}, ${newTotalMonths} months.`
+    }
+
+    if (name === 'delete_debt') {
+      const searchName = (args.debt_name as string).toLowerCase()
+      const debt = ctx.debts.find(d => d.name.toLowerCase().includes(searchName))
+      if (!debt) return `Debt not found matching "${args.debt_name}". Available: ${ctx.debts.map(d => d.name).join(', ')}`
+      // Delete the debt and all its payment records
+      await adminDb.collection('personal_debts').doc(debt.id).delete()
+      const paymentsSnap = await adminDb.collection('personal_debt_payments')
+        .where('debt_id', '==', debt.id).where('user_id', '==', userId).get()
+      await Promise.all(paymentsSnap.docs.map(d => d.ref.delete()))
+      return `Deleted "${debt.name}" and ${paymentsSnap.size} payment records.`
+    }
+
+    if (name === 'delete_incoming') {
+      const searchSource = (args.source as string).toLowerCase()
+      const incoming = ctx.pendingIncoming.find(i => i.source.toLowerCase().includes(searchSource))
+      if (!incoming) return `Incoming not found matching "${args.source}". Available: ${ctx.pendingIncoming.map(i => i.source).join(', ')}`
+      await adminDb.collection('personal_incoming').doc(incoming.id).delete()
+      return `Removed "${incoming.source}" — ${peso(incoming.amount)} from confirmed incoming.`
     }
 
     return `Unknown tool: ${name}`
@@ -566,7 +610,7 @@ export async function POST(req: NextRequest) {
 
   // Trailing 3-month revenue average from personal income
   const now = new Date()
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10)
+  const threeMonthsAgo = offsetYYYYMM(currentYYYYMM(), -3) + '-01'
   const recentIncome = incomeSnap.docs
     .map((d: QueryDocumentSnapshot) => d.data() as { income_date: string; amount: number })
     .filter(e => e.income_date >= threeMonthsAgo)
@@ -576,7 +620,7 @@ export async function POST(req: NextRequest) {
 
   const ctx: ContextData = {
     cashTotal, cashSources, debts, debtPayments, pendingIncoming,
-    avgMonthlyRevenue, currentMonth: now.toISOString().slice(0, 7),
+    avgMonthlyRevenue, currentMonth: currentYYYYMM(),
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
