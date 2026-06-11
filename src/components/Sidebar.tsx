@@ -25,13 +25,12 @@ function ChevronLeft()  { return <Icon d="M15 18l-6-6 6-6" size={16} /> }
 function ChevronRight() { return <Icon d="M9 18l6-6-6-6" size={16} /> }
 
 const nav = [
-  { href: '/',         label: 'Dashboard',     short: 'Home',     icon: <HomeIcon /> },
-  { href: '/leads',    label: 'Leads',          short: 'Leads',    icon: <LeadsIcon /> },
-  { href: '/inbox',    label: 'Messenger',      short: 'Inbox',    icon: <InboxIcon /> },
-  { href: '/bookings', label: 'Bookings',       short: 'Bookings', icon: <BookingsIcon /> },
-  { href: '/ads',      label: 'Ad Performance', short: 'Ads',      icon: <AdsIcon /> },
-  { href: '/personal', label: 'Finances',       short: 'Money',    icon: <FinanceIcon /> },
-  { href: '/settings', label: 'Packages',       short: 'Packages', icon: <PackagesIcon /> },
+  { href: '/',         label: 'Dashboard', short: 'Home',     icon: <HomeIcon /> },
+  { href: '/bookings', label: 'Bookings',  short: 'Bookings', icon: <BookingsIcon /> },
+  { href: '/personal', label: 'Finances',  short: 'Money',    icon: <FinanceIcon /> },
+  { href: '/leads',    label: 'Leads',     short: 'Leads',    icon: <LeadsIcon /> },
+  { href: '/inbox',    label: 'Messenger', short: 'Inbox',    icon: <InboxIcon /> },
+  { href: '/settings', label: 'Packages',  short: 'Packages', icon: <PackagesIcon /> },
 ]
 
 const AUTH_PATHS = ['/login', '/signup', '/contract/', '/confirm/', '/team/join/']
@@ -248,32 +247,44 @@ export default function Sidebar() {
       {quickAdd && (
         <div className="md:hidden fixed inset-0 z-50" onClick={() => setQuickAdd(false)}>
           <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} />
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl p-5 space-y-3"
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl p-5"
             style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
             onClick={e => e.stopPropagation()}>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>Quick Add</p>
-            <Link href="/leads/new" onClick={() => setQuickAdd(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-              <span>◎</span> Add New Lead
-            </Link>
-            <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-              <span>📋</span> Paste Messenger DM
-            </button>
-            <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Log a payment: ', mode: 'crm' } })) }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-              <span>💰</span> Log a Payment
-            </button>
-            <Link href="/inbox" onClick={() => setQuickAdd(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-              style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-              <span>💬</span> Messenger Inbox
-            </Link>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Navigate</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { href: '/leads',    label: 'Leads',     icon: '👥' },
+                { href: '/inbox',    label: 'Messenger', icon: '💬' },
+                { href: '/settings', label: 'Packages',  icon: '📦' },
+              ].map(({ href, label, icon }) => (
+                <Link key={href} href={href} onClick={() => setQuickAdd(false)}
+                  className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-sm font-medium"
+                  style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+                  <span className="text-lg leading-none">{icon}</span>
+                  <span className="text-xs">{label}</span>
+                </Link>
+              ))}
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Quick Add</p>
+            <div className="space-y-2">
+              <Link href="/leads/new" onClick={() => setQuickAdd(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+                <span>◎</span> Add New Lead
+              </Link>
+              <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+                <span>📋</span> Paste Messenger DM
+              </button>
+              <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Log a payment: ', mode: 'crm' } })) }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
+                <span>💰</span> Log a Payment
+              </button>
+            </div>
             <button onClick={() => setQuickAdd(false)}
-              className="w-full py-2.5 rounded-xl text-sm font-medium mt-1"
+              className="w-full py-2.5 rounded-xl text-sm font-medium mt-3"
               style={{ color: 'var(--text-faint)' }}>Cancel</button>
           </div>
         </div>
