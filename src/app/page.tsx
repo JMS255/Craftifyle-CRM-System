@@ -15,6 +15,13 @@ function fmt(date: string) {
   return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 }
 
+function daysUntil(dateStr: string): number {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return Math.floor((new Date(y, m - 1, d).getTime() - today.getTime()) / 86400000)
+}
+
 function peso(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 })
 }
@@ -126,8 +133,7 @@ export default function Dashboard() {
   const todayActions = leads
     .filter(l => !['booked', 'completed', 'lost'].includes(l.status))
     .map(l => {
-      const eventMs = l.event_date ? new Date(l.event_date).getTime() : null
-      const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
+      const daysToEvent = l.event_date != null ? daysUntil(l.event_date) : null
       const daysSilent = Math.floor((now - new Date(l.updated_at).getTime()) / 86400000)
       let urgency = 0; let action = ''; let color = '#6b7280'
       if (daysToEvent != null && daysToEvent < 0) { urgency = 100; action = 'Event passed — close it'; color = '#f87171' }
@@ -142,8 +148,8 @@ export default function Dashboard() {
     .slice(0, 3)
 
   const balanceDueAlerts = bookings.filter(b => {
-    const daysToEvent = Math.floor((new Date(b.event_date).getTime() - now) / 86400000)
-    return daysToEvent >= 0 && daysToEvent <= 7 && !b.balance_paid && b.balance_amount > 0
+    const d = daysUntil(b.event_date)
+    return d >= 0 && d <= 7 && !b.balance_paid && b.balance_amount > 0
   })
 
   if (loading) {
@@ -276,8 +282,8 @@ export default function Dashboard() {
             <p className="section-label" style={{ color: 'var(--money)' }}>💰 Balance Due This Week</p>
           </div>
           {balanceDueAlerts.map((b, i) => {
-            const daysToEvent = Math.floor((new Date(b.event_date).getTime() - now) / 86400000)
-            const when = daysToEvent === 0 ? 'Today' : daysToEvent === 1 ? 'Tomorrow' : `In ${daysToEvent} days`
+            const d = daysUntil(b.event_date)
+            const when = d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `In ${d} days`
             return (
               <Link key={b.id} href={`/bookings/${b.id}`}
                 className="flex items-center justify-between px-5 py-3.5 transition-colors"

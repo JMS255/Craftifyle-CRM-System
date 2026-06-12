@@ -21,6 +21,13 @@ const STAGE: Record<LeadStatus, { color: string; bg: string; border: string }> =
 function fmt(date: string) {
   return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+function daysUntil(dateStr: string): number {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return Math.floor((new Date(y, m - 1, d).getTime() - today.getTime()) / 86400000)
+}
 function fmtShort(date: string) {
   return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 }
@@ -33,8 +40,7 @@ interface NextAction { label: string; color: string; bg: string }
 function getNextAction(lead: Lead): NextAction | null {
   if (['booked', 'completed', 'lost'].includes(lead.status)) return null
   const now = Date.now()
-  const eventMs = lead.event_date ? new Date(lead.event_date).getTime() : null
-  const daysToEvent = eventMs != null ? Math.floor((eventMs - now) / 86400000) : null
+  const daysToEvent = lead.event_date != null ? daysUntil(lead.event_date) : null
   const daysSilent = Math.floor((now - new Date(lead.updated_at).getTime()) / 86400000)
   if (daysToEvent != null && daysToEvent < 0)   return { label: '⚠ Event passed — close it',       color: '#f87171', bg: 'rgba(239,68,68,0.12)' }
   if (daysToEvent != null && daysToEvent <= 3)  return { label: `⚡ Event in ${daysToEvent}d — confirm!`, color: '#fb923c', bg: 'rgba(249,115,22,0.12)' }
