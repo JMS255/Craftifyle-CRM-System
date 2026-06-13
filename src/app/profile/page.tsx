@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth, getAllDocs, addDocumentWithId, updateDocument } from '@/lib/firebase'
+import { auth, getDocById, addDocumentWithId, updateDocument } from '@/lib/firebase'
 import { useTheme } from '@/components/ThemeProvider'
 
 export default function ProfilePage() {
@@ -23,8 +23,7 @@ export default function ProfilePage() {
     const user = auth.currentUser
     if (!user) { router.replace('/login'); return }
     setEmail(user.email ?? '')
-    getAllDocs<{ id: string; full_name: string | null; business_name: string | null; location: string | null }>('profiles').then(profiles => {
-      const profile = profiles.find(p => p.id === user.uid)
+    getDocById<{ id: string; full_name: string | null; business_name: string | null; location: string | null }>('profiles', user.uid).then(profile => {
       if (profile) {
         setForm({
           full_name: profile.full_name ?? '',
@@ -46,8 +45,8 @@ export default function ProfilePage() {
     if (!user) return
 
     try {
-      const profiles = await getAllDocs<{ id: string }>('profiles')
-      const exists = profiles.some(p => p.id === user.uid)
+      const existing = await getDocById<{ id: string }>('profiles', user.uid)
+      const exists = existing !== null
       const data = {
         full_name: form.full_name.trim() || null,
         business_name: form.business_name.trim() || null,
