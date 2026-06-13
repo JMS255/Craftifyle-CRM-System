@@ -17,7 +17,6 @@ function Icon({ d, size = 18 }: { d: string; size?: number }) {
 function HomeIcon()     { return <Icon d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z M9 21V12h6v9" /> }
 function LeadsIcon()    { return <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75" /> }
 function BookingsIcon() { return <Icon d="M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z M9 14l2 2 4-4" /> }
-function AdsIcon()      { return <Icon d="M18 20V10 M12 20V4 M6 20v-6" /> }
 function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
 function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
 function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
@@ -146,21 +145,51 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-4 space-y-0.5">
-          {nav.filter(({ href }) => !isStaff || ['/', '/leads', '/bookings'].includes(href)).map(({ href, label, icon }) => {
+        <nav className="flex-1 px-2 py-3">
+          {/* Main group */}
+          {!collapsed && (
+            <p className="px-2 mb-1 mt-1" style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>
+              Main
+            </p>
+          )}
+          {nav.slice(0, 5).filter(({ href }) => !isStaff || ['/', '/leads', '/bookings'].includes(href)).map(({ href, label, icon }) => {
             const active = isActive(href)
             return (
               <Link key={href} href={href}
                 title={collapsed ? label : undefined}
-                className="flex items-center gap-3 rounded-lg text-sm transition-all duration-150"
+                className="flex items-center gap-3 rounded-md text-sm transition-all duration-150 mb-0.5"
                 style={{
-                  padding: collapsed ? '0.625rem' : '0.625rem 0.75rem',
+                  padding: collapsed ? '0.5rem' : '0.4rem 0.625rem',
                   justifyContent: collapsed ? 'center' : undefined,
                   background: active ? 'var(--accent-subtle)' : 'transparent',
-                  color: active ? 'var(--text-heading)' : 'var(--text-muted)',
-                  fontWeight: active ? 500 : 400,
-                  borderLeft: active && !collapsed ? '2px solid var(--accent)' : '2px solid transparent',
-                  marginLeft: collapsed ? 0 : '-1px',
+                  color: active ? 'var(--accent-text)' : 'var(--text-muted)',
+                  fontWeight: active ? 600 : 400,
+                }}>
+                <span className="w-5 flex items-center justify-center shrink-0">{icon}</span>
+                {!collapsed && label}
+              </Link>
+            )
+          })}
+
+          {/* Tools group */}
+          {!collapsed && (
+            <p className="px-2 mb-1 mt-4" style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>
+              Tools
+            </p>
+          )}
+          {collapsed && <div className="my-2" style={{ height: 1, background: 'var(--sidebar-border)' }} />}
+          {nav.slice(5).filter(({ href }) => !isStaff || ['/', '/leads', '/bookings'].includes(href)).map(({ href, label, icon }) => {
+            const active = isActive(href)
+            return (
+              <Link key={href} href={href}
+                title={collapsed ? label : undefined}
+                className="flex items-center gap-3 rounded-md text-sm transition-all duration-150 mb-0.5"
+                style={{
+                  padding: collapsed ? '0.5rem' : '0.4rem 0.625rem',
+                  justifyContent: collapsed ? 'center' : undefined,
+                  background: active ? 'var(--accent-subtle)' : 'transparent',
+                  color: active ? 'var(--accent-text)' : 'var(--text-muted)',
+                  fontWeight: active ? 600 : 400,
                 }}>
                 <span className="w-5 flex items-center justify-center shrink-0">{icon}</span>
                 {!collapsed && label}

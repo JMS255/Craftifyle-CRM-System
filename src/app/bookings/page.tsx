@@ -6,6 +6,7 @@ import WelcomeCard from '@/components/WelcomeCard'
 import { auth, getDocsByUser } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import type { Booking, BookingStatus } from '@/types'
+import TopBar from '@/components/TopBar'
 
 const STATUSES: BookingStatus[] = ['upcoming', 'completed', 'cancelled']
 
@@ -120,7 +121,9 @@ export default function BookingsPage() {
   const yearCraftifyle = yearActive.reduce((s, b) => s + (b.craftifyle_income ?? 0), 0)
 
   return (
-    <div className="p-4 md:p-8">
+    <>
+      <TopBar page="Bookings" title="Bookings" subtitle="All confirmed events" />
+      <div className="p-4 md:p-8">
       <WelcomeCard
         storageKey="welcome-bookings"
         icon="📅"
@@ -133,11 +136,6 @@ export default function BookingsPage() {
         ]}
         accentColor="#3b82f6"
       />
-      <div className="mb-5">
-        <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Bookings</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>All confirmed events</p>
-      </div>
-
       {/* Year selector */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-muted)' }}>Year:</span>
@@ -237,6 +235,7 @@ export default function BookingsPage() {
         <MonthAccordion months={months} year={selectedYear} />
       )}
     </div>
+  </>
   )
 }
 
@@ -279,7 +278,14 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
               </div>
             </button>
 
-            {isOpen && (
+            <div style={{
+              overflow: 'hidden',
+              maxHeight: isOpen ? '2000px' : '0',
+              opacity: isOpen ? 1 : 0,
+              transition: isOpen
+                ? 'max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease 0.05s'
+                : 'max-height 0.22s cubic-bezier(0.4,0,0.6,1), opacity 0.15s ease',
+            }}>
               <div style={{ borderTop: '1px solid var(--border-secondary)' }}>
                 {/* Desktop table */}
                 <table className="hidden md:table w-full text-sm">
@@ -371,7 +377,7 @@ function MonthAccordion({ months, year }: { months: MonthGroup[]; year: string }
                   ))}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )
       })}

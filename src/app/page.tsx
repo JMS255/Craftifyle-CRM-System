@@ -6,6 +6,7 @@ import WelcomeCard from '@/components/WelcomeCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { auth, db, getAllDocs, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
 import type { Lead, Booking } from '@/types'
+import TopBar from '@/components/TopBar'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -168,6 +169,18 @@ export default function Dashboard() {
   }
 
   return (
+    <>
+      <TopBar
+        page="Dashboard"
+        title={`Good ${timeOfDay}, ${firstName} 👋`}
+        actions={
+          <Link href="/leads/new"
+            className="text-white text-sm font-semibold px-4 py-2 rounded-[8px]"
+            style={{ background: 'var(--accent)' }}>
+            + New Lead
+          </Link>
+        }
+      />
     <div className="p-4 md:p-8">
 
       <WelcomeCard
@@ -181,23 +194,6 @@ export default function Dashboard() {
           'Revenue charts track your monthly bookings and income over time',
         ]}
       />
-
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-heading)' }}>
-            Good {timeOfDay}, {firstName} 👋
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>{todayStr}</p>
-        </div>
-        <Link
-          href="/leads/new"
-          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-semibold text-white"
-          style={{ background: 'var(--accent)' }}
-        >
-          + New Lead
-        </Link>
-      </div>
 
       {/* ── KPI row ── */}
       {leads.length > 0 && (
@@ -396,6 +392,7 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  </>
   )
 }
 
@@ -453,7 +450,15 @@ function LeadsByMonth({ leads, selectedYear, openMonth, setOpenMonth }: {
                     }}>{m.conversionRate}%</span>
                 )}
               </button>
-              {isOpen && hasData && (
+              {hasData && (
+                <div style={{
+                  overflow: 'hidden',
+                  maxHeight: isOpen ? '400px' : '0',
+                  opacity: isOpen ? 1 : 0,
+                  transition: isOpen
+                    ? 'max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.18s ease 0.04s'
+                    : 'max-height 0.18s cubic-bezier(0.4,0,0.6,1), opacity 0.12s ease',
+                }}>
                 <div className="px-5 pb-4" style={{ borderTop: '1px solid var(--border-secondary)' }}>
                   <div className="flex rounded-full overflow-hidden h-1.5 my-3 gap-0.5">
                     <BarSeg count={m.booked} total={m.total} color="#10b981" />
@@ -475,6 +480,7 @@ function LeadsByMonth({ leads, selectedYear, openMonth, setOpenMonth }: {
                     className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
                     View all {m.monthLabel} leads →
                   </Link>
+                </div>
                 </div>
               )}
             </div>

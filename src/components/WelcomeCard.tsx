@@ -26,20 +26,26 @@ export default function WelcomeCard({
     setTimeout(() => {
       localStorage.setItem(storageKey, '1')
       setVisible(false)
-    }, 300)
+    }, 400)
   }
 
   if (!visible) return null
 
   return (
+    <div style={{
+      overflow: 'hidden',
+      maxHeight: leaving ? 0 : '600px',
+      marginBottom: leaving ? 0 : '1.5rem',
+      transition: 'max-height 0.4s ease, margin-bottom 0.4s ease',
+    }}>
     <div
-      className="mb-6 rounded-2xl overflow-hidden"
+      className="rounded-2xl overflow-hidden"
       style={{
         border: `1px solid ${accentColor}33`,
         background: `${accentColor}0d`,
         opacity: leaving ? 0 : 1,
-        transform: leaving ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'opacity 0.3s ease, transform 0.3s ease',
+        transform: leaving ? 'translateY(-4px) scale(0.99)' : 'translateY(0) scale(1)',
+        transition: 'opacity 0.25s ease, transform 0.25s ease',
       }}
     >
       <div className="px-5 py-4">
@@ -79,6 +85,7 @@ export default function WelcomeCard({
           ))}
         </div>
       </div>
+    </div>
     </div>
   )
 }

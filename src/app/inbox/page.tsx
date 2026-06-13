@@ -5,6 +5,7 @@ import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { getAllDocs } from '@/lib/firebase'
 import type { LeadStatus } from '@/types'
+import TopBar from '@/components/TopBar'
 
 interface ConvoLead {
   id: string
@@ -87,7 +88,9 @@ export default function InboxPage() {
   )
 
   return (
-    <div className="p-4 md:p-8">
+    <>
+      <TopBar page="Inbox" title="Messenger" subtitle={`${leads.length} conversation${leads.length !== 1 ? 's' : ''}`} />
+      <div className="p-4 md:p-8">
 
       <WelcomeCard
         storageKey="welcome-inbox"
@@ -101,21 +104,6 @@ export default function InboxPage() {
         ]}
         accentColor="#3b82f6"
       />
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Messenger</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-faint)' }}>
-            {leads.length} conversation{leads.length !== 1 ? 's' : ''}
-            {needsReply.length > 0 && (
-              <span className="ml-2 font-semibold" style={{ color: 'var(--danger)' }}>
-                · {needsReply.length} need{needsReply.length === 1 ? 's' : ''} a reply
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
 
       {leads.length === 0 ? (
         <div className="card rounded-2xl p-10 text-center">
@@ -158,6 +146,7 @@ export default function InboxPage() {
         </div>
       )}
     </div>
+  </>
   )
 }
 

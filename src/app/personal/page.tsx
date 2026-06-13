@@ -11,6 +11,7 @@ import DebtScheduleCard from '@/components/finance/DebtScheduleCard'
 import SurvivalProjectionCard, { type ProjectionMonth } from '@/components/finance/SurvivalProjectionCard'
 import FinanceStatusBanner from '@/components/finance/FinanceStatusBanner'
 import FinanceAIInput from '@/components/finance/FinanceAIInput'
+import TopBar from '@/components/TopBar'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -173,7 +174,22 @@ export default function PersonalPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 pb-8">
+    <>
+      <TopBar
+        page="Finances"
+        title="Personal Finance"
+        subtitle="Your money, separate from Craftifyle"
+        actions={
+          <button
+            onClick={() => setShowManual(s => !s)}
+            className="text-xs px-3 py-1.5 rounded-[8px] font-medium"
+            style={{ background: 'var(--card-elevated)', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+          >
+            {showManual ? 'Cancel' : '+ Manual'}
+          </button>
+        }
+      />
+      <div className="p-4 md:p-8 pb-8">
 
       <WelcomeCard
         storageKey="welcome-finances"
@@ -187,25 +203,6 @@ export default function PersonalPage() {
         ]}
         accentColor="#10b981"
       />
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>
-            Personal Finance
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Your money, separate from Craftifyle
-          </p>
-        </div>
-        <button
-          onClick={() => setShowManual(s => !s)}
-          className="text-xs px-3 py-1.5 rounded-[10px] font-medium"
-          style={{ background: 'var(--card-elevated)', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
-        >
-          {showManual ? 'Cancel' : '+ Manual'}
-        </button>
-      </div>
 
       {/* Manual entry fallback */}
       {showManual && (
@@ -389,7 +386,15 @@ export default function PersonalPage() {
                       )}
                     </button>
 
-                    {isOpen && hasData && (
+                    {hasData && (
+                      <div style={{
+                        overflow: 'hidden',
+                        maxHeight: isOpen ? '1800px' : '0',
+                        opacity: isOpen ? 1 : 0,
+                        transition: isOpen
+                          ? 'max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease 0.05s'
+                          : 'max-height 0.22s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.15s ease',
+                      }}>
                       <div style={{ borderTop: '1px solid var(--card-border)' }}>
                         {month.income.length > 0 && (
                           <div>
@@ -459,6 +464,7 @@ export default function PersonalPage() {
                             {month.net >= 0 ? '+' : ''}{peso(month.net)}
                           </span>
                         </div>
+                      </div>
                       </div>
                     )}
                   </div>
@@ -551,6 +557,7 @@ export default function PersonalPage() {
 
       </div>
     </div>
+  </>
   )
 }
 

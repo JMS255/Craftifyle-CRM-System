@@ -5,6 +5,7 @@ import { auth, db, getAllDocs, addDocument, deleteDocument } from '@/lib/firebas
 import WelcomeCard from '@/components/WelcomeCard'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import type { AiSettings, AiTone } from '@/types'
+import TopBar from '@/components/TopBar'
 
 interface Row {
   id?: string
@@ -132,24 +133,25 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl md:max-w-none">
-      <div className="mb-8">
+    <>
+      <TopBar page="Settings" title="Settings" subtitle="Packages, AI training, and team management" />
+      <div className="p-4 md:p-8 max-w-3xl md:max-w-none">
         <WelcomeCard
-        storageKey="welcome-packages"
-        icon="📦"
-        title="Set up your packages & pricing"
-        description="Define your service packages and prices here. Crafty AI uses these exact names and amounts when creating bookings or answering client inquiries."
-        tips={[
-          'Keep package names consistent — Crafty matches by name when creating bookings',
-          'Add-ons appear as optional extras on top of your base packages',
-          'Changes take effect immediately — no restart needed',
-        ]}
-        accentColor="#f59e0b"
-      />
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Packages & Pricing</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Crafty AI uses these exact names and prices when creating bookings or answering inquiries.
-        </p>
+          storageKey="welcome-packages"
+          icon="📦"
+          title="Set up your packages & pricing"
+          description="Define your service packages and prices here. Crafty AI uses these exact names and amounts when creating bookings or answering client inquiries."
+          tips={[
+            'Keep package names consistent — Crafty matches by name when creating bookings',
+            'Add-ons appear as optional extras on top of your base packages',
+            'Changes take effect immediately — no restart needed',
+          ]}
+          accentColor="#f59e0b"
+        />
+
+      <div className="mb-5">
+        <h2 className="text-base font-bold" style={{ color: 'var(--text-heading)' }}>Packages & Pricing</h2>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>Crafty AI uses these exact names and prices when creating bookings or answering inquiries.</p>
       </div>
 
       {error && (
@@ -201,9 +203,9 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <CraftyAISection />
       <TeamSection />
     </div>
+  </>
   )
 }
 
@@ -449,6 +451,16 @@ function PackageSection({ title, rows, onAdd, onDelete, onChange }: {
   onDelete: (i: number) => void
   onChange: (i: number, field: keyof Row, value: string | boolean) => void
 }) {
+  const [removingIdx, setRemovingIdx] = useState<number | null>(null)
+
+  function handleDelete(i: number) {
+    setRemovingIdx(i)
+    setTimeout(() => {
+      onDelete(i)
+      setRemovingIdx(null)
+    }, 260)
+  }
+
   return (
     <div className="mb-6">
       <h2 className="section-label mb-3">{title}</h2>
@@ -458,7 +470,14 @@ function PackageSection({ title, rows, onAdd, onDelete, onChange }: {
         )}
         {rows.map((row, i) => (
           <div key={i} className="px-4 py-3 flex flex-col sm:flex-row gap-2 items-start sm:items-center"
-            style={{ borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none' }}>
+            style={{
+              borderTop: i > 0 ? '1px solid var(--border-secondary)' : 'none',
+              opacity: removingIdx === i ? 0 : 1,
+              transform: removingIdx === i ? 'translateX(10px)' : 'none',
+              maxHeight: removingIdx === i ? 0 : '120px',
+              overflow: 'hidden',
+              transition: 'opacity 0.22s ease, transform 0.22s ease, max-height 0.28s ease',
+            }}>
             {/* Active toggle */}
             <button
               onClick={() => onChange(i, 'is_active', !row.is_active)}
@@ -499,7 +518,7 @@ function PackageSection({ title, rows, onAdd, onDelete, onChange }: {
             </div>
             {/* Delete */}
             <button
-              onClick={() => onDelete(i)}
+              onClick={() => handleDelete(i)}
               className="shrink-0 text-xs px-2 py-1.5 rounded-lg transition-colors"
               style={{ color: 'var(--danger)', background: 'var(--danger-muted)' }}
             >

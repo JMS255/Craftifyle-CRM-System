@@ -6,6 +6,7 @@ import WelcomeCard from '@/components/WelcomeCard'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { getAllDocs, updateDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus } from '@/types'
+import TopBar from '@/components/TopBar'
 
 const STATUSES: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost', 'completed']
 
@@ -147,7 +148,32 @@ export default function LeadsPage() {
   }, {} as Record<LeadStatus, number>)
 
   return (
-    <div className="p-4 md:p-8">
+    <>
+      <TopBar
+        page="Leads"
+        title="Leads"
+        subtitle={`${yearLeads.length} leads in ${selectedYear}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
+              <button onClick={() => toggleView('list')} className="text-xs px-3 py-1.5 font-medium transition-colors"
+                style={{ background: view === 'list' ? 'var(--accent)' : 'var(--subtle-bg)', color: view === 'list' ? '#fff' : 'var(--text-muted)' }}>
+                ☰ List
+              </button>
+              <button onClick={() => toggleView('kanban')} className="text-xs px-3 py-1.5 font-medium transition-colors"
+                style={{ background: view === 'kanban' ? 'var(--accent)' : 'var(--subtle-bg)', color: view === 'kanban' ? '#fff' : 'var(--text-muted)' }}>
+                ⬜ Board
+              </button>
+            </div>
+            <Link href="/leads/new"
+              className="text-white text-sm font-semibold px-4 py-2 rounded-[10px] whitespace-nowrap"
+              style={{ background: 'var(--accent)' }}>
+              + New Lead
+            </Link>
+          </div>
+        }
+      />
+      <div className="p-4 md:p-8">
 
       <WelcomeCard
         storageKey="welcome-leads"
@@ -161,34 +187,6 @@ export default function LeadsPage() {
         ]}
         accentColor="#8b5cf6"
       />
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-5 gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Leads</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-faint)' }}>
-            {yearLeads.length} leads in {selectedYear}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
-            <button onClick={() => toggleView('list')} className="text-xs px-3 py-1.5 font-medium transition-colors"
-              style={{ background: view === 'list' ? 'var(--accent)' : 'var(--subtle-bg)', color: view === 'list' ? '#fff' : 'var(--text-muted)' }}>
-              ☰ List
-            </button>
-            <button onClick={() => toggleView('kanban')} className="text-xs px-3 py-1.5 font-medium transition-colors"
-              style={{ background: view === 'kanban' ? 'var(--accent)' : 'var(--subtle-bg)', color: view === 'kanban' ? '#fff' : 'var(--text-muted)' }}>
-              ⬜ Board
-            </button>
-          </div>
-          <Link href="/leads/new"
-            className="text-white text-sm font-semibold px-4 py-2 rounded-[10px] whitespace-nowrap"
-            style={{ background: 'var(--accent)' }}>
-            + New Lead
-          </Link>
-        </div>
-      </div>
 
       {/* ── Cold Lead Alert ── */}
       {!loading && coldLeads.length > 0 && (
@@ -552,6 +550,7 @@ export default function LeadsPage() {
         </div>
       )}
     </div>
+  </>
   )
 }
 
