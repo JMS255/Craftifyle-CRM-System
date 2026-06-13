@@ -103,6 +103,20 @@ function LoginForm() {
             padding: '28px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.35), 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
           }}>
+            {/* Tabs */}
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.07)', borderRadius: '8px', padding: '3px', marginBottom: '22px' }}>
+              <div style={{
+                flex: 1, padding: '7px', borderRadius: '6px', textAlign: 'center',
+                fontSize: '13px', fontWeight: 600, color: '#fff',
+                background: 'rgba(124,111,247,0.38)', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+              }}>Sign In</div>
+              <a href="/signup" style={{
+                flex: 1, padding: '7px', borderRadius: '6px', textAlign: 'center',
+                fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.38)',
+                textDecoration: 'none', display: 'block',
+              }}>Sign Up</a>
+            </div>
+
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '19px', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
                 Welcome back
