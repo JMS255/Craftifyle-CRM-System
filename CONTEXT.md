@@ -1,7 +1,7 @@
 # Craftifyle CRM — Session Context
 
 > Read this at the start of every new session to get fully caught up.
-> Last updated: June 11, 2026 (session 4 — Personal Finance Manager shipped, Sentry, Bookings→Finance sync)
+> Last updated: June 13, 2026 (session 5 — Crafty AI tab, PDF knowledge base, mobile sheet animations, WelcomeCard onboarding)
 
 ---
 
@@ -19,7 +19,7 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 4. **laagan-adventure** - THIS Project is a travel and tours website for the second company
 ---
 
-## CRM Current Status (June 11, 2026 — after Sprint 4–5 build sessions)
+## CRM Current Status (June 13, 2026 — after Sprint 6 build session)
 
 ### Everything that's working
 
@@ -52,6 +52,17 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Pulse animation + tooltip on first 3 sessions (discoverability)
 - External event trigger: `window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt, mode } }))`
 
+**Crafty AI Tab — `/crafty` (June 13, 2026)**
+- Dedicated training page — separate from Profile
+- Gradient banner with save-as-status-pill button (shows configured state, uses `form="crafty-form"` attribute)
+- Business Training form: business name, description, pricing model, reply rules, AI context
+- Reply Tone selector: Casual Taglish / Casual English / Formal English (radio cards)
+- PDF Knowledge Base: upload up to 5 PDFs, multi-file at once, server-side text extraction via `pdf-parse`
+- `/api/profile/parse-pdf` — auth-gated, 4MB limit, 40k char truncation, stores as `ai_pdfs[]` in `profiles/{uid}`
+- Live Test panel (sticky right column on XL screens) — calls `/api/chat` for real preview
+- Both `/api/chat` and `/api/crafty-assist` inject uploaded PDF text into system prompt
+- `AiPdf` type: `{ name: string; text: string }` — stored in Firestore profiles doc
+
 **Crafty Tools (CRM Actions)**
 - get_leads, create_lead, update_lead
 - get_bookings, create_booking, log_payment
@@ -62,6 +73,13 @@ James Ignacio — owner of Craftifyle, photobooth + event photography business i
 - Mode toggle: Advisor / CRM Actions (each keeps separate message history)
 - Quick-prompt chips on dashboard fire Crafty prompts via CustomEvent
 - Animations: FAB glow pulse, panel slide-up/down CSS transition (always mounted), 3-dot typing indicator, message slide-in, suggestion chip stagger
+
+**UX Improvements (June 13, session 5)**
+- WelcomeCard component — dismisses permanently via localStorage, smooth leave animation, numbered tips, accent color prop
+- WelcomeCard on all main tabs: Dashboard, Leads, Bookings, Personal Finance, Inbox, Settings/Packages, Crafty AI
+- Mobile bottom sheet: smooth slide-up via `cubic-bezier(0.32, 0.72, 0, 1)`, staggered entrance animations, drag handle pill, 4-col nav grid with Crafty AI ⚡
+- ChatWidget header: fixed light mode text contrast (Tailwind `text-white`/`text-indigo-200` overridden by global CSS — replaced with inline `style={{ color }}`)
+- Profile page: centered (`max-w-lg mx-auto`), AI training fields moved to dedicated `/crafty` tab
 
 **UX Improvements (June 9, session 2)**
 - Delete leads and bookings — red Delete button on detail pages, confirm dialog, redirects to list
@@ -386,6 +404,9 @@ Pricing model: Free (hook) → ₱800/mo Starter → ₱1,200/mo Pro → Custom 
 | `src/app/personal/page.tsx` | Personal Finance Manager — cash position, debt tracker, survival projection, AI entry |
 | `src/app/api/personal-finance-assist/route.ts` | Personal Finance AI — Gemini with tools: log_expense, log_income, mark_debt_payment, mark_incoming_received, update_cash_position, update_debt, delete_debt, delete_incoming |
 | `src/app/api/bookings/sync-finance/route.ts` | POST: idempotent backfill — creates personal_income entries for fully-paid bookings missing from finance |
+| `src/app/crafty/page.tsx` | Crafty AI training tab — business form, PDF upload, live test panel |
+| `src/app/api/profile/parse-pdf/route.ts` | POST: auth-gated PDF text extraction (pdf-parse, 4MB max, 40k char truncation) |
+| `src/components/WelcomeCard.tsx` | First-timer onboarding card — localStorage dismiss, smooth leave animation, tips grid |
 | `src/components/finance/CashPositionCard.tsx` | Multi-source cash tracker, inline edit |
 | `src/components/finance/ConfirmedIncomingCard.tsx` | Pending non-revenue income, "Mark Received" converts to income entry |
 | `src/components/finance/DebtScheduleCard.tsx` | Per-debt card with monthly payment grid, pure-arithmetic month helpers |

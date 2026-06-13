@@ -1,8 +1,8 @@
 # Craftifyle CRM — Documentation
-**Version:** 1.3.0  
-**Last Updated:** June 2, 2026  
+**Version:** 1.6.0  
+**Last Updated:** June 13, 2026  
 **Built by:** James Ignacio + Claude AI  
-**Stack:** Next.js App Router, TypeScript, Tailwind CSS v4, Supabase, Groq, Vercel
+**Stack:** Next.js App Router, TypeScript, Tailwind CSS v4, Firebase Firestore + Auth, Gemini 2.5 Flash Lite, Vercel
 
 ---
 
@@ -52,18 +52,21 @@ It handles:
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js App Router, TypeScript, Tailwind CSS v4 |
-| Database | Supabase (PostgreSQL) |
-| AI — Advisor | Groq API — llama-3.1-8b-instant |
-| AI — CRM Actions | Groq API — llama-3.3-70b-versatile (tool calling) |
-| AI — Messenger bot | Groq API — llama-3.3-70b-versatile |
-| AI — Lead extraction | Groq API — llama-3.1-8b-instant |
+| Database | **Firebase Firestore** (migrated from Supabase June 9, 2026) |
+| Auth | **Firebase Auth** + `__session` httpOnly cookie (5 days) |
+| AI — Advisor | **Gemini 2.5 Flash Lite** (`/api/chat`) |
+| AI — CRM Actions | **Gemini 2.5 Flash Lite** with tool calling (`/api/crafty-assist`) |
+| AI — Personal Finance | **Gemini 2.5 Flash Lite** with tool calling (`/api/personal-finance-assist`) |
+| AI — Messenger bot | Gemini 2.5 Flash Lite (`/api/messenger`) — BLOCKED pending BIR |
+| Error Monitoring | **Sentry** (DSN in sentry.*.config.ts) |
 | Hosting | Vercel (auto-deploy from GitHub master) |
 | Messenger | Meta Messenger Platform API (Graph API v19.0) — blocked pending BIR |
-| SMS | Semaphore PH |
+| SMS | Semaphore PH (SEMAPHORE_API_KEY) |
 | Calendar | Google Calendar API |
 | Charts | recharts |
 | Drag-and-drop | @hello-pangea/dnd |
 | Cron Jobs | Vercel Cron |
+| PDF parsing | pdf-parse (CJS, server-side only, externalized in next.config.ts) |
 
 ---
 
@@ -105,22 +108,27 @@ craftifyle-crm/
 │   │       ├── reply/route.ts              # AI reply draft generator
 │   │       ├── messenger/route.ts          # Crafty Messenger webhook (Meta bot)
 │   │       ├── auth/
-│   │       │   └── check-invite/route.ts   # Invite code validator
+│   │       │   ├── check-invite/route.ts   # Invite code validator
+│   │       │   ├── session/route.ts        # Exchange Firebase ID token → __session cookie
+│   │       │   └── post-login/route.ts     # Auto-migrate Supabase UID data to Firebase UID
 │   │       ├── bookings/
-│   │       │   └── sync-calendar/route.ts  # Google Calendar sync endpoint
+│   │       │   ├── sync-calendar/route.ts  # Google Calendar sync endpoint
+│   │       │   └── sync-finance/route.ts   # Idempotent backfill: paid bookings → personal_income
+│   │       ├── profile/
+│   │       │   └── parse-pdf/route.ts      # Auth-gated PDF text extraction (pdf-parse, 4MB/40k char)
 │   │       └── cron/
 │   │           ├── follow-up/route.ts      # Daily auto follow-up (Messenger + SMS)
 │   │           └── reminders/route.ts      # 3-day booking reminders
 │   ├── components/
-│   │   ├── Sidebar.tsx                     # Desktop sidebar + mobile bottom nav + Quick Add sheet
+│   │   ├── Sidebar.tsx                     # Desktop sidebar + mobile bottom nav + Quick Add sheet + animations
 │   │   ├── ChatWidget.tsx                  # Floating AI chat — Advisor + CRM Actions + Paste DM
+│   │   ├── WelcomeCard.tsx                 # First-timer onboarding card (localStorage dismiss, per-tab)
 │   │   ├── PackagePicker.tsx               # Package + add-on selector, auto-calculates total
 │   │   ├── OnboardingModal.tsx             # First-run onboarding checklist
 │   │   └── ThemeProvider.tsx               # Dark/light mode provider
 │   ├── lib/
-│   │   ├── supabase.ts                     # Supabase browser client
-│   │   ├── supabase-server.ts              # Supabase server client (SSR)
-│   │   ├── supabase-admin.ts               # Supabase admin client (service role)
+│   │   ├── firebase.ts                     # Firebase client SDK — db, auth, getDocsByUser() helper
+│   │   ├── firebase-admin.ts               # Firebase Admin SDK — lazy Proxy init, getAdminDb()/getAdminAuth()
 │   │   └── google-calendar.ts             # Google Calendar API helpers
 │   ├── middleware.ts                       # Auth middleware — route protection
 │   └── types/
@@ -235,9 +243,12 @@ Personal finance tracker — separate from booking revenue.
 Stored in `.env.local` (never committed) and Vercel Environment Variables.
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=          # Supabase project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Supabase anon key
-GROQ_API_KEY=                      # Groq API key (Crafty AI)
+NEXT_PUBLIC_FIREBASE_API_KEY=      # Firebase project API key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=  # Firebase auth domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=   # Firebase project ID
+NEXT_PUBLIC_FIREBASE_APP_ID=       # Firebase app ID
+FIREBASE_SERVICE_ACCOUNT_KEY=      # Firebase Admin SDK service account JSON (stringified)
+GEMINI_API_KEY=                    # Gemini API key (all Crafty AI routes)
 MESSENGER_APP_SECRET=              # Meta app secret for webhook verification
 MESSENGER_VERIFY_TOKEN=            # craftifyle_webhook_2026
 MESSENGER_PAGE_ACCESS_TOKEN=       # Facebook Page access token
@@ -247,6 +258,7 @@ GOOGLE_CLIENT_ID=                  # Google OAuth client ID (Calendar)
 GOOGLE_CLIENT_SECRET=              # Google OAuth client secret
 GOOGLE_REFRESH_TOKEN=              # Google OAuth refresh token
 INVITE_CODE=                       # Delete this var to enable open beta signups
+SENTRY_AUTH_TOKEN=                 # Sentry source map upload token
 ```
 
 ---
@@ -303,11 +315,24 @@ INVITE_CODE=                       # Delete this var to enable open beta signups
 - Instructions for m.me ref link setup
 
 ### Personal Finance (`/personal`)
-- Income and expenses tracker, separate from business
-- Categories, dates, notes — grouped by month with net summary
+- CashPositionCard — multi-source cash tracker (Maribank, cash on hand, etc.)
+- ConfirmedIncomingCard — pending non-revenue income, Mark Received converts to income entry
+- DebtScheduleCard — per-debt card, next payment shown, tap to expand full payment grid
+- SurvivalProjectionCard — swipeable month-by-month cash flow projection
+- FinanceStatusBanner — AI-generated one-liner (e.g. "August is tight — ₱2K shortfall projected")
+- FinanceAIInput — sticky input bar, calls `/api/personal-finance-assist`
+- Linked to Bookings: marking balance paid auto-creates a `personal_income` entry
+
+### Crafty AI (`/crafty`)
+- Business training form: name, description, pricing model, AI rules, AI context
+- Reply tone selector: Casual Taglish / Casual English / Formal English
+- PDF Knowledge Base: upload up to 5 PDFs, text extracted server-side, stored in Firestore
+- Live test panel: send a message, see exactly how Crafty replies with your training
+- Save button in gradient banner doubles as training status pill
 
 ### Profile (`/profile`)
-- Set full name, business name, city — shown throughout the CRM
+- Set full name, business name, city, email — centered layout
+- AI training moved to dedicated `/crafty` tab
 
 ### Settings / Packages (`/settings`)
 - Manage base packages + add-ons with inline editing
@@ -328,15 +353,16 @@ INVITE_CODE=                       # Delete this var to enable open beta signups
 Crafty has two independent modes inside the ChatWidget floating button.
 
 ### Mode 1 — Advisor (`/api/chat`)
-- Model: `llama-3.1-8b-instant`
+- Model: `gemini-2.5-flash-lite`
 - Business advisor — no database access
 - Knows today's date (injected at request time)
+- Injects user's AI training (business description, rules, tone, PDF knowledge base) from `profiles/{uid}`
 
 ### Mode 2 — CRM Actions (`/api/crafty-assist`)
-- Model: `llama-3.3-70b-versatile` with tool calling (temp 0.3, max 3 tool rounds)
-- Reads and writes Supabase directly
-- Auth: checks Supabase session, all queries filtered by `user_id`
-- Uses `createAdminClient()` (service role) with manual `user_id` filter
+- Model: `gemini-2.5-flash-lite` with function calling (max 5 tool rounds)
+- Reads and writes Firebase Firestore directly
+- Auth: verifies `__session` cookie via Firebase Admin SDK, all queries filtered by `user_id`
+- Injects user's AI training + PDF knowledge base from `profiles/{uid}`
 
 **Available tools:**
 
@@ -372,7 +398,7 @@ Crafty has two independent modes inside the ChatWidget floating button.
 - Quick-prompt chips on dashboard fire prompts via this CustomEvent
 
 ### Mode 3 — Messenger Bot (`/api/messenger`)
-- Model: `llama-3.3-70b-versatile` (sales flow) + `llama-3.1-8b-instant` (lead extraction)
+- Model: `gemini-2.5-flash-lite` (sales flow + lead extraction)
 - **Status: BLOCKED** — pending Meta Business Verification (needs BIR registration)
 - Replies in Taglish, follows discovery → recommendation → objection → GCash deposit flow
 - Memory: last 10 messages stored in `messenger_conversations`
@@ -385,12 +411,17 @@ Crafty has two independent modes inside the ChatWidget floating button.
 
 | Route | Method | Description |
 |---|---|---|
-| `/api/chat` | POST | Crafty Advisor (no DB, business advice) |
-| `/api/crafty-assist` | POST | Crafty CRM Actions (tool calling, writes DB) |
+| `/api/chat` | POST | Crafty Advisor (Gemini, no DB, injects AI training + PDFs) |
+| `/api/crafty-assist` | POST | Crafty CRM Actions (Gemini tool calling, writes Firestore) |
+| `/api/personal-finance-assist` | POST | Personal Finance AI (Gemini tool calling) |
 | `/api/messenger` | GET | Facebook webhook verification |
 | `/api/messenger` | POST | Receive and process Messenger messages |
 | `/api/reply` | POST | Generate AI reply draft for a lead |
 | `/api/bookings/sync-calendar` | POST | Sync a booking to Google Calendar |
+| `/api/bookings/sync-finance` | POST | Idempotent backfill — paid bookings → personal_income |
+| `/api/profile/parse-pdf` | POST | Extract text from uploaded PDF (4MB max, 40k chars) |
+| `/api/auth/session` | POST | Exchange Firebase ID token for `__session` cookie |
+| `/api/auth/post-login` | POST | Auto-migrate old Supabase UID data to Firebase UID |
 | `/api/auth/check-invite` | POST | Validate invite code on signup |
 | `/api/cron/follow-up` | GET | Auto follow-up cron (protected by CRON_SECRET) |
 | `/api/cron/reminders` | GET | Booking reminder cron (protected by CRON_SECRET) |
@@ -431,9 +462,9 @@ git push origin master
 | Issue | Status |
 |---|---|
 | Meta Business Verification — Crafty Messenger bot blocked | ⚠️ Needs BIR registration |
-| SEMAPHORE_API_KEY not yet added to Vercel env vars | ⚠️ Add value: 75a671289eda9b6b08a32fe272f80292 |
 | Ad ref tracking doesn't work with Meta Chat Builder campaigns | ⚠️ Use Traffic campaign objective |
-| SQL migrations must be run manually in Supabase SQL Editor | ⚠️ Manual step |
+| PayMongo payment links — UI built but hidden behind `false &&` | ⚠️ Activate when James can sign up |
+| Facebook OAuth — blocked by Meta Business Verification + App Review | ⚠️ Skip until BIR registered |
 
 ---
 
@@ -473,12 +504,13 @@ git push origin master
 ## Roadmap
 
 ### Immediate
-- Add `SEMAPHORE_API_KEY` to Vercel env vars
-- Run `supabase-migration-packages.sql` in Supabase SQL Editor (packages table not yet created)
+- Business hours field in Crafty AI tab
+- Welcome message customization in Crafty AI tab
+- Quick reply templates for common client questions
 
-### Sprint 2 (July 2026)
-- Custom package builder in UI — configure from app without code
-- Crafty AI training UI — set packages, pricing, personality from app
+### Sprint 6 (July 2026)
+- Training completeness score on Crafty AI tab
+- Client portal — clients view booking, download invoice, see payment status
 
 ### Sprint 3 (August 2026)
 - GCash / PayMongo payment links — auto-generate per booking, webhook marks deposit paid
