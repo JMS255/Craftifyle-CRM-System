@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth, db, getAllDocs, addDocument, deleteDocument } from '@/lib/firebase'
+import { auth, db, getDocsByUser, addDocument, deleteDocument, collection, query, where, getDocs } from '@/lib/firebase'
 import WelcomeCard from '@/components/WelcomeCard'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import type { AiSettings, AiTone } from '@/types'
@@ -45,8 +45,8 @@ export default function SettingsPage() {
     async function load() {
       const user = auth.currentUser
       if (!user) return
-      const allPkgs = await getAllDocs<Row & { id: string; user_id: string; sort_order: number }>('packages')
-      const data = allPkgs.filter(p => p.user_id === user.uid).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const allPkgs = await getDocsByUser<Row & { id: string; user_id: string; sort_order: number }>('packages', user.uid)
+      const data = allPkgs.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       if (!data || data.length === 0) {
         setBases(DEFAULT_BASES)
         setAddons(DEFAULT_ADDONS)
@@ -73,10 +73,8 @@ export default function SettingsPage() {
       ].filter(r => r.name.trim())
 
       // Delete all existing packages for this user
-      const existing = await getAllDocs<{ id: string; user_id: string }>('packages')
-      await Promise.all(
-        existing.filter(p => p.user_id === user.uid).map(p => deleteDocument('packages', p.id))
-      )
+      const existing = await getDocsByUser<{ id: string; user_id: string }>('packages', user.uid)
+      await Promise.all(existing.map(p => deleteDocument('packages', p.id)))
 
       // Re-insert all
       await Promise.all(
@@ -95,8 +93,8 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 3000)
       setDeletedIds([])
 
-      const allPkgs = await getAllDocs<Row & { id: string; user_id: string; sort_order: number }>('packages')
-      const fresh = allPkgs.filter(p => p.user_id === user.uid).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const allPkgs = await getDocsByUser<Row & { id: string; user_id: string; sort_order: number }>('packages', user.uid)
+      const fresh = allPkgs.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       setBases(fresh.filter(p => !p.is_addon).map(p => ({ ...p, price: String(p.price) })))
       setAddons(fresh.filter(p => p.is_addon).map(p => ({ ...p, price: String(p.price) })))
     } catch (e: unknown) {
@@ -333,8 +331,9 @@ function TeamSection() {
   useEffect(() => {
     const uid = auth.currentUser?.uid
     if (!uid) return
-    getAllDocs<{ id: string; owner_id: string; member_email: string; status: string; created_at: string }>('team_invites').then(all => {
-      setMembers(all.filter(t => t.owner_id === uid).sort((a, b) => a.created_at.localeCompare(b.created_at)))
+    getDocs(query(collection(db, 'team_invites'), where('owner_id', '==', uid))).then(snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }) as { id: string; owner_id: string; member_email: string; status: string; created_at: string })
+      setMembers(all.sort((a, b) => a.created_at.localeCompare(b.created_at)))
     })
   }, [])
 

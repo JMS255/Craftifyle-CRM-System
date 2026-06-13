@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { auth, getDocById, updateDocument, addDocument, getAllDocs, deleteDocument } from '@/lib/firebase'
+import { auth, getDocById, updateDocument, addDocument, getDocsByUser, db, collection, query, where, getDocs, deleteDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus, Activity, ActivityType } from '@/types'
 
 const PIPELINE: LeadStatus[] = ['new', 'contacted', 'quoted', 'negotiating', 'booked', 'lost']
@@ -79,9 +79,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     reload()
   }
   async function reload() {
+    const user = auth.currentUser
     const [l, allActivities] = await Promise.all([
       getDocById<Lead & { crafty_active?: boolean; messenger_sender_id?: string }>('leads', id),
-      getAllDocs<Activity>('activities'),
+      user ? getDocsByUser<Activity>('activities', user.uid) : Promise.resolve([]),
     ])
     setLead(l)
     const acts = allActivities
@@ -89,9 +90,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setActivities(acts)
     if (l?.messenger_sender_id) {
-      const allMsgs = await getAllDocs<ConvoMsg & { sender_id: string }>('messenger_conversations')
-      const msgs = allMsgs
-        .filter(m => m.sender_id === l.messenger_sender_id)
+      const snap = await getDocs(query(collection(db, 'messenger_conversations'), where('sender_id', '==', l.messenger_sender_id)))
+      const msgs = snap.docs
+        .map(d => d.data() as ConvoMsg)
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         .slice(-50)
       setConversation(msgs)

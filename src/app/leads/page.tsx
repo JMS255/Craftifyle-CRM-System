@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { getAllDocs, updateDocument } from '@/lib/firebase'
+import { auth, getDocsByUser, updateDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -81,7 +81,9 @@ export default function LeadsPage() {
   }, [])
 
   useEffect(() => {
-    getAllDocs<Lead>('leads').then(data => {
+    const user = auth.currentUser
+    if (!user) return
+    getDocsByUser<Lead>('leads', user.uid).then(data => {
       setLeads([...data].sort((a, b) => b.created_at.localeCompare(a.created_at)))
       setLoading(false)
     })

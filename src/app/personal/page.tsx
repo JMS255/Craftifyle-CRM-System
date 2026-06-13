@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import WelcomeCard from '@/components/WelcomeCard'
-import { auth, getAllDocs, deleteDocument } from '@/lib/firebase'
+import { auth, getDocsByUser, deleteDocument } from '@/lib/firebase'
 import type { PersonalIncome, PersonalExpense, IncomeCategory, ExpenseCategory } from '@/types'
 import CashPositionCard from '@/components/finance/CashPositionCard'
 import ConfirmedIncomingCard from '@/components/finance/ConfirmedIncomingCard'
@@ -94,9 +94,11 @@ export default function PersonalPage() {
   }
 
   async function load() {
+    const user = auth.currentUser
+    if (!user) return
     const [inc, exp] = await Promise.all([
-      getAllDocs<PersonalIncome>('personal_income'),
-      getAllDocs<PersonalExpense>('personal_expenses'),
+      getDocsByUser<PersonalIncome>('personal_income', user.uid),
+      getDocsByUser<PersonalExpense>('personal_expenses', user.uid),
     ])
     setIncome(inc.sort((a, b) => b.income_date.localeCompare(a.income_date)))
     setExpenses(exp.sort((a, b) => b.expense_date.localeCompare(a.expense_date)))

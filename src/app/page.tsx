@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { auth, db, getAllDocs, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
+import { auth, db, getDocsByUser, getDocById, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
 import type { Lead, Booking } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -81,9 +81,11 @@ export default function Dashboard() {
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10)
     const todayStr = now.toISOString().slice(0, 10)
 
+    if (!user) { setLoading(false); return }
+
     const [allLeads, allBookings] = await Promise.all([
-      getAllDocs<Lead>('leads'),
-      getAllDocs<Booking>('bookings'),
+      getDocsByUser<Lead>('leads', user.uid),
+      getDocsByUser<Booking>('bookings', user.uid),
     ])
 
     const sortedLeads = [...allLeads].sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -106,12 +108,9 @@ export default function Dashboard() {
     }, 0)
     setRevenue({ confirmed, collected, pipeline: confirmed - collected, bookingCount: monthBookings.length })
 
-    if (user) {
-      const profiles = await getAllDocs<{ id: string; full_name: string | null }>('profiles')
-      const p = profiles.find(pr => pr.id === user.uid)
-      const name = p?.full_name?.split(' ')[0]
-      if (name) setFirstName(name)
-    }
+    const profile = await getDocById<{ id: string; full_name: string | null }>('profiles', user.uid)
+    const name = profile?.full_name?.split(' ')[0]
+    if (name) setFirstName(name)
     setLoading(false)
   }
 

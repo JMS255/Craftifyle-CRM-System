@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner() {
+      return request.auth.uid == resource.data.user_id;
+    }
+    function isCreatingOwn() {
+      return request.auth.uid == request.resource.data.user_id;
+    }
+
+    // Profiles: document ID is the user's UID
+    match /profiles/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // User-owned collections
+    match /leads/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /bookings/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /activities/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /packages/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /personal_income/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /personal_expenses/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /tasks/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+
+    // Messenger conversations: written by server (Admin SDK bypasses rules),
+    // read only by the owning user
+    match /messenger_conversations/{docId} {
+      allow read: if isAuth() && isOwner();
+      allow write: if false; // server-only via Admin SDK
+    }
+
+    // Team invites: owner can read/write; invited member reads by token via API
+    match /team_invites/{docId} {
+      allow read, write: if isAuth() && request.auth.uid == resource.data.owner_id;
+      allow create: if isAuth() && request.auth.uid == request.resource.data.owner_id;
+    }
+  }
+}

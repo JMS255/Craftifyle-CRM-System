@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
-import { getAllDocs } from '@/lib/firebase'
+import { auth, getDocsByUser } from '@/lib/firebase'
 import type { LeadStatus } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -46,9 +46,11 @@ export default function InboxPage() {
 
   useEffect(() => {
     async function load() {
+      const user = auth.currentUser
+      if (!user) { setLoading(false); return }
       const [allLeads, allMsgs] = await Promise.all([
-        getAllDocs<{ id: string; name: string; status: LeadStatus; event_type: string | null; event_date: string | null; messenger_sender_id: string | null }>('leads'),
-        getAllDocs<{ sender_id: string; content: string; role: string; created_at: string }>('messenger_conversations'),
+        getDocsByUser<{ id: string; name: string; status: LeadStatus; event_type: string | null; event_date: string | null; messenger_sender_id: string | null }>('leads', user.uid),
+        getDocsByUser<{ sender_id: string; content: string; role: string; created_at: string }>('messenger_conversations', user.uid),
       ])
 
       const messengerLeads = allLeads.filter(l => l.messenger_sender_id)
