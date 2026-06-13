@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import WelcomeCard from '@/components/WelcomeCard'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { getAllDocs, updateDocument } from '@/lib/firebase'
 import type { Lead, LeadStatus } from '@/types'
@@ -147,6 +148,19 @@ export default function LeadsPage() {
 
   return (
     <div className="p-4 md:p-8">
+
+      <WelcomeCard
+        storageKey="welcome-leads"
+        icon="👥"
+        title="Manage your client pipeline"
+        description="Leads are potential clients who have inquired but haven't confirmed yet. Track where each one is in your sales process — from first message to confirmed booking."
+        tips={[
+          'Move leads through stages: New → Contacted → Quoted → Negotiating → Booked',
+          "Log calls, messages, and follow-ups as Activities so nothing slips through",
+          "Paste a client's Messenger DM into Crafty AI to instantly create a lead",
+        ]}
+        accentColor="#8b5cf6"
+      />
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-5 gap-3">

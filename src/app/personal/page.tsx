@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
+import WelcomeCard from '@/components/WelcomeCard'
 import { auth, getAllDocs, deleteDocument } from '@/lib/firebase'
 import type { PersonalIncome, PersonalExpense, IncomeCategory, ExpenseCategory } from '@/types'
 import CashPositionCard from '@/components/finance/CashPositionCard'
@@ -173,6 +174,19 @@ export default function PersonalPage() {
 
   return (
     <div className="p-4 md:p-8 pb-8">
+
+      <WelcomeCard
+        storageKey="welcome-finances"
+        icon="💰"
+        title="Track your personal money"
+        description="Log your income, expenses, and debts separate from your business revenue. Know exactly where your money goes and what you owe every month."
+        tips={[
+          'Log daily expenses by category to see where your money goes each month',
+          'Track debts with a payment schedule so you never miss a monthly payment',
+          'Cash Position shows your total money across all wallets and sources right now',
+        ]}
+        accentColor="#10b981"
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

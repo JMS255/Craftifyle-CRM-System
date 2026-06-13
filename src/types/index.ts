@@ -167,3 +167,20 @@ export interface PersonalDebtPayment {
   user_id: string
   updated_at: string
 }
+
+export type AiTone = 'casual_taglish' | 'casual_english' | 'formal_english'
+
+export interface AiPdf {
+  name: string
+  text: string
+}
+
+export interface AiSettings {
+  business_name?: string
+  business_description?: string
+  pricing_model?: string
+  ai_rules?: string
+  ai_tone?: AiTone
+  ai_context?: string
+  ai_pdfs?: AiPdf[]
+}

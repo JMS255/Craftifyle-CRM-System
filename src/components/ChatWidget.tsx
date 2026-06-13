@@ -189,16 +189,17 @@ export default function ChatWidget() {
               {isCrm ? '⚡' : '🤖'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm">
+              <p className="font-semibold text-sm" style={{ color: '#fff' }}>
                 {isCrm ? 'Crafty Assistant' : 'Craft AI'}
               </p>
-              <p className="text-indigo-200 text-xs truncate">
+              <p className="text-xs truncate" style={{ color: 'rgba(199,210,254,0.85)' }}>
                 {isCrm ? 'Add leads, log payments, check revenue' : 'Ask anything about your business'}
               </p>
             </div>
             <button
               onClick={() => { setAdvisorMessages([]); setCrmMessages([]); setInput('') }}
-              className="text-indigo-200 hover:text-white text-xs shrink-0"
+              className="text-xs shrink-0"
+              style={{ color: 'rgba(199,210,254,0.85)' }}
               title="Clear chat"
             >
               Clear

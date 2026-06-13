@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { adminDb, adminAuth } from '@/lib/firebase-admin'
+import { cookies } from 'next/headers'
 
 export const maxDuration = 60
 
@@ -23,70 +25,48 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(origin) })
 }
 
-function getSystemPrompt() {
+interface AiProfile {
+  business_name?: string; business_description?: string; pricing_model?: string
+  ai_rules?: string; ai_tone?: string; ai_context?: string
+  ai_pdfs?: Array<{ name: string; text: string }>
+}
+
+const TONE_LABELS: Record<string, string> = {
+  casual_taglish: 'Casual Taglish — warm, uses "po", mix of Filipino and English',
+  casual_english: 'Casual English — friendly and approachable',
+  formal_english: 'Formal English — professional and precise',
+}
+
+function getSystemPrompt(ai: AiProfile) {
   const dateStr = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  return `You are Craft — a smart AI business assistant built into the Craftifyle CRM. You help James Ignacio run his photobooth and photography business in Zamboanga City, Philippines.
+  const businessName = ai.business_name?.trim() || 'Craftifyle'
+  const isCustomized = !!(ai.business_description?.trim() || ai.pricing_model?.trim())
+  const tone = TONE_LABELS[ai.ai_tone ?? ''] ?? TONE_LABELS.casual_taglish
 
-TODAY'S DATE: ${dateStr}. Use this when discussing upcoming events, follow-up timing, or any date-related advice.
+  const businessSection = isCustomized
+    ? `ABOUT THIS BUSINESS:\n${ai.business_description}\n\nHOW WE PRICE:\n${ai.pricing_model}${ai.ai_context?.trim() ? `\n\nADDITIONAL CONTEXT:\n${ai.ai_context}` : ''}`
+    : `ABOUT THIS BUSINESS:\nCraftifyle — photobooth and event photography in Zamboanda City, Philippines.\nPackages: Photobooth Only ₱3,500 · Photography Only ₱4,500 · Photobooth + Photography ₱6,500 · Premium Bundle ₱8,000.`
 
-You help James with things like:
+  const rulesSection = ai.ai_rules?.trim() ? `\nOWNER-DEFINED RULES:\n${ai.ai_rules}` : ''
+  const pdfsSection = ai.ai_pdfs?.length
+    ? `\nKNOWLEDGE BASE (from uploaded documents):\n${ai.ai_pdfs.map(p => `--- ${p.name} ---\n${p.text}`).join('\n\n')}`
+    : ''
+
+  return `You are Craft — a smart AI business advisor built into the ${businessName} CRM.
+
+TODAY'S DATE: ${dateStr}.
+
+${businessSection}
+${rulesSection}
+
+You help the business owner with:
 - Advising how to handle client situations and negotiations
-- Drafting messages he can send to clients on Facebook or Instagram
-- Recommending which package fits a client's needs
-- Answering questions about his own business
-- General business advice for a photobooth/photography operation
+- Drafting client messages in the owner's voice
+- Recommending how to price or position services
+- General business strategy and operations advice
 
----
-
-CRAFTIFYLE'S PACKAGES:
-
-1. Photobooth Only — ₱3,500
-   - 3 hours, unlimited shots
-   - Customizable backdrop and template
-   - Free 30-second highlight video
-
-2. Photography Only — ₱4,500
-   - 3 hours
-   - 80–100 sneak peek photos same day
-   - 300+ fully edited photos via Google Drive
-   - Free 30-second highlight video
-
-3. Photobooth + Photography Bundle — ₱6,500
-   - 3 hours, unlimited photobooth shots
-   - 300+ fully edited photos via Google Drive
-
-4. Premium Bundle — ₱8,000
-   - 4 hours, photography + videography
-   - 400+ fully edited photos
-   - Free pre-event photoshoot
-
-ADD-ONS:
-- Extended coverage: ₱800/hour per service
-- Magnet prints: ₱1,500 for 150 pcs
-- Custom template design: FREE with every booking
-- 30-second highlight video: FREE with every package
-
-EVENTS COVERED: Birthdays, debuts, weddings, civil weddings, graduation parties, corporate events, school events, recognition days, family gatherings, company outings
-
-COVERAGE: Zamboanga City primarily. Nearby areas with additional travel fee.
-
----
-
-HOW JAMES TALKS TO CLIENTS (so you can draft messages in his voice):
-- Casual Taglish, warm and friendly, uses "po" naturally
-- Never pushy, never salesy
-- Asks one question at a time
-- Always asks event date, occasion, and guest count before recommending a package
-- Short replies — 3 to 5 sentences max
-
----
-
-YOUR PERSONALITY AS CRAFT:
-- You are James's right hand — smart, direct, and helpful
-- Give short, practical answers — no fluff
-- When drafting messages for clients, write in James's voice (Taglish, warm, concise)
-- When advising James, be honest and straightforward
-- If James asks something you don't know, say so clearly`
+REPLY TONE: ${tone}
+Keep answers short and practical — no fluff. If drafting a client message, write in the owner's voice.${pdfsSection}`
 }
 
 export async function POST(req: NextRequest) {
@@ -103,11 +83,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No messages provided.' }, { status: 400, headers })
   }
 
+  // Load AI profile if the request comes from an authenticated CRM session
+  let aiProfile: AiProfile = {}
+  try {
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get('__session')?.value
+    if (sessionCookie) {
+      const decoded = await adminAuth.verifySessionCookie(sessionCookie, true)
+      const profileSnap = await adminDb.collection('profiles').doc(decoded.uid).get()
+      if (profileSnap.exists) aiProfile = profileSnap.data() as AiProfile
+    }
+  } catch { /* unauthenticated call from portfolio website — use defaults */ }
+
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash-lite',
-      systemInstruction: getSystemPrompt(),
+      systemInstruction: getSystemPrompt(aiProfile),
     })
 
     const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({

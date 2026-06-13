@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth, getAllDocs, addDocument, deleteDocument } from '@/lib/firebase'
+import { auth, db, getAllDocs, addDocument, deleteDocument } from '@/lib/firebase'
+import WelcomeCard from '@/components/WelcomeCard'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import type { AiSettings, AiTone } from '@/types'
 
 interface Row {
   id?: string
@@ -131,6 +134,18 @@ export default function SettingsPage() {
   return (
     <div className="p-4 md:p-8 max-w-3xl md:max-w-none">
       <div className="mb-8">
+        <WelcomeCard
+        storageKey="welcome-packages"
+        icon="📦"
+        title="Set up your packages & pricing"
+        description="Define your service packages and prices here. Crafty AI uses these exact names and amounts when creating bookings or answering client inquiries."
+        tips={[
+          'Keep package names consistent — Crafty matches by name when creating bookings',
+          'Add-ons appear as optional extras on top of your base packages',
+          'Changes take effect immediately — no restart needed',
+        ]}
+        accentColor="#f59e0b"
+      />
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Packages & Pricing</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           Crafty AI uses these exact names and prices when creating bookings or answering inquiries.
@@ -186,7 +201,121 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <CraftyAISection />
       <TeamSection />
+    </div>
+  )
+}
+
+const TONE_OPTIONS: { value: AiTone; label: string }[] = [
+  { value: 'casual_taglish', label: 'Casual Taglish (warm, uses "po")' },
+  { value: 'casual_english', label: 'Casual English (friendly, relaxed)' },
+  { value: 'formal_english', label: 'Formal English (professional)' },
+]
+
+function CraftyAISection() {
+  const [form, setForm] = useState<AiSettings>({
+    business_name: '', business_description: '', pricing_model: '',
+    ai_rules: '', ai_tone: 'casual_taglish', ai_context: '',
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const user = auth.currentUser
+      if (!user) { setLoading(false); return }
+      const snap = await getDoc(doc(db, 'profiles', user.uid))
+      if (snap.exists()) {
+        const d = snap.data()
+        setForm({
+          business_name: d.business_name ?? '',
+          business_description: d.business_description ?? '',
+          pricing_model: d.pricing_model ?? '',
+          ai_rules: d.ai_rules ?? '',
+          ai_tone: d.ai_tone ?? 'casual_taglish',
+          ai_context: d.ai_context ?? '',
+        })
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    const user = auth.currentUser
+    if (!user) return
+    setSaving(true)
+    await setDoc(doc(db, 'profiles', user.uid), form, { merge: true })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+    setSaving(false)
+  }
+
+  function field(label: string, key: keyof AiSettings, placeholder: string, rows?: number) {
+    return (
+      <div>
+        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>{label}</label>
+        {rows ? (
+          <textarea
+            rows={rows}
+            className="w-full rounded-lg px-3 py-2.5 text-sm resize-none"
+            style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}
+            placeholder={placeholder}
+            value={form[key] as string ?? ''}
+            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+          />
+        ) : (
+          <input
+            className="w-full rounded-lg px-3 py-2.5 text-sm"
+            style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}
+            placeholder={placeholder}
+            value={form[key] as string ?? ''}
+            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+          />
+        )}
+      </div>
+    )
+  }
+
+  if (loading) return <div className="skeleton h-48 rounded-2xl mt-10" />
+
+  return (
+    <div className="mt-10 pt-8" style={{ borderTop: '1px solid var(--border-secondary)' }}>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text-heading)' }}>⚡ Crafty AI Training</h2>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          Tell Crafty about your business so it responds correctly for your industry — not just photobooth.
+        </p>
+      </div>
+      <form onSubmit={save} className="card p-5 space-y-4">
+        {field('Business Name', 'business_name', 'e.g. Laagan Adventure Tours')}
+        {field('What you offer', 'business_description', 'e.g. Day tours, island hopping, group packages around Zamboanga peninsula', 3)}
+        {field('How you price', 'pricing_model', 'e.g. ₱500/head, minimum 4 pax. Custom group quotes on request.', 2)}
+        {field('Rules for Crafty', 'ai_rules', 'e.g. Always ask group size first. Never quote without asking the event date.', 3)}
+        <div>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Reply Tone</label>
+          <select
+            className="w-full rounded-lg px-3 py-2.5 text-sm"
+            style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}
+            value={form.ai_tone}
+            onChange={e => setForm(f => ({ ...f, ai_tone: e.target.value as AiTone }))}
+          >
+            {TONE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        {field('Extra context (optional)', 'ai_context', 'Anything else Crafty should know — FAQs, policies, common objections…', 3)}
+        <button
+          type="submit"
+          disabled={saving}
+          className="px-6 py-2.5 rounded-[10px] text-sm font-semibold text-white disabled:opacity-50"
+          style={{ background: 'var(--accent)' }}
+        >
+          {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save AI Training'}
+        </button>
+      </form>
     </div>
   )
 }

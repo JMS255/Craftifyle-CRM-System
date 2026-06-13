@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import WelcomeCard from '@/components/WelcomeCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { auth, db, getAllDocs, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
 import type { Lead, Booking } from '@/types'
@@ -168,6 +169,18 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8">
+
+      <WelcomeCard
+        storageKey="welcome-dashboard"
+        icon="🏠"
+        title="Welcome to your Command Center"
+        description="Everything you need to run your business — at a glance. Urgent leads, upcoming events, payments due, and your monthly revenue are all right here."
+        tips={[
+          'Balance Due alerts show clients who still owe payment before their event date',
+          'Today\'s Actions lists leads with events coming up that need your follow-up',
+          'Revenue charts track your monthly bookings and income over time',
+        ]}
+      />
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-6 gap-4">

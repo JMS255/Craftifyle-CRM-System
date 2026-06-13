@@ -86,7 +86,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-lg">
+    <div className="p-4 md:p-8 max-w-lg mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Profile</h1>
@@ -117,7 +117,6 @@ export default function ProfilePage() {
         className="rounded-2xl p-6 space-y-5"
         style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
       >
-        {/* Full name */}
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
             Full Name
@@ -131,7 +130,6 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* Business name */}
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
             Business Name
@@ -145,7 +143,6 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* Location */}
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
             City / Location
@@ -159,7 +156,6 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* Email (read-only) */}
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
             Email <span style={{ color: 'var(--text-faint)' }}>(cannot be changed)</span>

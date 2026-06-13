@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import WelcomeCard from '@/components/WelcomeCard'
 import { getAllDocs } from '@/lib/firebase'
 import type { LeadStatus } from '@/types'
 
@@ -87,6 +88,19 @@ export default function InboxPage() {
 
   return (
     <div className="p-4 md:p-8">
+
+      <WelcomeCard
+        storageKey="welcome-inbox"
+        icon="💬"
+        title="Your client messages in one place"
+        description="Connect your Facebook page to read and reply to client DMs directly from Crafty CRM — no more switching tabs."
+        tips={[
+          'Connect your Facebook Business page to receive messages here automatically',
+          'Use Crafty AI to draft a reply based on the client inquiry in seconds',
+          "Paste any DM into Crafty's 'Do Something' mode to instantly create a lead",
+        ]}
+        accentColor="#3b82f6"
+      />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">

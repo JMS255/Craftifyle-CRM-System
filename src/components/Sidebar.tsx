@@ -21,6 +21,7 @@ function AdsIcon()      { return <Icon d="M18 20V10 M12 20V4 M6 20v-6" /> }
 function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
 function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
 function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
+function CraftyIcon()   { return <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /> }
 function ChevronLeft()  { return <Icon d="M15 18l-6-6 6-6" size={16} /> }
 function ChevronRight() { return <Icon d="M9 18l6-6-6-6" size={16} /> }
 
@@ -31,6 +32,7 @@ const nav = [
   { href: '/leads',    label: 'Leads',     short: 'Leads',    icon: <LeadsIcon /> },
   { href: '/inbox',    label: 'Messenger', short: 'Inbox',    icon: <InboxIcon /> },
   { href: '/settings', label: 'Packages',  short: 'Packages', icon: <PackagesIcon /> },
+  { href: '/crafty',   label: 'Crafty AI', short: 'Crafty',   icon: <CraftyIcon /> },
 ]
 
 const AUTH_PATHS = ['/login', '/signup', '/contract/', '/confirm/', '/team/join/']
@@ -215,7 +217,7 @@ export default function Sidebar() {
 
               <button
                 onClick={signOut}
-                className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5 ml-auto"
+                className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-white/5 ml-auto whitespace-nowrap"
                 style={{ color: 'var(--text-faint)' }}
               >
                 Sign out →
@@ -243,52 +245,101 @@ export default function Sidebar() {
         )}
       </aside>
 
-      {/* Quick Add bottom sheet */}
-      {quickAdd && (
-        <div className="md:hidden fixed inset-0 z-50" onClick={() => setQuickAdd(false)}>
-          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} />
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl p-5"
-            style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
-            onClick={e => e.stopPropagation()}>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Navigate</p>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {[
-                { href: '/leads',    label: 'Leads',     icon: '👥' },
-                { href: '/inbox',    label: 'Messenger', icon: '💬' },
-                { href: '/settings', label: 'Packages',  icon: '📦' },
-              ].map(({ href, label, icon }) => (
-                <Link key={href} href={href} onClick={() => setQuickAdd(false)}
-                  className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-sm font-medium"
-                  style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-                  <span className="text-lg leading-none">{icon}</span>
-                  <span className="text-xs">{label}</span>
-                </Link>
-              ))}
-            </div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Quick Add</p>
-            <div className="space-y-2">
-              <Link href="/leads/new" onClick={() => setQuickAdd(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-                <span>◎</span> Add New Lead
+      {/* Quick Add bottom sheet — always mounted for smooth transitions */}
+      <div
+        className="md:hidden fixed inset-0 z-50"
+        style={{
+          opacity: quickAdd ? 1 : 0,
+          pointerEvents: quickAdd ? 'auto' : 'none',
+          transition: 'opacity 0.25s ease',
+        }}
+        onClick={() => setQuickAdd(false)}
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} />
+
+        {/* Sheet */}
+        <div
+          className="absolute bottom-0 left-0 right-0 rounded-t-2xl p-5"
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--card-border)',
+            transform: quickAdd ? 'translateY(0)' : 'translateY(100%)',
+            transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--card-border)' }} />
+
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Navigate</p>
+          <div className="grid grid-cols-4 gap-2 mb-5">
+            {[
+              { href: '/leads',    label: 'Leads',     icon: '👥' },
+              { href: '/inbox',    label: 'Messenger', icon: '💬' },
+              { href: '/settings', label: 'Packages',  icon: '📦' },
+              { href: '/crafty',   label: 'Crafty AI', icon: '⚡' },
+            ].map(({ href, label, icon }, i) => (
+              <Link key={href} href={href} onClick={() => setQuickAdd(false)}
+                className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-sm font-medium"
+                style={{
+                  background: 'var(--subtle-bg)',
+                  border: '1px solid var(--card-border)',
+                  color: 'var(--text-heading)',
+                  transform: quickAdd ? 'translateY(0)' : 'translateY(12px)',
+                  opacity: quickAdd ? 1 : 0,
+                  transition: `transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) ${60 + i * 40}ms, opacity 0.25s ease ${60 + i * 40}ms`,
+                }}>
+                <span className="text-lg leading-none">{icon}</span>
+                <span className="text-xs">{label}</span>
               </Link>
-              <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-                <span>📋</span> Paste Messenger DM
-              </button>
-              <button onClick={() => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Log a payment: ', mode: 'crm' } })) }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
-                style={{ background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)' }}>
-                <span>💰</span> Log a Payment
-              </button>
-            </div>
-            <button onClick={() => setQuickAdd(false)}
-              className="w-full py-2.5 rounded-xl text-sm font-medium mt-3"
-              style={{ color: 'var(--text-faint)' }}>Cancel</button>
+            ))}
           </div>
+
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-faint)' }}>Quick Add</p>
+          <div className="space-y-2">
+            {[
+              {
+                label: 'Add New Lead', icon: '◎', isLink: true, href: '/leads/new',
+              },
+              {
+                label: 'Paste Messenger DM', icon: '📋', isLink: false,
+                onClick: () => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) },
+              },
+              {
+                label: 'Log a Payment', icon: '💰', isLink: false,
+                onClick: () => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Log a payment: ', mode: 'crm' } })) },
+              },
+            ].map(({ label, icon, isLink, href, onClick }, i) => (
+              isLink
+                ? <Link key={label} href={href!} onClick={() => setQuickAdd(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+                    style={{
+                      background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)',
+                      transform: quickAdd ? 'translateY(0)' : 'translateY(12px)',
+                      opacity: quickAdd ? 1 : 0,
+                      transition: `transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) ${220 + i * 50}ms, opacity 0.25s ease ${220 + i * 50}ms`,
+                    }}>
+                    <span>{icon}</span> {label}
+                  </Link>
+                : <button key={label} onClick={onClick}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm"
+                    style={{
+                      background: 'var(--subtle-bg)', border: '1px solid var(--card-border)', color: 'var(--text-heading)',
+                      transform: quickAdd ? 'translateY(0)' : 'translateY(12px)',
+                      opacity: quickAdd ? 1 : 0,
+                      transition: `transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) ${220 + i * 50}ms, opacity 0.25s ease ${220 + i * 50}ms`,
+                    }}>
+                    <span>{icon}</span> {label}
+                  </button>
+            ))}
+          </div>
+
+          <button onClick={() => setQuickAdd(false)}
+            className="w-full py-3 rounded-xl text-sm font-medium mt-4"
+            style={{ color: 'var(--text-faint)' }}>Cancel</button>
         </div>
-      )}
+      </div>
 
       {/* Mobile bottom nav */}
       <nav

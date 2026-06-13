@@ -7,61 +7,79 @@ import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 export const maxDuration = 60
 
 interface PackageRow { name: string; price: number; description: string | null; is_addon: boolean }
+interface AiProfile {
+  business_name?: string; business_description?: string; pricing_model?: string
+  ai_rules?: string; ai_tone?: string; ai_context?: string
+  ai_pdfs?: Array<{ name: string; text: string }>
+}
 
-function getSystemPrompt(packages: PackageRow[]) {
-  const now = new Date()
-  const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+const TONE_LABELS: Record<string, string> = {
+  casual_taglish: 'Casual Taglish — warm, uses "po", mix of Filipino and English',
+  casual_english: 'Casual English — friendly and approachable',
+  formal_english: 'Formal English — professional and precise',
+}
+
+function getSystemPrompt(packages: PackageRow[], ai: AiProfile) {
+  const dateStr = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const businessName = ai.business_name?.trim() || 'Craftifyle'
+  const isCustomized = !!(ai.business_description?.trim() || ai.pricing_model?.trim() || ai.ai_rules?.trim())
+  const tone = TONE_LABELS[ai.ai_tone ?? ''] ?? TONE_LABELS.casual_taglish
 
   const bases = packages.filter(p => !p.is_addon)
   const addons = packages.filter(p => p.is_addon)
-
   const packagesSection = bases.length > 0
-    ? `CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:\n${bases.map(p =>
+    ? `PACKAGES — use EXACT prices when creating bookings:\n${bases.map(p =>
         `- "${p.name}" → ₱${p.price.toLocaleString()}${p.description ? ` (${p.description})` : ''}`
       ).join('\n')}`
-    : `CRAFTIFYLE PACKAGES — use these EXACT prices when creating bookings:
-- "Photobooth Only" → ₱3,500 (3 hrs, unlimited shots, custom backdrop)
-- "Photography Only" → ₱4,500 (3 hrs, 300+ edited photos)
-- "Photobooth + Photography" → ₱6,500 (3 hrs, both services) [most popular]
-- "Premium Bundle" → ₱8,000 (4 hrs, photography + videography, 400+ photos, pre-event shoot)`
-
+    : isCustomized
+      ? 'PACKAGES — none set yet. Ask the user to add packages in Settings > Packages.'
+      : `PACKAGES — use EXACT prices when creating bookings:
+- "Photobooth Only" → ₱3,500
+- "Photography Only" → ₱4,500
+- "Photobooth + Photography" → ₱6,500
+- "Premium Bundle" → ₱8,000`
   const addonsSection = addons.length > 0
-    ? `ADD-ONS (append to package name with " + "):\n${addons.map(p =>
-        `- "${p.name}" → ${p.price === 0 ? 'FREE' : `+₱${p.price.toLocaleString()}`}`
-      ).join('\n')}`
-    : `ADD-ONS (append to package name with " + "):
-- "Extended coverage (+1 hr)" → +₱800
-- "Magnet prints (150 pcs)" → +₱1,500
-- "Custom template design" → FREE
-- "30-sec highlight video" → FREE`
+    ? `ADD-ONS:\n${addons.map(p => `- "${p.name}" → ${p.price === 0 ? 'FREE' : `+₱${p.price.toLocaleString()}`}`).join('\n')}`
+    : ''
 
-  return `You are Crafty — an AI assistant embedded inside Craftifyle CRM. You help James manage his photobooth and event photography business by reading and writing data directly to the CRM.
+  const businessSection = isCustomized ? `
+ABOUT THIS BUSINESS:
+${ai.business_description || '(not set)'}
 
-TODAY'S DATE: ${dateStr}. Always use this when calculating event timelines, interpreting relative dates ("next Saturday", "this June"), or describing how far away an event is.
+HOW WE PRICE:
+${ai.pricing_model || '(not set)'}
 
-You have tools to:
-- Get leads (list, search by status)
-- Create new leads
-- Update existing leads (status, notes, contact info, event details)
-- Get bookings
-- Create new bookings
-- Log payments (mark deposit or balance as paid)
-- Get revenue summary
+${ai.ai_context?.trim() ? `ADDITIONAL CONTEXT:\n${ai.ai_context}` : ''}` : `
+ABOUT THIS BUSINESS:
+Craftifyle — photobooth and event photography in Zamboanga City, Philippines.`
 
-IMPORTANT RULES:
-- When creating or updating data, always confirm what you did in plain language with the key details (amounts in ₱, dates, names).
-- For dates, accept natural language like "June 28", "next Saturday", "June 28 2026" — always convert to YYYY-MM-DD format.
-- For amounts, strip ₱ and commas before storing — store as plain numbers.
-- If something is unclear, ask one short clarifying question before acting.
-- Keep replies short and direct — no fluff.
-- When you complete a DB action, start your reply with "Done —" so James knows it worked.
-- If given a raw client inquiry or DM (e.g. prefixed with "Parse this:" or "New inquiry:"), extract name, event_type, event_date, venue, guest_count, package interest, and call create_lead immediately. Use source=facebook if it looks like a Messenger DM. Don't ask for confirmation unless the name is completely missing.
+  const rulesSection = isCustomized && ai.ai_rules?.trim()
+    ? `\nOWNER-DEFINED RULES (follow these strictly):\n${ai.ai_rules}`
+    : ''
+
+  const pdfsSection = ai.ai_pdfs?.length
+    ? `\nKNOWLEDGE BASE (from uploaded documents):\n${ai.ai_pdfs.map(p => `--- ${p.name} ---\n${p.text}`).join('\n\n')}`
+    : ''
+
+  return `You are Crafty — an AI assistant embedded inside ${businessName} CRM. You help the owner manage their business by reading and writing data directly to the CRM.
+
+TODAY'S DATE: ${dateStr}. Use this for event timelines, relative dates ("next Saturday"), and urgency calculations.
+${businessSection}
+You have tools to: get/create/update leads, get/create bookings, log payments, get revenue summary, and convert leads to bookings.
+
+CORE RULES:
+- Confirm every DB action with key details (amounts in ₱, dates, names). Start with "Done —".
+- Accept natural language dates ("June 28", "next Saturday") — convert to YYYY-MM-DD.
+- Strip ₱ and commas from amounts before storing.
+- Ask one clarifying question if unclear — never guess critical fields.
+- Plain text only — no markdown tables, no bullet lists with asterisks.
+- When given a raw DM or inquiry, extract lead fields and call create_lead immediately.
+${rulesSection}
+
+REPLY TONE: ${tone}
 
 ${packagesSection}
-
-${addonsSection}
-
-When a client mentions a package by partial name (e.g. "photobooth lang", "bundle", "premium"), match to the closest package above and use that exact price.`
+${addonsSection}${pdfsSection}`
 }
 
 const TOOLS = [{ functionDeclarations: [
@@ -377,18 +395,22 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
 
-  // Fetch user's custom packages
-  const pkgsSnap = await adminDb.collection('packages').get()
+  // Fetch user's custom packages and AI profile settings in parallel
+  const [pkgsSnap, profileSnap] = await Promise.all([
+    adminDb.collection('packages').get(),
+    adminDb.collection('profiles').doc(userId).get(),
+  ])
   type PkgDoc = PackageRow & { id: string; user_id: string; is_active: boolean; sort_order: number }
   const allPkgs = pkgsSnap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }) as unknown as PkgDoc)
   const packages: PackageRow[] = allPkgs
     .filter((p: PkgDoc) => p.user_id === userId && p.is_active)
     .sort((a: PkgDoc, b: PkgDoc) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const aiProfile: AiProfile = profileSnap.exists ? (profileSnap.data() as AiProfile) : {}
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
-    systemInstruction: getSystemPrompt(packages),
+    systemInstruction: getSystemPrompt(packages, aiProfile),
     tools: TOOLS,
   })
 

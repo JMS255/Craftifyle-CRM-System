@@ -2,7 +2,7 @@ import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['firebase-admin', 'jwks-rsa', 'jose'],
+  serverExternalPackages: ['firebase-admin', 'jwks-rsa', 'jose', 'pdf-parse'],
 }
 
 export default withSentryConfig(nextConfig, {

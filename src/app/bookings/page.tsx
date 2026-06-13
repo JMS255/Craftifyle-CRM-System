@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import WelcomeCard from '@/components/WelcomeCard'
 import { auth, getDocsByUser } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import type { Booking, BookingStatus } from '@/types'
@@ -120,6 +121,18 @@ export default function BookingsPage() {
 
   return (
     <div className="p-4 md:p-8">
+      <WelcomeCard
+        storageKey="welcome-bookings"
+        icon="📅"
+        title="Your Bookings Hub"
+        description="Every confirmed event in one place — organized by month so you always know what's coming up."
+        tips={[
+          'Track deposit & balance payments per booking',
+          'See overdue balances highlighted automatically',
+          'Use the year selector to review past revenue',
+        ]}
+        accentColor="#3b82f6"
+      />
       <div className="mb-5">
         <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>Bookings</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>All confirmed events</p>
