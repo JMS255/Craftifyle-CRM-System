@@ -105,7 +105,7 @@ export default function PersonalPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [refreshKey])
+  useEffect(() => { if (authReady) load() }, [refreshKey, authReady])
 
   const allDates = [
     ...income.map(e => e.income_date.slice(0, 4)),

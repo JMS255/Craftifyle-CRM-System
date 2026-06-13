@@ -5,6 +5,7 @@ import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { auth, getDocsByUser, updateDocument } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import type { Lead, LeadStatus } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -81,12 +82,14 @@ export default function LeadsPage() {
   }, [])
 
   useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
-    getDocsByUser<Lead>('leads', user.uid).then(data => {
-      setLeads([...data].sort((a, b) => b.created_at.localeCompare(a.created_at)))
-      setLoading(false)
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) { setLoading(false); return }
+      getDocsByUser<Lead>('leads', user.uid).then(data => {
+        setLeads([...data].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+        setLoading(false)
+      })
     })
+    return () => unsub()
   }, [])
 
   function toggleView(v: 'list' | 'kanban') { setView(v); localStorage.setItem('leads-view', v) }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { auth, getDocsByUser } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import type { LeadStatus } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -45,9 +46,7 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const user = auth.currentUser
-      if (!user) { setLoading(false); return }
+    async function load(user: import('firebase/auth').User) {
       const [allLeads, allMsgs] = await Promise.all([
         getDocsByUser<{ id: string; name: string; status: LeadStatus; event_type: string | null; event_date: string | null; messenger_sender_id: string | null }>('leads', user.uid),
         getDocsByUser<{ sender_id: string; content: string; role: string; created_at: string }>('messenger_conversations', user.uid),
@@ -76,7 +75,11 @@ export default function InboxPage() {
       setLeads(enriched)
       setLoading(false)
     }
-    load()
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) { setLoading(false); return }
+      load(user)
+    })
+    return () => unsub()
   }, [])
 
   const needsReply = leads.filter(l => l.lastRole === 'user')
