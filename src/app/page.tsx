@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import WelcomeCard from '@/components/WelcomeCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { auth, db, getDocsByUser, getDocById, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import type { Lead, Booking } from '@/types'
 import TopBar from '@/components/TopBar'
 
@@ -114,7 +115,14 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  useEffect(() => { reload() }, [])
+  const reloadedRef = useRef(false)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user && !reloadedRef.current) { reloadedRef.current = true; reload() }
+      else if (!user) setLoading(false)
+    })
+    return () => unsub()
+  }, [])
 
   const hour = new Date().getHours()
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'

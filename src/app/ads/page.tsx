@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAllDocs } from '@/lib/firebase'
+import { auth, getDocsByUser } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
 interface AdStat {
@@ -17,10 +18,10 @@ export default function AdsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
+    async function load(uid: string) {
       const [allLeads, allBookings] = await Promise.all([
-        getAllDocs<{ id: string; source: string; ad_ref?: string | null; status: string }>('leads'),
-        getAllDocs<{ lead_id: string | null; craftifyle_income?: number; package_price?: number }>('bookings'),
+        getDocsByUser<{ id: string; source: string; ad_ref?: string | null; status: string }>('leads', uid),
+        getDocsByUser<{ lead_id: string | null; craftifyle_income?: number; package_price?: number }>('bookings', uid),
       ])
 
       const fbLeads = allLeads.filter(l => l.source === 'facebook')
@@ -50,7 +51,11 @@ export default function AdsPage() {
       setOrganicLeads(organic)
       setLoading(false)
     }
-    load()
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) { setLoading(false); return }
+      load(user.uid)
+    })
+    return () => unsub()
   }, [])
 
   const totalLeads = stats.reduce((s, r) => s + r.leads, 0) + organicLeads

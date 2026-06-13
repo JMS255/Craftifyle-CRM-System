@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { auth, getAllDocs, addDocument } from '@/lib/firebase'
+import { auth, getDocsByUser, addDocument } from '@/lib/firebase'
 import type { EventType, LeadSource } from '@/types'
 
 const EVENT_TYPES: EventType[] = [
@@ -69,8 +69,8 @@ export default function NewLeadPage() {
         created_at: new Date().toISOString(),
       }
       const newId = await addDocument('leads', leadData)
-      const allLeads = await getAllDocs('leads')
-      const n = allLeads.length
+      const myLeads = user ? await getDocsByUser('leads', user.uid) : []
+      const n = myLeads.length
       if (n === 1) window.dispatchEvent(new CustomEvent('crafty:first-lead', { detail: { name: leadData.name } }))
       else if (n === 2) window.dispatchEvent(new CustomEvent('crafty:second-lead', { detail: { name: leadData.name } }))
       else if (n >= 5) window.dispatchEvent(new CustomEvent('crafty:five-leads'))
