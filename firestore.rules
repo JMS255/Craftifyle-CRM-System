@@ -42,6 +42,22 @@ service cloud.firestore {
       allow read, update, delete: if isAuth() && isOwner();
       allow create: if isAuth() && isCreatingOwn();
     }
+    match /personal_cash_positions/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /personal_debts/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /personal_debt_payments/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
+    match /personal_incoming/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
     match /tasks/{docId} {
       allow read, update, delete: if isAuth() && isOwner();
       allow create: if isAuth() && isCreatingOwn();
