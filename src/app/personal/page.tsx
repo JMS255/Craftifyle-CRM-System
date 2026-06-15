@@ -70,15 +70,6 @@ export default function PersonalPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [projectionMonths, setProjectionMonths] = useState<ProjectionMonth[]>([])
-  const [authReady, setAuthReady] = useState(false)
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, user => {
-      if (user) setAuthReady(true)
-    })
-    return () => unsub()
-  }, [])
-
   // Manual entry form state (fallback for when AI isn't preferred)
   const [showManual, setShowManual] = useState(false)
   const [manualMode, setManualMode] = useState<'income' | 'expense'>('income')
@@ -93,19 +84,23 @@ export default function PersonalPage() {
     setRefreshKey(k => k + 1)
   }
 
-  async function load() {
-    const user = auth.currentUser
-    if (!user) return
+  async function load(uid: string) {
     const [inc, exp] = await Promise.all([
-      getDocsByUser<PersonalIncome>('personal_income', user.uid),
-      getDocsByUser<PersonalExpense>('personal_expenses', user.uid),
+      getDocsByUser<PersonalIncome>('personal_income', uid),
+      getDocsByUser<PersonalExpense>('personal_expenses', uid),
     ])
     setIncome(inc.sort((a, b) => b.income_date.localeCompare(a.income_date)))
     setExpenses(exp.sort((a, b) => b.expense_date.localeCompare(a.expense_date)))
     setLoading(false)
   }
 
-  useEffect(() => { if (authReady) load() }, [refreshKey, authReady])
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, user => {
+      if (!user) { setLoading(false); return }
+      load(user.uid)
+    })
+    return () => unsub()
+  }, [refreshKey])
 
   const allDates = [
     ...income.map(e => e.income_date.slice(0, 4)),
