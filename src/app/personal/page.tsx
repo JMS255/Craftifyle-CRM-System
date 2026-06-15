@@ -268,7 +268,7 @@ export default function PersonalPage() {
       )}
 
       {/* AI bar — mobile only, top of page */}
-      {authReady && (
+      {!loading && (
         <div className="md:hidden">
           <FinanceAIInput onRefresh={handleRefresh} />
         </div>
@@ -279,7 +279,7 @@ export default function PersonalPage() {
 
         {/* LEFT / main column — all content on mobile, left 3/5 on desktop */}
         <div className="md:col-span-3">
-          {!authReady ? (
+          {!!loading ? (
             <div className="space-y-3">
               {[1,2,3,4].map(i => <div key={i} className="skeleton h-28 rounded-2xl" />)}
             </div>
@@ -473,14 +473,14 @@ export default function PersonalPage() {
 
         {/* RIGHT / AI sidebar — desktop only, stays visible while left scrolls */}
         <div className="hidden md:block md:col-span-2 md:sticky md:top-4 md:self-start">
-          {authReady && (
+          {!loading && (
             <>
               <FinanceAIInput onRefresh={handleRefresh} />
             </>
           )}
 
           {/* Quick Stats */}
-          {authReady && <div className="card p-4 mt-1">
+          {!loading && <div className="card p-4 mt-1">
             <p className="section-label mb-3">
               {months[0]?.monthLabel ?? 'This Month'}
             </p>
@@ -529,7 +529,7 @@ export default function PersonalPage() {
           </div>}
 
           {/* Projection runway pill */}
-          {authReady && projectionMonths.length > 0 && (
+          {!loading && projectionMonths.length > 0 && (
             <div className="card p-4 mt-3">
               <p className="section-label mb-3">6-Month Outlook</p>
               <div className="flex gap-1.5 flex-wrap">
