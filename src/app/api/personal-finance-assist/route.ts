@@ -65,10 +65,11 @@ function offsetYYYYMM(base: string, offset: number): string {
 
 interface ContextData {
   cashTotal: number
-  cashSources: { source_name: string; amount: number }[]
+  cashSources: { id: string; source_name: string; amount: number }[]
   debts: { id: string; name: string; monthly_amount: number; start_month: string; total_months: number; interest_type: string }[]
   debtPayments: { debt_id: string; month: string; status: string }[]
   pendingIncoming: { id: string; source: string; amount: number; expected_date: string }[]
+  obligations: { id: string; name: string; amount: number; due_day: number; category: string }[]
   avgMonthlyRevenue: number
   currentMonth: string
 }
@@ -96,6 +97,12 @@ function buildSystemPrompt(ctx: ContextData): string {
   const incomingSection = ctx.pendingIncoming.length
     ? ctx.pendingIncoming.map(i => `  - ${i.source}: ${peso(i.amount)} expected ${i.expected_date}`).join('\n')
     : '  None.'
+
+  const obligationsTotal = ctx.obligations.reduce((s, o) => s + o.amount, 0)
+  const obligationsSection = ctx.obligations.length
+    ? ctx.obligations.map(o => `  - ${o.name}: ${peso(o.amount)}/mo (due day ${o.due_day})`).join('\n') +
+      `\n  TOTAL: ${peso(obligationsTotal)}/mo`
+    : '  None recorded.'
 
   // Compute next 3 months survival projection
   const projectionRows: string[] = []
@@ -132,6 +139,9 @@ ${cashSection}
 === DEBT SCHEDULE ===
 ${debtSection}
 
+=== MONTHLY OBLIGATIONS (fixed recurring bills) ===
+${obligationsSection}
+
 === CONFIRMED INCOMING (not yet received) ===
 ${incomingSection}
 
@@ -159,7 +169,8 @@ ${projectionRows.join('\n')}
 "nangutang / borrowed / utang ko / pautang" → add_debt (type: pautang)
 "loan / EWB / SSS / installment / nagbayad ng utang" → add_debt (type: formal) or mark_debt_payment
 "bayad na / paid na / nabayaran / planong bayaran" → mark_debt_payment
-"GCash ko ay / balance ko ay / nag-update ang" → update_cash_position
+"GCash ko ay / balance ko ay / nag-update ang / cash ko ay / my cash is" → update_cash_position (if no specific source named, use source_name: "Cash on hand")
+"bayad ko monthly / recurring bill / subscription / internet / rent / obligation" → add_obligation / delete_obligation
 "earned / kita / naka-book / down payment / tip" → log_income
 "mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry (for expenses/income only)
 "wrong start / wrong date / mali yung buwan / dapat June / start June not May / change start / change end / change amount" → update_debt (modifies existing debt dates/amount — do NOT use add_debt for this)
@@ -318,6 +329,31 @@ const TOOLS = [{ functionDeclarations: [
     },
   },
   {
+    name: 'add_obligation',
+    description: 'Add a new recurring monthly obligation (fixed bill like internet, rent, Netflix, etc.).',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Name of the obligation, e.g. "Globe Internet", "Netflix", "Rent".' },
+        amount: { type: 'number', description: 'Monthly amount in PHP.' },
+        due_day: { type: 'number', description: 'Day of month it is due (1-31). Defaults to 1.' },
+        category: { type: 'string', enum: ['bills', 'subscription', 'rent', 'other'] },
+      },
+      required: ['name', 'amount'],
+    },
+  },
+  {
+    name: 'delete_obligation',
+    description: 'Remove a recurring monthly obligation.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Partial or full name of the obligation, e.g. "Globe", "Netflix".' },
+      },
+      required: ['name'],
+    },
+  },
+  {
     name: 'update_debt',
     description: 'Update an existing debt — change its start month, end month, monthly amount, or name. Use when user says a debt has the wrong dates or amount.',
     parametersJsonSchema: {
@@ -428,12 +464,16 @@ async function runTool(
       const sourceName = args.source_name as string
       const amount = args.amount as number
 
-      const snap = await adminDb.collection('personal_cash_positions')
-        .where('user_id', '==', userId)
-        .where('source_name', '==', sourceName)
-        .get()
+      const allSnap = await adminDb.collection('personal_cash_positions')
+        .where('user_id', '==', userId).get()
 
-      if (snap.empty) {
+      const lower = sourceName.toLowerCase()
+      const matched = allSnap.docs.find(d => {
+        const stored = (d.data().source_name as string).toLowerCase()
+        return stored.includes(lower) || lower.includes(stored)
+      })
+
+      if (!matched) {
         await adminDb.collection('personal_cash_positions').add({
           user_id: userId,
           source_name: sourceName,
@@ -441,14 +481,15 @@ async function runTool(
           updated_at: now,
         })
       } else {
-        await snap.docs[0].ref.update({ amount, updated_at: now })
+        await matched.ref.update({ amount, updated_at: now })
       }
 
-      const newTotal = ctx.cashSources
-        .filter(s => s.source_name !== sourceName)
-        .reduce((sum, s) => sum + s.amount, 0) + amount
+      const newTotal = allSnap.docs
+        .filter(d => d.id !== matched?.id)
+        .reduce((sum, d) => sum + (d.data().amount as number), 0) + amount
+      const displayName = matched ? (matched.data().source_name as string) : sourceName
 
-      return `${sourceName} updated to ${peso(amount)}. New total cash: ${peso(newTotal)}`
+      return `${displayName} updated to ${peso(amount)}. New total cash: ${peso(newTotal)}`
     }
 
     if (name === 'add_confirmed_incoming') {
@@ -559,6 +600,27 @@ async function runTool(
       return `Removed "${incoming.source}" — ${peso(incoming.amount)} from confirmed incoming.`
     }
 
+    if (name === 'add_obligation') {
+      await adminDb.collection('personal_obligations').add({
+        user_id: userId,
+        name: args.name,
+        amount: args.amount,
+        due_day: (args.due_day as number) ?? 1,
+        category: (args.category as string) ?? 'bills',
+        is_active: true,
+        created_at: now,
+      })
+      return `Added obligation "${args.name}" — ${peso(args.amount as number)}/mo due day ${(args.due_day as number) ?? 1}.`
+    }
+
+    if (name === 'delete_obligation') {
+      const searchName = (args.name as string).toLowerCase()
+      const obligation = ctx.obligations.find(o => o.name.toLowerCase().includes(searchName))
+      if (!obligation) return `Obligation not found matching "${args.name}". Available: ${ctx.obligations.map(o => o.name).join(', ')}`
+      await adminDb.collection('personal_obligations').doc(obligation.id).update({ is_active: false, updated_at: now })
+      return `Removed "${obligation.name}" — ${peso(obligation.amount)}/mo from monthly obligations.`
+    }
+
     return `Unknown tool: ${name}`
   } catch (err) {
     return `Tool error: ${err instanceof Error ? err.message : String(err)}`
@@ -585,16 +647,20 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
 
   // Fetch all context in parallel
-  const [cashSnap, debtSnap, paymentSnap, incomingSnap, incomeSnap] = await Promise.all([
+  const [cashSnap, debtSnap, paymentSnap, incomingSnap, incomeSnap, obligationsSnap] = await Promise.all([
     adminDb.collection('personal_cash_positions').where('user_id', '==', userId).get(),
     adminDb.collection('personal_debts').where('user_id', '==', userId).get(),
     adminDb.collection('personal_debt_payments').where('user_id', '==', userId).get(),
     adminDb.collection('personal_incoming').where('user_id', '==', userId).where('status', '==', 'pending').get(),
     adminDb.collection('personal_income').where('user_id', '==', userId).get(),
+    adminDb.collection('personal_obligations').where('user_id', '==', userId).where('is_active', '==', true).get(),
   ])
 
   const cashSources = cashSnap.docs.map((d: QueryDocumentSnapshot) => ({
     id: d.id, ...d.data() as { source_name: string; amount: number },
+  }))
+  const obligations = obligationsSnap.docs.map((d: QueryDocumentSnapshot) => ({
+    id: d.id, ...d.data() as { name: string; amount: number; due_day: number; category: string },
   }))
   const cashTotal = cashSources.reduce((s, c) => s + c.amount, 0)
 
@@ -621,7 +687,7 @@ export async function POST(req: NextRequest) {
     : 21000 // fallback to known average
 
   const ctx: ContextData = {
-    cashTotal, cashSources, debts, debtPayments, pendingIncoming,
+    cashTotal, cashSources, debts, debtPayments, pendingIncoming, obligations,
     avgMonthlyRevenue, currentMonth: currentYYYYMM(),
   }
 

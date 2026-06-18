@@ -8,6 +8,7 @@ import type { PersonalIncome, PersonalExpense, IncomeCategory, ExpenseCategory }
 import CashPositionCard from '@/components/finance/CashPositionCard'
 import ConfirmedIncomingCard from '@/components/finance/ConfirmedIncomingCard'
 import DebtScheduleCard from '@/components/finance/DebtScheduleCard'
+import ObligationsCard from '@/components/finance/ObligationsCard'
 import SurvivalProjectionCard, { type ProjectionMonth } from '@/components/finance/SurvivalProjectionCard'
 import FinanceStatusBanner from '@/components/finance/FinanceStatusBanner'
 import FinanceAIInput from '@/components/finance/FinanceAIInput'
@@ -291,6 +292,7 @@ export default function PersonalPage() {
                 onProjectionReady={setProjectionMonths}
               />
               <CashPositionCard refreshKey={refreshKey} onRefresh={handleRefresh} />
+              <ObligationsCard refreshKey={refreshKey} onRefresh={handleRefresh} />
               <ConfirmedIncomingCard refreshKey={refreshKey} onRefresh={handleRefresh} />
               <DebtScheduleCard refreshKey={refreshKey} onRefresh={handleRefresh} />
             </>

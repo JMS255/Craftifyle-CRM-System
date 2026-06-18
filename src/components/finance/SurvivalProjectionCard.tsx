@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
 import { auth, getDocsByUser } from '@/lib/firebase'
-import type { PersonalCashPosition, PersonalIncoming, PersonalDebt, PersonalDebtPayment, PersonalIncome } from '@/types'
+import type { PersonalCashPosition, PersonalIncoming, PersonalDebt, PersonalDebtPayment, PersonalIncome, PersonalExpense, PersonalObligation } from '@/types'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -30,11 +31,19 @@ function computeProjection(
   payments: PersonalDebtPayment[],
   pendingIncoming: PersonalIncoming[],
   recentIncome: PersonalIncome[],
+  recentExpenses: PersonalExpense[],
+  obligations: PersonalObligation[],
 ): ProjectionMonth[] {
   const now = new Date()
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10)
-  const recent = recentIncome.filter(e => e.income_date >= threeMonthsAgo)
-  const avgRevenue = recent.length ? Math.round(recent.reduce((s, e) => s + e.amount, 0) / 3) : 21000
+
+  const recentInc = recentIncome.filter(e => e.income_date >= threeMonthsAgo)
+  const avgRevenue = recentInc.length ? Math.round(recentInc.reduce((s, e) => s + e.amount, 0) / 3) : 21000
+
+  const recentExp = recentExpenses.filter(e => e.expense_date >= threeMonthsAgo)
+  const avgExpenses = recentExp.length ? Math.round(recentExp.reduce((s, e) => s + e.amount, 0) / 3) : 5000
+
+  const obligationsTotal = obligations.filter(o => o.is_active).reduce((s, o) => s + o.amount, 0)
 
   let runningCash = cashPositions.reduce((s, p) => s + p.amount, 0)
 
@@ -58,7 +67,8 @@ function computeProjection(
       .reduce((s, p) => s + p.amount, 0)
 
     const openingCash = runningCash
-    const endCash = openingCash + avgRevenue + monthIncoming - monthDebt - 5000
+    const totalExpenses = avgExpenses + obligationsTotal
+    const endCash = openingCash + avgRevenue + monthIncoming - monthDebt - totalExpenses
     runningCash = endCash
 
     return {
@@ -68,7 +78,7 @@ function computeProjection(
       revenue: avgRevenue,
       incoming: monthIncoming,
       debt: monthDebt,
-      expenses: 5000,
+      expenses: totalExpenses,
       endCash,
     }
   })
@@ -91,24 +101,30 @@ export default function SurvivalProjectionCard({
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
 
-  async function load() {
-    const user = auth.currentUser
-    if (!user) return
-    const [cashPositions, debts, payments, allIncoming, incomeHistory] = await Promise.all([
-      getDocsByUser<PersonalCashPosition>('personal_cash_positions', user.uid),
-      getDocsByUser<PersonalDebt>('personal_debts', user.uid),
-      getDocsByUser<PersonalDebtPayment>('personal_debt_payments', user.uid),
-      getDocsByUser<PersonalIncoming>('personal_incoming', user.uid),
-      getDocsByUser<PersonalIncome>('personal_income', user.uid),
+  async function load(uid: string) {
+    const [cashPositions, debts, payments, allIncoming, incomeHistory, expenseHistory, obligations] = await Promise.all([
+      getDocsByUser<PersonalCashPosition>('personal_cash_positions', uid),
+      getDocsByUser<PersonalDebt>('personal_debts', uid),
+      getDocsByUser<PersonalDebtPayment>('personal_debt_payments', uid),
+      getDocsByUser<PersonalIncoming>('personal_incoming', uid),
+      getDocsByUser<PersonalIncome>('personal_income', uid),
+      getDocsByUser<PersonalExpense>('personal_expenses', uid),
+      getDocsByUser<PersonalObligation>('personal_obligations', uid),
     ])
     const pending = allIncoming.filter(i => i.status === 'pending')
-    const months = computeProjection(cashPositions, debts, payments, pending, incomeHistory)
+    const months = computeProjection(cashPositions, debts, payments, pending, incomeHistory, expenseHistory, obligations)
     setProjection(months)
     setLoading(false)
     onProjectionReady?.(months)
   }
 
-  useEffect(() => { load() }, [refreshKey])
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, user => {
+      if (!user) { setLoading(false); return }
+      load(user.uid)
+    })
+    return () => unsub()
+  }, [refreshKey])
 
   if (loading) return (
     <div className="card p-4 mb-3">
@@ -149,7 +165,6 @@ export default function SurvivalProjectionCard({
         </span>
       </div>
 
-      {/* Month navigator */}
       <div className="flex items-center justify-between mb-3">
         <button
           onClick={() => setIdx(i => Math.max(0, i - 1))}
@@ -166,7 +181,6 @@ export default function SurvivalProjectionCard({
         >▶</button>
       </div>
 
-      {/* Breakdown rows */}
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
         {rows.map((row, i) => (
           <div
@@ -180,14 +194,12 @@ export default function SurvivalProjectionCard({
             </span>
           </div>
         ))}
-        {/* End cash */}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: bg }}>
           <span className="font-semibold text-sm" style={{ color: text }}>Projected end cash</span>
           <span className="font-bold tabular text-base" style={{ color: text }}>{peso(month.endCash)}</span>
         </div>
       </div>
 
-      {/* Navigation dots */}
       <div className="flex justify-center gap-1.5 mt-3">
         {projection.map((m, i) => {
           const { text: dotColor } = statusStyle(m.endCash)

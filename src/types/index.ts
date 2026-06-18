@@ -170,6 +170,19 @@ export interface PersonalDebtPayment {
 
 export type AiTone = 'casual_taglish' | 'casual_english' | 'formal_english'
 
+export type ObligationCategory = 'bills' | 'subscription' | 'rent' | 'other'
+
+export interface PersonalObligation {
+  id: string
+  name: string
+  amount: number
+  due_day: number
+  category: ObligationCategory
+  is_active: boolean
+  user_id: string
+  created_at: string
+}
+
 export interface AiPdf {
   name: string
   text: string
