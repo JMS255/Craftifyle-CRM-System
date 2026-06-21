@@ -13,14 +13,15 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const EMPTY_FORM = { source: '', amount: '', expected_date: '', notes: '' }
+const today = () => new Date().toISOString().slice(0, 10)
+const EMPTY_FORM = { source: '', amount: '', expected_date: today() }
 
 export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRefresh?: () => void; refreshKey?: number }) {
   const [items, setItems] = useState<PersonalIncoming[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState<{ source: string; amount: string; expected_date: string }>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -45,24 +46,19 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
 
   function openAdd() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, expected_date: today() })
     setShowForm(true)
   }
 
   function startEdit(item: PersonalIncoming) {
     setEditingId(item.id)
-    setForm({
-      source: item.source,
-      amount: String(item.amount),
-      expected_date: item.expected_date,
-      notes: item.notes ?? '',
-    })
+    setForm({ source: item.source, amount: String(item.amount), expected_date: item.expected_date })
     setShowForm(true)
   }
 
   function resetForm() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, expected_date: today() })
     setShowForm(false)
   }
 
@@ -77,7 +73,7 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
         source: form.source.trim(),
         amount: parseFloat(form.amount),
         expected_date: form.expected_date,
-        notes: form.notes || null,
+        notes: null,
       }
       if (editingId) {
         await updateDocument('personal_incoming', editingId, payload)
@@ -169,12 +165,6 @@ export default function ConfirmedIncomingCard({ onRefresh, refreshKey }: { onRef
               onChange={e => setForm(f => ({ ...f, expected_date: e.target.value }))}
             />
           </div>
-          <input
-            className="w-full rounded-lg px-3 py-2.5 text-sm"
-            placeholder="Notes (optional)"
-            value={form.notes}
-            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-          />
           <button
             onClick={save}
             disabled={saving}

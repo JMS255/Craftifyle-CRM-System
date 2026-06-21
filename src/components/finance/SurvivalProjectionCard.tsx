@@ -33,12 +33,14 @@ function computeProjection(
   recentIncome: PersonalIncome[],
   recentExpenses: PersonalExpense[],
   obligations: PersonalObligation[],
-): ProjectionMonth[] {
+  revenueOverride?: number | null,
+): { months: ProjectionMonth[]; calculatedAvg: number } {
   const now = new Date()
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10)
 
   const recentInc = recentIncome.filter(e => e.income_date >= threeMonthsAgo)
-  const avgRevenue = recentInc.length ? Math.round(recentInc.reduce((s, e) => s + e.amount, 0) / 3) : 21000
+  const calculatedAvg = recentInc.length ? Math.round(recentInc.reduce((s, e) => s + e.amount, 0) / 3) : 21000
+  const avgRevenue = revenueOverride != null ? revenueOverride : calculatedAvg
 
   const recentExp = recentExpenses.filter(e => e.expense_date >= threeMonthsAgo)
   const avgExpenses = recentExp.length ? Math.round(recentExp.reduce((s, e) => s + e.amount, 0) / 3) : 5000
@@ -47,7 +49,7 @@ function computeProjection(
 
   let runningCash = cashPositions.reduce((s, p) => s + p.amount, 0)
 
-  return Array.from({ length: 6 }, (_, i) => {
+  const months = Array.from({ length: 6 }, (_, i) => {
     const totalM = now.getMonth() + i
     const ym = `${now.getFullYear() + Math.floor(totalM / 12)}-${String((totalM % 12) + 1).padStart(2, '0')}`
 
@@ -82,6 +84,7 @@ function computeProjection(
       endCash,
     }
   })
+  return { months, calculatedAvg }
 }
 
 function statusStyle(endCash: number) {
@@ -89,6 +92,8 @@ function statusStyle(endCash: number) {
   if (endCash < 10000) return { bg: 'rgba(245,158,11,0.1)', text: '#f59e0b', label: '🟡 Tight' }
   return               { bg: 'rgba(16,185,129,0.1)',        text: '#10b981', label: '🟢 On Track' }
 }
+
+const OVERRIDE_KEY = 'finance_monthly_revenue_override'
 
 export default function SurvivalProjectionCard({
   refreshKey,
@@ -100,6 +105,13 @@ export default function SurvivalProjectionCard({
   const [projection, setProjection] = useState<ProjectionMonth[]>([])
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
+  const [editingRevenue, setEditingRevenue] = useState(false)
+  const [revenueInput, setRevenueInput] = useState('')
+  const [revenueOverride, setRevenueOverride] = useState<number | null>(() => {
+    const v = localStorage.getItem(OVERRIDE_KEY)
+    return v ? parseFloat(v) : null
+  })
+  const [calcAvg, setCalcAvg] = useState(0)
 
   async function load(uid: string) {
     const [cashPositions, debts, payments, allIncoming, incomeHistory, expenseHistory, obligations] = await Promise.all([
@@ -112,8 +124,10 @@ export default function SurvivalProjectionCard({
       getDocsByUser<PersonalObligation>('personal_obligations', uid),
     ])
     const pending = allIncoming.filter(i => i.status === 'pending')
-    const months = computeProjection(cashPositions, debts, payments, pending, incomeHistory, expenseHistory, obligations)
+    const override = (() => { const v = localStorage.getItem(OVERRIDE_KEY); return v ? parseFloat(v) : null })()
+    const { months, calculatedAvg } = computeProjection(cashPositions, debts, payments, pending, incomeHistory, expenseHistory, obligations, override)
     setProjection(months)
+    setCalcAvg(calculatedAvg)
     setLoading(false)
     onProjectionReady?.(months)
   }
@@ -148,12 +162,14 @@ export default function SurvivalProjectionCard({
   const month = projection[idx]
   const { bg, text, label } = statusStyle(month.endCash)
 
+  const revenueLabel = revenueOverride != null ? '+ Revenue (custom)' : `+ Revenue (3-mo avg)`
+
   const rows = [
     { label: 'Opening cash',    value: month.openingCash, color: 'var(--text-heading)', sign: '' },
-    { label: '+ Revenue (avg)', value: month.revenue,     color: 'var(--accent-text)',  sign: '+' },
+    { label: revenueLabel,      value: month.revenue,     color: 'var(--accent-text)',  sign: '+', editable: true },
     { label: '+ Incoming',      value: month.incoming,    color: 'var(--success)',      sign: '+' },
     { label: '− Debt due',      value: month.debt,        color: 'var(--danger)',       sign: '−' },
-    { label: '− Est. expenses', value: month.expenses,    color: 'var(--danger)',       sign: '−' },
+    { label: '− Est. expenses (excl. debt)', value: month.expenses, color: 'var(--danger)', sign: '−' },
   ]
 
   return (
@@ -189,9 +205,56 @@ export default function SurvivalProjectionCard({
             style={{ borderBottom: '1px solid var(--border-secondary)' }}
           >
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-            <span className="font-semibold tabular text-sm" style={{ color: row.color }}>
-              {row.sign}{peso(row.value)}
-            </span>
+            {'editable' in row && row.editable ? (
+              editingRevenue ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    type="number"
+                    inputMode="numeric"
+                    className="w-24 rounded-lg px-2 py-1 text-sm text-right"
+                    style={{ background: 'var(--card-elevated)', color: 'var(--accent-text)', border: '1px solid var(--accent)' }}
+                    value={revenueInput}
+                    onChange={e => setRevenueInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const v = parseFloat(revenueInput)
+                        if (!isNaN(v) && v > 0) {
+                          setRevenueOverride(v)
+                          localStorage.setItem(OVERRIDE_KEY, String(v))
+                          setEditingRevenue(false)
+                          load(auth.currentUser!.uid)
+                        }
+                      }
+                      if (e.key === 'Escape') { setEditingRevenue(false) }
+                    }}
+                  />
+                  <button className="text-xs" style={{ color: 'var(--success)' }} onClick={() => {
+                    const v = parseFloat(revenueInput)
+                    if (!isNaN(v) && v > 0) {
+                      setRevenueOverride(v)
+                      localStorage.setItem(OVERRIDE_KEY, String(v))
+                      setEditingRevenue(false)
+                      load(auth.currentUser!.uid)
+                    }
+                  }}>✓</button>
+                  <button className="text-xs" style={{ color: 'var(--text-faint)' }} onClick={() => {
+                    if (revenueOverride != null) { localStorage.removeItem(OVERRIDE_KEY); setRevenueOverride(null); load(auth.currentUser!.uid) }
+                    setEditingRevenue(false)
+                  }}>✕</button>
+                </div>
+              ) : (
+                <button onClick={() => { setRevenueInput(String(revenueOverride ?? calcAvg)); setEditingRevenue(true) }}
+                  className="font-semibold tabular text-sm underline decoration-dotted"
+                  style={{ color: row.color }}>
+                  {row.sign}{peso(row.value)}
+                </button>
+              )
+            ) : (
+              <span className="font-semibold tabular text-sm" style={{ color: row.color }}>
+                {row.sign}{peso(row.value)}
+              </span>
+            )}
           </div>
         ))}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: bg }}>

@@ -35,6 +35,9 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
     return () => unsub()
   }, [refreshKey])
 
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
+  const [inlineAmount, setInlineAmount] = useState('')
+
   const total = positions.reduce((s, p) => s + p.amount, 0)
 
   function openAdd() {
@@ -47,6 +50,19 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
     setEditingId(p.id)
     setForm({ source_name: p.source_name, amount: String(p.amount) })
     setShowForm(true)
+  }
+
+  async function saveInline(p: PersonalCashPosition) {
+    const v = parseFloat(inlineAmount)
+    if (isNaN(v)) { setInlineEditId(null); return }
+    setSaving(true)
+    const user = auth.currentUser
+    if (user) {
+      await updateDocument('personal_cash_positions', p.id, { amount: v, updated_at: new Date().toISOString() })
+    }
+    setInlineEditId(null)
+    setSaving(false)
+    onRefresh?.()
   }
 
   async function save() {
@@ -149,11 +165,34 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
               >
                 {p.source_name}
               </button>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="font-semibold tabular text-sm" style={{ color: 'var(--accent-text)' }}>
-                  {peso(p.amount)}
-                </span>
-                <button onClick={() => remove(p.id)} className="text-xs leading-none" style={{ color: 'var(--danger)' }}>✕</button>
+              <div className="flex items-center gap-2 shrink-0">
+                {inlineEditId === p.id ? (
+                  <>
+                    <input
+                      autoFocus
+                      type="number"
+                      inputMode="numeric"
+                      className="w-24 rounded-lg px-2 py-1 text-sm text-right"
+                      style={{ background: 'var(--card-elevated)', color: 'var(--accent-text)', border: '1px solid var(--accent)' }}
+                      value={inlineAmount}
+                      onChange={e => setInlineAmount(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveInline(p); if (e.key === 'Escape') setInlineEditId(null) }}
+                    />
+                    <button onClick={() => saveInline(p)} className="text-xs" style={{ color: 'var(--success)' }}>✓</button>
+                    <button onClick={() => setInlineEditId(null)} className="text-xs" style={{ color: 'var(--text-faint)' }}>✕</button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setInlineEditId(p.id); setInlineAmount(String(p.amount)) }}
+                      className="font-semibold tabular text-sm underline decoration-dotted"
+                      style={{ color: 'var(--accent-text)' }}
+                    >
+                      {peso(p.amount)}
+                    </button>
+                    <button onClick={() => remove(p.id)} className="text-xs leading-none" style={{ color: 'var(--danger)' }}>✕</button>
+                  </>
+                )}
               </div>
             </div>
           ))}
