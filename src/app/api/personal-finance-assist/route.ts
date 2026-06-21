@@ -721,9 +721,10 @@ async function handlePOST(req: NextRequest) {
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite',
+    model: 'gemini-2.5-flash',
     systemInstruction: buildSystemPrompt(ctx),
     tools: TOOLS,
+    generationConfig: { thinkingConfig: { thinkingBudget: 5000 } } as Record<string, unknown>,
   })
 
   const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
