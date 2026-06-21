@@ -65,7 +65,7 @@ Craftifyle — photobooth and event photography in Zamboanga City, Philippines.`
 
 TODAY'S DATE: ${dateStr}. Use this for event timelines, relative dates ("next Saturday"), and urgency calculations.
 ${businessSection}
-You have tools to: get/create/update leads, get/create bookings, log payments, get revenue summary, and convert leads to bookings.
+You have tools to: get/create/update leads, get/create bookings, log payments, get revenue summary, convert leads to bookings, and manage ad campaign attribution.
 
 CORE RULES:
 - Confirm every DB action with key details (amounts in ₱, dates, names). Start with "Done —".
@@ -74,6 +74,7 @@ CORE RULES:
 - Ask one clarifying question if unclear — never guess critical fields.
 - Plain text only — no markdown tables, no bullet lists with asterisks.
 - When given a raw DM or inquiry, extract lead fields and call create_lead immediately.
+- When creating a lead with source "facebook", after saving ask: "Did this lead come from one of your ad campaigns, or was it organic/direct?" If they name a campaign, call attribute_lead_to_campaign. If they say organic or direct, skip attribution.
 ${rulesSection}
 
 REPLY TONE: ${tone}
@@ -113,6 +114,7 @@ const TOOLS = [{ functionDeclarations: [
         budget: { type: 'number', description: 'Budget in PHP, no peso sign.' },
         source: { type: 'string', enum: ['facebook', 'instagram', 'referral', 'walk-in', 'website', 'tiktok', 'other'], description: 'Where the lead came from. Default: other.' },
         notes: { type: 'string' },
+        ad_campaign_id: { type: 'string', description: 'Optional. Link this lead to an ad campaign by ID.' },
       },
       required: ['name'],
     },
@@ -219,6 +221,24 @@ const TOOLS = [{ functionDeclarations: [
       },
     },
   },
+  {
+    name: 'get_ad_campaigns',
+    description: 'Get all ad campaigns for the user. Use when attributing a lead to a campaign or when the user asks about their campaigns.',
+    parametersJsonSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'attribute_lead_to_campaign',
+    description: 'Link an existing lead to an ad campaign. Call this when the user says a lead came from a specific ad.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        lead_id: { type: 'string', description: 'Lead UUID. Provide if known.' },
+        lead_name: { type: 'string', description: 'Lead name to search by if ID not known.' },
+        campaign_id: { type: 'string', description: 'Campaign UUID. Provide if known.' },
+        campaign_name: { type: 'string', description: 'Campaign name to fuzzy match if ID not known. Use "organic" or "referral" to clear attribution.' },
+      },
+    },
+  },
 ]}]
 
 async function runTool(name: string, args: Record<string, unknown>, userId: string): Promise<string> {
@@ -242,6 +262,7 @@ async function runTool(name: string, args: Record<string, unknown>, userId: stri
         facebook: args.facebook ?? null, event_type: args.event_type ?? null, event_date: args.event_date ?? null,
         venue: args.venue ?? null, guest_count: args.guest_count ?? null, package: args.package ?? null,
         budget: args.budget ?? null, source: (args.source as string) ?? 'other', notes: args.notes ?? null,
+        ad_campaign_id: args.ad_campaign_id ?? null,
         status: 'new', created_at: now, updated_at: now,
       })
       return `Created lead: ${args.name} (ID: ${ref.id})`
@@ -368,6 +389,63 @@ async function runTool(name: string, args: Record<string, unknown>, userId: stri
       })
       await adminDb.collection('leads').doc(lead.id as string).update({ status: 'booked', updated_at: now })
       return `Converted to booking: ${lead.event_name ?? lead.name}'s event on ${lead.event_date}. Deposit: ₱${depositAmount}${depositPaid ? ' (paid)' : ' (unpaid)'}. Balance: ₱${balanceAmount}. Booking ID: ${bookingRef.id}`
+    }
+
+    if (name === 'get_ad_campaigns') {
+      const snap = await adminDb.collection('ad_campaigns').where('user_id', '==', userId).get()
+      if (!snap.docs.length) return 'No ad campaigns found.'
+      const rows = snap.docs.map((d: QueryDocumentSnapshot) => {
+        const data = d.data() as Record<string, unknown>
+        return `- "${data.name}" (ID: ${d.id}, platform: ${data.platform}, spend: ₱${(data.spend as number).toLocaleString()}, status: ${data.status})`
+      })
+      return rows.join('\n')
+    }
+
+    if (name === 'attribute_lead_to_campaign') {
+      // Resolve lead
+      let leadId = args.lead_id as string | undefined
+      if (!leadId && args.lead_name) {
+        const snap = await adminDb.collection('leads').where('user_id', '==', userId).get()
+        const lower = (args.lead_name as string).toLowerCase()
+        const found = snap.docs.find((d: QueryDocumentSnapshot) => String(d.data().name ?? '').toLowerCase().includes(lower))
+        if (!found) return `Lead "${args.lead_name}" not found.`
+        leadId = found.id
+      }
+      if (!leadId) return 'Provide lead_id or lead_name.'
+
+      const clearAttribution = ['organic', 'referral', 'none', 'direct'].includes(String(args.campaign_name ?? '').toLowerCase())
+
+      let campaignId: string | null = null
+      let campaignName = 'Organic'
+
+      if (!clearAttribution) {
+        // Resolve campaign
+        if (args.campaign_id) {
+          campaignId = args.campaign_id as string
+          const cSnap = await adminDb.collection('ad_campaigns').doc(campaignId).get()
+          campaignName = cSnap.exists ? (cSnap.data() as Record<string, unknown>).name as string : campaignId
+        } else if (args.campaign_name) {
+          const cSnap = await adminDb.collection('ad_campaigns').where('user_id', '==', userId).get()
+          const lower = (args.campaign_name as string).toLowerCase()
+          const found = cSnap.docs.find((d: QueryDocumentSnapshot) => {
+            const stored = String(d.data().name ?? '').toLowerCase()
+            return stored.includes(lower) || lower.includes(stored)
+          })
+          if (!found) return `Campaign "${args.campaign_name}" not found. Use get_ad_campaigns to see available campaigns.`
+          campaignId = found.id
+          campaignName = (found.data() as Record<string, unknown>).name as string
+        } else {
+          return 'Provide campaign_id or campaign_name.'
+        }
+      }
+
+      await adminDb.collection('leads').doc(leadId).update({
+        ad_campaign_id: campaignId,
+        updated_at: new Date().toISOString(),
+      })
+      return clearAttribution
+        ? `Cleared campaign attribution for lead — marked as organic.`
+        : `Attributed lead to campaign "${campaignName}".`
     }
 
     return `Unknown tool: ${name}`

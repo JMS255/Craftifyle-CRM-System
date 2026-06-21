@@ -45,6 +45,7 @@ export interface Lead {
   status: LeadStatus
   source: LeadSource
   notes: string | null
+  ad_campaign_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -181,6 +182,27 @@ export interface PersonalObligation {
   is_active: boolean
   user_id: string
   created_at: string
+}
+
+// Ad Campaigns
+export type AdPlatform = 'facebook' | 'instagram' | 'tiktok' | 'google'
+export type AdStatus = 'active' | 'ended'
+
+export interface AdCampaign {
+  id: string
+  name: string
+  platform: AdPlatform
+  spend: number
+  impressions?: number
+  clicks?: number
+  reach?: number
+  start_date: string
+  end_date?: string
+  status: AdStatus
+  notes?: string
+  user_id: string
+  created_at: string
+  updated_at: string
 }
 
 export interface AiPdf {

@@ -66,6 +66,10 @@ service cloud.firestore {
       allow read, update, delete: if isAuth() && isOwner();
       allow create: if isAuth() && isCreatingOwn();
     }
+    match /ad_campaigns/{docId} {
+      allow read, update, delete: if isAuth() && isOwner();
+      allow create: if isAuth() && isCreatingOwn();
+    }
 
     // Messenger conversations: written by server (Admin SDK bypasses rules),
     // read only by the owning user
