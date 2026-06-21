@@ -720,14 +720,19 @@ export async function POST(req: NextRequest) {
 
   const chat = model.startChat({ history })
 
-  type Part = { text: string } | { inlineData: { data: string; mimeType: string } }
   const lastText = messages[messages.length - 1].content || 'Read this financial screenshot and update my finances accordingly.'
-  const parts: Part[] = [{ text: lastText }]
-  // Support both single image (legacy) and multiple images
   const allImages: { data: string; mimeType: string }[] = images ?? (imageData ? [{ data: imageData, mimeType: imageMimeType ?? 'image/jpeg' }] : [])
-  for (const img of allImages) parts.push({ inlineData: { data: img.data, mimeType: img.mimeType } })
 
-  let result = await chat.sendMessage(parts)
+  let result
+  if (allImages.length > 0) {
+    const parts = [
+      { text: lastText },
+      ...allImages.map(img => ({ inlineData: { data: img.data, mimeType: img.mimeType } })),
+    ]
+    result = await chat.sendMessage(parts)
+  } else {
+    result = await chat.sendMessage(lastText)
+  }
 
   // Tool-calling loop — max 5 rounds to handle compound multi-action messages
   for (let round = 0; round < 5; round++) {
