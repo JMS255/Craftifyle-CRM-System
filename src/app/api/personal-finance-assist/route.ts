@@ -158,7 +158,8 @@ ${projectionRows.join('\n')}
    - No category → infer from description (see guide below)
    - "this month" / "ngayong buwan" → ${monthLabel(ctx.currentMonth)}
    - "next month" → ${monthLabel(offsetYYYYMM(ctx.currentMonth, 1))}
-5. If the user says "mali", "cancel", "undo", "wrong" → use delete_last_entry to remove it.
+5. If the user says "mali", "cancel", "undo", "wrong", or "that's not right" → use delete_last_entry (with count if multiple entries are wrong).
+5b. CRITICAL: A cash balance / wallet amount is NEVER income. "My GCash is ₱5,000" = update_cash_position, not log_income. Never log a bank or wallet balance as income.
 6. If any month is 🔴 DANGER, warn James at the end of your reply even if he didn't ask.
 7. REPLY FORMAT: Plain conversational text only. NO markdown tables, NO | pipes, NO # headers, NO ** bold. Use plain sentences and line breaks. Keep replies short — 1-3 sentences max unless listing multiple items.
 
@@ -169,7 +170,7 @@ ${projectionRows.join('\n')}
 "nangutang / borrowed / utang ko / pautang" → add_debt (type: pautang)
 "loan / EWB / SSS / installment / nagbayad ng utang" → add_debt (type: formal) or mark_debt_payment
 "bayad na / paid na / nabayaran / planong bayaran" → mark_debt_payment
-"GCash ko ay / balance ko ay / nag-update ang / cash ko ay / my cash is" → update_cash_position (if no specific source named, use source_name: "Cash on hand")
+"GCash ko ay / balance ko ay / nag-update ang / cash ko ay / my cash is / update my cash / update cash / current cash is / my wallet is / my balance is / maribank is / gcash is" → update_cash_position ONLY — NEVER log_income for a cash balance update. A balance is not income.
 "bayad ko monthly / recurring bill / subscription / internet / rent / obligation" → add_obligation / delete_obligation
 "earned / kita / naka-book / down payment / tip" → log_income
 "mali / cancel / undo / ay wrong / ibig sabihin" → delete_last_entry (for expenses/income only)
@@ -290,11 +291,12 @@ const TOOLS = [{ functionDeclarations: [
   },
   {
     name: 'delete_last_entry',
-    description: 'Delete the most recently logged expense or income entry. Use when user says "mali", "cancel", "undo", "wrong amount".',
+    description: 'Delete the most recently logged expense or income entries. Use when user says "mali", "cancel", "undo", "wrong", or wants to remove multiple recent entries.',
     parametersJsonSchema: {
       type: 'object',
       properties: {
-        entry_type: { type: 'string', enum: ['expense', 'income'], description: 'Whether to delete the last expense or last income entry.' },
+        entry_type: { type: 'string', enum: ['expense', 'income'], description: 'Whether to delete recent expense or income entries.' },
+        count: { type: 'number', description: 'How many recent entries to delete. Defaults to 1.' },
       },
       required: ['entry_type'],
     },
@@ -522,16 +524,20 @@ async function runTool(
 
     if (name === 'delete_last_entry') {
       const col = args.entry_type === 'expense' ? 'personal_expenses' : 'personal_income'
+      const count = Math.min(Math.max(1, Math.round((args.count as number) ?? 1)), 50)
       const snap = await adminDb.collection(col)
         .where('user_id', '==', userId)
         .orderBy('created_at', 'desc')
-        .limit(1)
+        .limit(count)
         .get()
-      if (snap.empty) return `No recent ${args.entry_type} entry found to delete.`
-      const doc = snap.docs[0]
-      const data = doc.data() as { description?: string; amount?: number }
-      await doc.ref.delete()
-      return `Deleted last ${args.entry_type}: "${data.description}" — ${peso(data.amount ?? 0)}`
+      if (snap.empty) return `No recent ${args.entry_type} entries found to delete.`
+      const deleted: string[] = []
+      await Promise.all(snap.docs.map(async doc => {
+        const d = doc.data() as { description?: string; amount?: number }
+        deleted.push(`"${d.description}" ${peso(d.amount ?? 0)}`)
+        await doc.ref.delete()
+      }))
+      return `Deleted ${snap.size} ${args.entry_type} entr${snap.size === 1 ? 'y' : 'ies'}: ${deleted.join(', ')}`
     }
 
     if (name === 'add_debt') {
