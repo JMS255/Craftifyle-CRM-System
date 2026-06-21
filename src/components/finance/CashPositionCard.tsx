@@ -198,7 +198,44 @@ export default function CashPositionCard({ onRefresh, refreshKey }: { onRefresh?
           ))}
           <div className="flex items-center justify-between pt-3 mt-1" style={{ borderTop: '1px solid var(--card-border)' }}>
             <span className="section-label">Total Cash</span>
-            <span className="text-lg font-bold tabular" style={{ color: 'var(--accent-text)' }}>{peso(total)}</span>
+            {inlineEditId === '__total__' ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  type="number"
+                  inputMode="numeric"
+                  className="w-28 rounded-lg px-2 py-1 text-sm text-right font-bold"
+                  style={{ background: 'var(--card-elevated)', color: 'var(--accent-text)', border: '1px solid var(--accent)' }}
+                  value={inlineAmount}
+                  onChange={e => setInlineAmount(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter') {
+                      const newTotal = parseFloat(inlineAmount)
+                      if (isNaN(newTotal)) { setInlineEditId(null); return }
+                      const user = auth.currentUser
+                      if (!user || positions.length === 0) { setInlineEditId(null); return }
+                      setSaving(true)
+                      if (positions.length === 1) {
+                        await updateDocument('personal_cash_positions', positions[0].id, { amount: newTotal, updated_at: new Date().toISOString() })
+                      } else {
+                        const others = positions.slice(1).reduce((s, p) => s + p.amount, 0)
+                        const adjusted = newTotal - others
+                        await updateDocument('personal_cash_positions', positions[0].id, { amount: adjusted, updated_at: new Date().toISOString() })
+                      }
+                      setInlineEditId(null); setSaving(false); onRefresh?.()
+                    }
+                    if (e.key === 'Escape') setInlineEditId(null)
+                  }}
+                />
+                <button className="text-xs" style={{ color: 'var(--text-faint)' }} onClick={() => setInlineEditId(null)}>✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setInlineEditId('__total__'); setInlineAmount(String(total)) }}
+                className="text-lg font-bold tabular underline decoration-dotted"
+                style={{ color: 'var(--accent-text)' }}
+              >{peso(total)}</button>
+            )}
           </div>
         </div>
       )}

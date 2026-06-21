@@ -149,7 +149,7 @@ export default function PersonalPage() {
         created_at: now,
       })
     }
-    setManualForm(f => ({ ...f, description: '', amount: '' }))
+    setManualForm(f => ({ ...f, description: '', amount: '', date: new Date().toISOString().slice(0, 10) }))
     setShowManual(false)
     setSaving(false)
     handleRefresh()
@@ -177,15 +177,6 @@ export default function PersonalPage() {
         page="Finances"
         title="Personal Finance"
         subtitle="Your money, separate from Craftifyle"
-        actions={
-          <button
-            onClick={() => setShowManual(s => !s)}
-            className="text-xs px-3 py-1.5 rounded-[8px] font-medium"
-            style={{ background: 'var(--card-elevated)', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
-          >
-            {showManual ? 'Cancel' : '+ Manual'}
-          </button>
-        }
       />
       <div className="p-4 md:p-8 pb-8">
 
@@ -195,78 +186,61 @@ export default function PersonalPage() {
         title="Track your personal money"
         description="Log your income, expenses, and debts separate from your business revenue. Know exactly where your money goes and what you owe every month."
         tips={[
-          'Log daily expenses by category to see where your money goes each month',
-          'Track debts with a payment schedule so you never miss a monthly payment',
-          'Cash Position shows your total money across all wallets and sources right now',
+          'Tap any amount in Cash Position to update it instantly',
+          'Tap the revenue number in Survival Projection to set your own expected monthly income',
+          'Debt payments are already tracked separately — don\'t log them as expenses too',
         ]}
         accentColor="#10b981"
       />
 
-      {/* Manual entry fallback */}
-      {showManual && (
-        <div className="card p-4 mb-4">
-          <div className="flex gap-2 mb-3">
-            {(['income', 'expense'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setManualMode(mode)}
-                className="flex-1 py-2 rounded-[10px] text-sm font-medium capitalize"
-                style={manualMode === mode
-                  ? { background: mode === 'income' ? 'var(--accent)' : 'var(--danger)', color: '#fff' }
-                  : { background: 'var(--card-elevated)', color: 'var(--text-muted)' }}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+      {/* Quick entry — always visible at top */}
+      <div className="card p-4 mb-4">
+        <div className="flex gap-2 mb-3">
+          {(['income', 'expense'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => { setManualMode(mode); setShowManual(true) }}
+              className="flex-1 py-2.5 rounded-[10px] text-sm font-semibold capitalize"
+              style={showManual && manualMode === mode
+                ? { background: mode === 'income' ? 'var(--accent)' : 'var(--danger)', color: '#fff' }
+                : { background: 'var(--card-elevated)', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
+            >
+              {mode === 'income' ? '+ Income' : '+ Expense'}
+            </button>
+          ))}
+        </div>
+        {showManual && (
           <form onSubmit={saveManual} className="space-y-2">
-            <input
-              required
-              className="w-full rounded-lg px-3 py-2.5 text-sm"
-              placeholder="Description"
-              value={manualForm.description}
-              onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
-            />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex gap-2">
+              <input
+                required
+                autoFocus
+                className="flex-1 rounded-lg px-3 py-2.5 text-sm"
+                placeholder={manualMode === 'income' ? 'Source (e.g. booking, tips)' : 'What did you spend on?'}
+                value={manualForm.description}
+                onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
+              />
               <input
                 required
                 type="number"
                 inputMode="numeric"
-                className="w-full rounded-lg px-3 py-2.5 text-sm"
-                placeholder="Amount (₱)"
+                className="w-28 rounded-lg px-3 py-2.5 text-sm"
+                placeholder="₱ Amount"
                 value={manualForm.amount}
                 onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
               />
-              <input
-                type="date"
-                className="w-full rounded-lg px-3 py-2.5 text-sm"
-                value={manualForm.date}
-                onChange={e => setManualForm(f => ({ ...f, date: e.target.value }))}
-              />
             </div>
-            <select
-              className="w-full rounded-lg px-3 py-2.5 text-sm"
-              value={manualMode === 'income' ? manualForm.category_income : manualForm.category_expense}
-              onChange={e => manualMode === 'income'
-                ? setManualForm(f => ({ ...f, category_income: e.target.value as IncomeCategory }))
-                : setManualForm(f => ({ ...f, category_expense: e.target.value as ExpenseCategory }))
-              }
-            >
-              {(manualMode === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => (
-                <option key={c} value={c}>{c.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
-              ))}
-            </select>
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2.5 rounded-[10px] text-sm font-medium text-white disabled:opacity-50"
+              className="w-full py-2.5 rounded-[10px] text-sm font-semibold text-white disabled:opacity-50"
               style={{ background: manualMode === 'income' ? 'var(--accent)' : 'var(--danger)' }}
             >
-              {saving ? 'Saving…' : `Save ${manualMode}`}
+              {saving ? 'Saving…' : `Save ${manualMode === 'income' ? 'Income' : 'Expense'}`}
             </button>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* AI bar — mobile only, top of page */}
       {!loading && (
