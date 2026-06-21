@@ -6,7 +6,7 @@ import WelcomeCard from '@/components/WelcomeCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { auth, db, getDocsByUser, getDocById, collection, query, where, orderBy, limit, getDocs } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import type { Lead, Booking } from '@/types'
+import type { Lead, Booking, AdCampaign } from '@/types'
 import TopBar from '@/components/TopBar'
 
 const MONTH_NAMES = [
@@ -69,6 +69,7 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [revenue, setRevenue] = useState<RevenueStats>({ confirmed: 0, collected: 0, pipeline: 0, bookingCount: 0 })
+  const [adCampaigns, setAdCampaigns] = useState<AdCampaign[]>([])
   const [firstName, setFirstName] = useState('there')
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
@@ -84,10 +85,12 @@ export default function Dashboard() {
 
     if (!user) { setLoading(false); return }
 
-    const [allLeads, allBookings] = await Promise.all([
+    const [allLeads, allBookings, allCampaigns] = await Promise.all([
       getDocsByUser<Lead>('leads', user.uid),
       getDocsByUser<Booking>('bookings', user.uid),
+      getDocsByUser<AdCampaign>('ad_campaigns', user.uid),
     ])
+    setAdCampaigns(allCampaigns)
 
     const sortedLeads = [...allLeads].sort((a, b) => b.created_at.localeCompare(a.created_at))
     const upcomingBookings = allBookings
@@ -156,6 +159,13 @@ export default function Dashboard() {
     .sort((a, b) => b.urgency - a.urgency)
     .slice(0, 3)
 
+  const thisMonthKey = new Date().toISOString().slice(0, 7)
+  const thisMonthCampaigns = adCampaigns.filter(c => c.start_date?.slice(0, 7) === thisMonthKey)
+  const adSpendThisMonth = thisMonthCampaigns.reduce((s, c) => s + c.spend, 0)
+  const adLeadsThisMonth = thisMonthCampaigns.reduce((s, c) => s + (c.leads_raw ?? 0), 0)
+  const adRevenueThisMonth = thisMonthCampaigns.reduce((s, c) => s + (c.revenue_raw ?? 0), 0)
+  const adROASThisMonth = adSpendThisMonth > 0 && adRevenueThisMonth > 0 ? adRevenueThisMonth / adSpendThisMonth : null
+
   const balanceDueAlerts = bookings.filter(b => {
     const d = daysUntil(b.event_date)
     return d >= 0 && d <= 7 && !b.balance_paid && b.balance_amount > 0
@@ -215,6 +225,36 @@ export default function Dashboard() {
       {/* ── Welcome flow — shown when user has zero leads ── */}
       {leads.length === 0 && <WelcomeFlow onComplete={reload} />}
       {leads.length > 0 && <OnboardingChecklist />}
+
+      {/* ── Ad performance strip ── */}
+      {adCampaigns.length > 0 && (
+        <Link href="/ads" className="block rounded-2xl p-4 mb-5" style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="section-label">Ads This Month</p>
+            <span className="text-xs font-medium" style={{ color: 'var(--accent-text)' }}>View all →</span>
+          </div>
+          {thisMonthCampaigns.length === 0 ? (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No campaigns started this month.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Spend</p>
+                <p className="text-lg font-bold tabular" style={{ color: 'var(--danger)' }}>₱{adSpendThisMonth.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>ROAS</p>
+                <p className="text-lg font-bold tabular" style={{ color: adROASThisMonth !== null && adROASThisMonth >= 1 ? 'var(--success)' : 'var(--text-faint)' }}>
+                  {adROASThisMonth !== null ? `${adROASThisMonth.toFixed(2)}x` : '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Ad Leads</p>
+                <p className="text-lg font-bold tabular" style={{ color: 'var(--accent-text)' }}>{adLeadsThisMonth}</p>
+              </div>
+            </div>
+          )}
+        </Link>
+      )}
 
       {/* ── Revenue hero strip ── */}
       {revenue.bookingCount > 0 && (
