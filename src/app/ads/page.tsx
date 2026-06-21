@@ -87,7 +87,7 @@ export default function AdsPage() {
     const payload: Omit<AdCampaign, 'id' | 'created_at'> = {
       name: form.name.trim(),
       platform: form.platform,
-      spend: parseFloat(form.spend),
+      spend: parseFloat(form.spend.replace(/[₱,\s]/g, '')),
       start_date: form.start_date,
       ...(form.end_date ? { end_date: form.end_date } : {}),
       ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
@@ -275,7 +275,7 @@ export default function AdsPage() {
           </div>
           <button
             onClick={save}
-            disabled={saving || !form.name.trim() || !form.spend || !form.start_date}
+            disabled={saving || !form.name.trim() || !parseFloat(form.spend.replace(/[₱,\s]/g, '')) || !form.start_date}
             className="w-full py-2.5 rounded-[10px] text-sm font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--accent)' }}
           >
