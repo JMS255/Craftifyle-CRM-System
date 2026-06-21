@@ -5,7 +5,7 @@ import { auth, getDocsByUser, addDocument, updateDocument, deleteDocument } from
 import { onAuthStateChanged } from 'firebase/auth'
 import type { AdCampaign, AdPlatform, Lead, Booking } from '@/types'
 
-const EMPTY_FORM = { name: '', platform: 'facebook' as AdPlatform, spend: '', start_date: '', end_date: '', notes: '' }
+const EMPTY_FORM = { name: '', platform: 'facebook' as AdPlatform, spend: '', leads_raw: '', booked_raw: '', revenue_raw: '', start_date: '', end_date: '', notes: '' }
 
 const PLATFORM_LABELS: Record<AdPlatform, string> = {
   facebook: 'Facebook',
@@ -68,10 +68,14 @@ export default function AdsPage() {
       .map(c => {
         const campaignLeads = leads.filter(l => l.ad_campaign_id === c.id)
         const bookedLeads = campaignLeads.filter(l => ['booked', 'completed'].includes(l.status))
-        const revenue = bookedLeads.reduce((sum, l) => sum + (bookingMap.get(l.id) ?? 0), 0)
-        const roas = c.spend > 0 ? revenue / c.spend : null
-        const cpl = c.spend > 0 && campaignLeads.length > 0 ? c.spend / campaignLeads.length : null
-        return { ...c, leads: campaignLeads.length, booked: bookedLeads.length, revenue, roas, cpl }
+        const crmRevenue = bookedLeads.reduce((sum, l) => sum + (bookingMap.get(l.id) ?? 0), 0)
+        // prefer CRM data; fall back to manually-entered raw numbers
+        const leadCount = campaignLeads.length || (c.leads_raw ?? 0)
+        const bookedCount = bookedLeads.length || (c.booked_raw ?? 0)
+        const revenue = crmRevenue || (c.revenue_raw ?? 0)
+        const roas = c.spend > 0 && revenue > 0 ? revenue / c.spend : null
+        const cpl = c.spend > 0 && leadCount > 0 ? c.spend / leadCount : null
+        return { ...c, leads: leadCount, booked: bookedCount, revenue, roas, cpl }
       })
 
     setCampaigns(rows)
@@ -84,10 +88,14 @@ export default function AdsPage() {
     if (!user) return
     setSaving(true)
     const now = new Date().toISOString()
+    const cleanNum = (v: string) => { const n = parseFloat(v.replace(/[₱,\s]/g, '')); return isNaN(n) ? undefined : n }
     const payload: Omit<AdCampaign, 'id' | 'created_at'> = {
       name: form.name.trim(),
       platform: form.platform,
       spend: parseFloat(form.spend.replace(/[₱,\s]/g, '')),
+      ...(cleanNum(form.leads_raw) !== undefined ? { leads_raw: cleanNum(form.leads_raw) } : {}),
+      ...(cleanNum(form.booked_raw) !== undefined ? { booked_raw: cleanNum(form.booked_raw) } : {}),
+      ...(cleanNum(form.revenue_raw) !== undefined ? { revenue_raw: cleanNum(form.revenue_raw) } : {}),
       start_date: form.start_date,
       ...(form.end_date ? { end_date: form.end_date } : {}),
       ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
@@ -123,6 +131,9 @@ export default function AdsPage() {
       name: c.name,
       platform: c.platform,
       spend: String(c.spend),
+      leads_raw: c.leads_raw != null ? String(c.leads_raw) : '',
+      booked_raw: c.booked_raw != null ? String(c.booked_raw) : '',
+      revenue_raw: c.revenue_raw != null ? String(c.revenue_raw) : '',
       start_date: c.start_date,
       end_date: c.end_date ?? '',
       notes: c.notes ?? '',
@@ -152,6 +163,9 @@ export default function AdsPage() {
           name: data.campaign.name ?? '',
           platform: data.campaign.platform ?? 'facebook',
           spend: String(data.campaign.spend ?? ''),
+          leads_raw: data.campaign.leads_raw != null ? String(data.campaign.leads_raw) : '',
+          booked_raw: data.campaign.booked_raw != null ? String(data.campaign.booked_raw) : '',
+          revenue_raw: data.campaign.revenue_raw != null ? String(data.campaign.revenue_raw) : '',
           start_date: data.campaign.start_date ?? '',
           end_date: data.campaign.end_date ?? '',
           notes: '',
@@ -264,6 +278,30 @@ export default function AdsPage() {
               placeholder="End date (optional)"
               value={form.end_date}
               onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+            />
+            <input
+              className="w-full rounded-[10px] px-3 py-2.5 text-sm"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
+              placeholder="Leads from ad (e.g. 22 conversations)"
+              inputMode="numeric"
+              value={form.leads_raw}
+              onChange={e => setForm(f => ({ ...f, leads_raw: e.target.value }))}
+            />
+            <input
+              className="w-full rounded-[10px] px-3 py-2.5 text-sm"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
+              placeholder="Bookings from ad (e.g. 2)"
+              inputMode="numeric"
+              value={form.booked_raw}
+              onChange={e => setForm(f => ({ ...f, booked_raw: e.target.value }))}
+            />
+            <input
+              className="w-full rounded-[10px] px-3 py-2.5 text-sm"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
+              placeholder="Revenue from ad ₱ (e.g. 13000)"
+              inputMode="numeric"
+              value={form.revenue_raw}
+              onChange={e => setForm(f => ({ ...f, revenue_raw: e.target.value }))}
             />
             <input
               className="w-full rounded-[10px] px-3 py-2.5 text-sm"

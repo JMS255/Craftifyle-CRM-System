@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb, adminAuth } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
-import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
+import type { QueryDocumentSnapshot, DocumentReference } from 'firebase-admin/firestore'
 
 export const maxDuration = 60
 
@@ -227,6 +227,20 @@ const TOOLS = [{ functionDeclarations: [
     parametersJsonSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'update_campaign_stats',
+    description: 'Update the raw lead/booking/revenue counts on an ad campaign. Use when the user says "I got X leads and Y bookings from [campaign]" or wants to update campaign results.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        campaign_id: { type: 'string', description: 'Campaign UUID if known.' },
+        campaign_name: { type: 'string', description: 'Campaign name to fuzzy match.' },
+        leads_raw: { type: 'number', description: 'Total leads/conversations from this ad.' },
+        booked_raw: { type: 'number', description: 'Total bookings from this ad.' },
+        revenue_raw: { type: 'number', description: 'Total revenue in PHP from this ad.' },
+      },
+    },
+  },
+  {
     name: 'attribute_lead_to_campaign',
     description: 'Link an existing lead to an ad campaign. Call this when the user says a lead came from a specific ad.',
     parametersJsonSchema: {
@@ -389,6 +403,39 @@ async function runTool(name: string, args: Record<string, unknown>, userId: stri
       })
       await adminDb.collection('leads').doc(lead.id as string).update({ status: 'booked', updated_at: now })
       return `Converted to booking: ${lead.event_name ?? lead.name}'s event on ${lead.event_date}. Deposit: ₱${depositAmount}${depositPaid ? ' (paid)' : ' (unpaid)'}. Balance: ₱${balanceAmount}. Booking ID: ${bookingRef.id}`
+    }
+
+    if (name === 'update_campaign_stats') {
+      let ref: DocumentReference | null = null
+      let cName = ''
+      if (args.campaign_id) {
+        ref = adminDb.collection('ad_campaigns').doc(args.campaign_id as string)
+        const s = await ref.get()
+        if (!s.exists || s.data()?.user_id !== userId) return 'Campaign not found.'
+        cName = (s.data() as Record<string, unknown>).name as string
+      } else if (args.campaign_name) {
+        const snap = await adminDb.collection('ad_campaigns').where('user_id', '==', userId).get()
+        const lower = (args.campaign_name as string).toLowerCase()
+        const found = snap.docs.find((d: QueryDocumentSnapshot) => {
+          const stored = String(d.data().name ?? '').toLowerCase()
+          return stored.includes(lower) || lower.includes(stored)
+        })
+        if (!found) return `Campaign "${args.campaign_name}" not found. Use get_ad_campaigns to list them.`
+        ref = found.ref
+        cName = (found.data() as Record<string, unknown>).name as string
+      } else {
+        return 'Provide campaign_id or campaign_name.'
+      }
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (args.leads_raw !== undefined) updates.leads_raw = args.leads_raw
+      if (args.booked_raw !== undefined) updates.booked_raw = args.booked_raw
+      if (args.revenue_raw !== undefined) updates.revenue_raw = args.revenue_raw
+      await ref.update(updates)
+      const parts = []
+      if (args.leads_raw !== undefined) parts.push(`${args.leads_raw} leads`)
+      if (args.booked_raw !== undefined) parts.push(`${args.booked_raw} bookings`)
+      if (args.revenue_raw !== undefined) parts.push(`₱${(args.revenue_raw as number).toLocaleString()} revenue`)
+      return `Updated "${cName}" — ${parts.join(', ')}.`
     }
 
     if (name === 'get_ad_campaigns') {

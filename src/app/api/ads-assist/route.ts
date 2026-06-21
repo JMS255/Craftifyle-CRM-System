@@ -32,6 +32,9 @@ const TOOLS = [{ functionDeclarations: [
         impressions: { type: 'number', description: 'Total impressions if present.' },
         clicks: { type: 'number', description: 'Total link clicks if present.' },
         reach: { type: 'number', description: 'Total reach if present.' },
+        leads_raw: { type: 'number', description: 'Number of leads or conversations started from this ad.' },
+        booked_raw: { type: 'number', description: 'Number of bookings/conversions from this ad.' },
+        revenue_raw: { type: 'number', description: 'Total revenue in PHP from this ad if known.' },
         start_date: { type: 'string', description: 'Campaign start date YYYY-MM-DD.' },
         end_date: { type: 'string', description: 'Campaign end date YYYY-MM-DD.' },
       },
@@ -49,6 +52,9 @@ const TOOLS = [{ functionDeclarations: [
         impressions: { type: 'number' },
         clicks: { type: 'number' },
         reach: { type: 'number' },
+        leads_raw: { type: 'number', description: 'Number of leads or conversations started.' },
+        booked_raw: { type: 'number', description: 'Number of bookings from this ad.' },
+        revenue_raw: { type: 'number', description: 'Total revenue in PHP from this ad.' },
         end_date: { type: 'string', description: 'End date YYYY-MM-DD.' },
         status: { type: 'string', enum: ['active', 'ended'] },
       },
@@ -74,6 +80,9 @@ async function runTool(
       ...(args.impressions !== undefined ? { impressions: args.impressions as number } : {}),
       ...(args.clicks !== undefined ? { clicks: args.clicks as number } : {}),
       ...(args.reach !== undefined ? { reach: args.reach as number } : {}),
+      ...(args.leads_raw !== undefined ? { leads_raw: args.leads_raw as number } : {}),
+      ...(args.booked_raw !== undefined ? { booked_raw: args.booked_raw as number } : {}),
+      ...(args.revenue_raw !== undefined ? { revenue_raw: args.revenue_raw as number } : {}),
       ...(args.start_date ? { start_date: args.start_date as string } : {}),
       ...(args.end_date ? { end_date: args.end_date as string } : {}),
       status: 'active',
@@ -89,7 +98,7 @@ async function runTool(
   if (name === 'update_campaign') {
     const { id, ...fields } = args
     const updates: Record<string, unknown> = { updated_at: now }
-    const allowed = ['spend', 'impressions', 'clicks', 'reach', 'end_date', 'status']
+    const allowed = ['spend', 'impressions', 'clicks', 'reach', 'leads_raw', 'booked_raw', 'revenue_raw', 'end_date', 'status']
     for (const key of allowed) {
       if (fields[key] !== undefined) updates[key] = fields[key]
     }
@@ -123,7 +132,9 @@ RULES:
 - If a campaign with a similar name already exists, call update_campaign with its ID instead of creating a new one.
 - Platform defaults to "facebook" unless clearly stated otherwise.
 - NEVER ask the user for a campaign name. If no explicit name is found, infer one from context clues — the post caption, event type (debut, wedding, birthday), date, or location. Examples: "June Debut Boost", "Fatima Debut Jun 2026", "Summer Event Promo". Always call create_campaign immediately with the inferred name.
-- After calling a tool, respond with a short confirmation like "Done — saved as [name], spend ₱X, reach X." and mention the inferred name so the user can rename it if needed.
+- "Messaging conversations started", "leads", "results", or "inquiries" in the data = leads_raw. Extract this number.
+- If the user mentions how many bookings or how much revenue came from this ad, include booked_raw and revenue_raw.
+- After calling a tool, confirm in one line: "Done — saved as [name], spend ₱X, [X leads] [X bookings if present]." Mention the inferred name so user can rename if needed. Then ask: "How many of these leads turned into bookings, and what was the total revenue? (Skip if you don't know yet.)"
 - Plain text only, no markdown.`
 }
 

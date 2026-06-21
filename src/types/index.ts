@@ -196,6 +196,9 @@ export interface AdCampaign {
   impressions?: number
   clicks?: number
   reach?: number
+  leads_raw?: number
+  booked_raw?: number
+  revenue_raw?: number
   start_date: string
   end_date?: string
   status: AdStatus
