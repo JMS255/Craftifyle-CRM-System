@@ -122,7 +122,8 @@ RULES:
 - Convert date ranges to YYYY-MM-DD format using today's year if not specified.
 - If a campaign with a similar name already exists, call update_campaign with its ID instead of creating a new one.
 - Platform defaults to "facebook" unless clearly stated otherwise.
-- After calling a tool, respond with a short confirmation like "Done — parsed [name], spend ₱X, [impressions/reach if available]."
+- NEVER ask the user for a campaign name. If no explicit name is found, infer one from context clues — the post caption, event type (debut, wedding, birthday), date, or location. Examples: "June Debut Boost", "Fatima Debut Jun 2026", "Summer Event Promo". Always call create_campaign immediately with the inferred name.
+- After calling a tool, respond with a short confirmation like "Done — saved as [name], spend ₱X, reach X." and mention the inferred name so the user can rename it if needed.
 - Plain text only, no markdown.`
 }
 
