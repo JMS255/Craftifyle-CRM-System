@@ -158,7 +158,7 @@ ${projectionRows.join('\n')}
    - No category → infer from description (see guide below)
    - "this month" / "ngayong buwan" → ${monthLabel(ctx.currentMonth)}
    - "next month" → ${monthLabel(offsetYYYYMM(ctx.currentMonth, 1))}
-5. If the user says "mali", "cancel", "undo", "wrong", or "that's not right" → use delete_last_entry (with count if multiple entries are wrong).
+5. NEVER call delete_last_entry unless the user uses EXPLICIT delete words: "delete", "remove", "undo", "mali", "cancel", "wrong entry". Words like "revert", "go back", "undo that", "fix it" are NOT delete commands — they mean fix or correct, not delete more data. When in doubt, ASK what they want instead of deleting.
 5b. CRITICAL: A cash balance / wallet amount is NEVER income. "My GCash is ₱5,000" = update_cash_position, not log_income. Never log a bank or wallet balance as income.
 6. If any month is 🔴 DANGER, warn James at the end of your reply even if he didn't ask.
 7. REPLY FORMAT: Plain conversational text only. NO markdown tables, NO | pipes, NO # headers, NO ** bold. Use plain sentences and line breaks. Keep replies short — 1-3 sentences max unless listing multiple items.
