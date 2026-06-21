@@ -33,7 +33,7 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState<Message[]>([])
-  const [pendingImage, setPendingImage] = useState<{ data: string; mimeType: string; previewUrl: string } | null>(null)
+  const [pendingImages, setPendingImages] = useState<{ data: string; mimeType: string; previewUrl: string }[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -43,36 +43,38 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
   }, [history.length, loading])
 
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const { data, mimeType } = await imageToBase64(file)
-    const previewUrl = URL.createObjectURL(file)
-    setPendingImage({ data, mimeType, previewUrl })
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    const converted = await Promise.all(files.map(async file => {
+      const { data, mimeType } = await imageToBase64(file)
+      return { data, mimeType, previewUrl: URL.createObjectURL(file) }
+    }))
+    setPendingImages(prev => [...prev, ...converted])
     e.target.value = ''
   }
 
   async function send(text?: string) {
     const msg = (text ?? input).trim()
-    if ((!msg && !pendingImage) || loading) return
+    if ((!msg && !pendingImages.length) || loading) return
     setInput('')
     setLoading(true)
 
-    const displayText = msg || '📷 Screenshot sent'
+    const displayText = msg || (pendingImages.length === 1 ? '📷 Screenshot sent' : `📷 ${pendingImages.length} screenshots sent`)
     const newHistory: Message[] = [...history, { role: 'user', content: displayText }]
     setHistory(newHistory)
 
-    const imageToSend = pendingImage
-    setPendingImage(null)
+    const imagesToSend = pendingImages
+    setPendingImages([])
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 45000)
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
     try {
       const res = await fetch('/api/personal-finance-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: newHistory,
-          ...(imageToSend ? { imageData: imageToSend.data, imageMimeType: imageToSend.mimeType } : {}),
+          ...(imagesToSend.length ? { images: imagesToSend.map(i => ({ data: i.data, mimeType: i.mimeType })) } : {}),
         }),
         signal: controller.signal,
       })
@@ -178,15 +180,22 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
         )}
       </div>
 
-      {/* Image preview */}
-      {pendingImage && (
-        <div className="px-3 py-2 flex items-center gap-2" style={{ borderTop: '1px solid var(--card-border)' }}>
-          <img src={pendingImage.previewUrl} alt="preview" className="h-14 w-14 rounded-lg object-cover" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium" style={{ color: 'var(--text-heading)' }}>Screenshot ready</p>
-            <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Add a note or just tap Send</p>
-          </div>
-          <button onClick={() => setPendingImage(null)} className="text-xs p-1" style={{ color: 'var(--text-faint)' }}>✕</button>
+      {/* Image previews */}
+      {pendingImages.length > 0 && (
+        <div className="px-3 py-2 flex items-center gap-2 flex-wrap" style={{ borderTop: '1px solid var(--card-border)' }}>
+          {pendingImages.map((img, i) => (
+            <div key={i} className="relative">
+              <img src={img.previewUrl} alt={`preview ${i + 1}`} className="h-14 w-14 rounded-lg object-cover" />
+              <button
+                onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs leading-none"
+                style={{ background: 'var(--danger)', fontSize: '10px' }}
+              >✕</button>
+            </div>
+          ))}
+          <p className="text-xs w-full mt-1" style={{ color: 'var(--text-faint)' }}>
+            {pendingImages.length} screenshot{pendingImages.length > 1 ? 's' : ''} — add a note or just tap Send
+          </p>
         </div>
       )}
 
@@ -199,6 +208,7 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
           ref={fileRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleImageSelect}
         />
@@ -206,10 +216,10 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
           onClick={() => fileRef.current?.click()}
           disabled={loading}
           className="w-10 h-10 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-40"
-          style={{ background: pendingImage ? 'var(--success-muted)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}
-          title="Upload GCash / bank screenshot"
+          style={{ background: pendingImages.length ? 'var(--success-muted)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}
+          title="Upload GCash / bank screenshot (tap again to add more)"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={pendingImage ? 'var(--success)' : 'var(--text-muted)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={pendingImages.length ? 'var(--success)' : 'var(--text-muted)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
@@ -221,7 +231,7 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && send()}
-          placeholder={pendingImage ? 'Add a note (optional)…' : 'Type in Filipino or English…'}
+          placeholder={pendingImages.length ? 'Add a note (optional)…' : 'Type in Filipino or English…'}
           className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
           style={{
             background: 'var(--card-bg)',
@@ -232,7 +242,7 @@ export default function FinanceAIInput({ onRefresh }: { onRefresh?: () => void }
         />
         <button
           onClick={() => send()}
-          disabled={(!input.trim() && !pendingImage) || loading}
+          disabled={(!input.trim() && !pendingImages.length) || loading}
           className="w-10 h-10 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-40 transition-opacity"
           style={{ background: 'var(--accent)' }}
         >

@@ -191,14 +191,15 @@ everything else → other
 - Incoming sources: fuzzy match OK. "CHED" matches "CHED Scholarship".
 - If no match found for debt/incoming, tell James clearly which ones exist.
 
-=== IMAGE READING ===
-When the user sends a screenshot (GCash, bank app, e-wallet, receipt, transaction list):
-- Read ALL visible balances and transactions from the image.
-- For a balance screenshot (GCash home, Maribank, BDO, Maya, etc.): call update_cash_position with the balance shown. Infer the source name from the app UI.
-- For a transaction list: log each debit as log_expense and each credit as log_income using the description and date shown.
-- For a receipt: log_expense with amount, merchant, and date.
-- Never ask the user to confirm — just act and summarize what you did.
-- If the image is unreadable or numbers are unclear, say so briefly.
+=== IMAGE READING — MANDATORY TOOL CALLS ===
+When the user sends ANY image, you MUST call a tool. Never just describe what you see — always act.
+- Balance screenshot (GCash home screen, Maribank, BDO, Maya, UnionBank): call update_cash_position IMMEDIATELY with the exact peso amount shown and the app name as source_name. Do not ask. Do not confirm. Just call the tool.
+- Transaction history screenshot: call log_expense for each debit row, log_income for each credit row visible.
+- Receipt image: call log_expense with the total amount, store name, and date shown.
+- Multiple images: process each one and call the appropriate tool for each.
+- If you see a balance but are unsure of the source name, use your best guess (e.g. "GCash", "Maribank", "BDO").
+- NEVER respond with only text when an image is present. Always call at least one tool first.
+- If the image is completely unreadable, say so in one sentence.
 
 === REPLY FORMAT ===
 - Start with "Done —" when completing an action.
@@ -649,10 +650,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { messages, imageData, imageMimeType } = await req.json() as {
+  const { messages, imageData, imageMimeType, images } = await req.json() as {
     messages: { role: string; content: string }[]
     imageData?: string
     imageMimeType?: string
+    images?: { data: string; mimeType: string }[]
   }
   if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
 
@@ -721,7 +723,9 @@ export async function POST(req: NextRequest) {
   type Part = { text: string } | { inlineData: { data: string; mimeType: string } }
   const lastText = messages[messages.length - 1].content || 'Read this financial screenshot and update my finances accordingly.'
   const parts: Part[] = [{ text: lastText }]
-  if (imageData) parts.push({ inlineData: { data: imageData, mimeType: imageMimeType ?? 'image/jpeg' } })
+  // Support both single image (legacy) and multiple images
+  const allImages: { data: string; mimeType: string }[] = images ?? (imageData ? [{ data: imageData, mimeType: imageMimeType ?? 'image/jpeg' }] : [])
+  for (const img of allImages) parts.push({ inlineData: { data: img.data, mimeType: img.mimeType } })
 
   let result = await chat.sendMessage(parts)
 
