@@ -253,7 +253,8 @@ async function handlePOST(req: NextRequest) {
   const sessionCookie = cookieStore.get('__session')?.value
   if (!sessionCookie) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { userId } = await adminAuth.verifySessionCookie(sessionCookie, true)
+  const decoded = await adminAuth.verifySessionCookie(sessionCookie, true)
+  const userId = decoded.uid
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'Gemini API key not configured.' }, { status: 500 })
