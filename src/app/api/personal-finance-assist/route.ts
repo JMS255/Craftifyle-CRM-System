@@ -524,20 +524,19 @@ async function runTool(
 
     if (name === 'delete_last_entry') {
       const col = args.entry_type === 'expense' ? 'personal_expenses' : 'personal_income'
-      const count = Math.min(Math.max(1, Math.round((args.count as number) ?? 1)), 50)
-      const snap = await adminDb.collection(col)
-        .where('user_id', '==', userId)
-        .orderBy('created_at', 'desc')
-        .limit(count)
-        .get()
-      if (snap.empty) return `No recent ${args.entry_type} entries found to delete.`
+      const count = Math.min(Math.max(1, Math.round(Number(args.count ?? 1))), 50)
+      const snap = await adminDb.collection(col).where('user_id', '==', userId).get()
+      const sorted = snap.docs
+        .sort((a, b) => String(b.data().created_at ?? '').localeCompare(String(a.data().created_at ?? '')))
+        .slice(0, count)
+      if (!sorted.length) return `No recent ${args.entry_type} entries found to delete.`
       const deleted: string[] = []
-      await Promise.all(snap.docs.map(async doc => {
+      for (const doc of sorted) {
         const d = doc.data() as { description?: string; amount?: number }
         deleted.push(`"${d.description}" ${peso(d.amount ?? 0)}`)
         await doc.ref.delete()
-      }))
-      return `Deleted ${snap.size} ${args.entry_type} entr${snap.size === 1 ? 'y' : 'ies'}: ${deleted.join(', ')}`
+      }
+      return `Deleted ${sorted.length} ${args.entry_type} entr${sorted.length === 1 ? 'y' : 'ies'}: ${deleted.join(', ')}`
     }
 
     if (name === 'add_debt') {
@@ -644,6 +643,14 @@ async function runTool(
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    return await handlePOST(req)
+  } catch (err) {
+    return NextResponse.json({ reply: `Something went wrong: ${err instanceof Error ? err.message : String(err)}` })
+  }
+}
+
+async function handlePOST(req: NextRequest) {
   const cookieStore = await cookies()
   const sessionCookie = cookieStore.get('__session')?.value
   if (!sessionCookie) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
