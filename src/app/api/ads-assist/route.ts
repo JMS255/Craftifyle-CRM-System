@@ -73,8 +73,15 @@ async function runTool(
   const now = new Date().toISOString()
 
   if (name === 'create_campaign') {
-    const payload = {
-      name: args.name as string,
+    // Server-side dedup: fuzzy match against existing campaigns before creating
+    const existingSnap = await adminDb.collection('ad_campaigns').where('user_id', '==', userId).get()
+    const incomingName = (args.name as string).toLowerCase()
+    const match = existingSnap.docs.find((d: QueryDocumentSnapshot) => {
+      const stored = String(d.data().name ?? '').toLowerCase()
+      return stored.includes(incomingName) || incomingName.includes(stored)
+    })
+
+    const fields: Record<string, unknown> = {
       platform: (args.platform as string) ?? 'facebook',
       spend: args.spend as number,
       ...(args.impressions !== undefined ? { impressions: args.impressions as number } : {}),
@@ -85,14 +92,20 @@ async function runTool(
       ...(args.revenue_raw !== undefined ? { revenue_raw: args.revenue_raw as number } : {}),
       ...(args.start_date ? { start_date: args.start_date as string } : {}),
       ...(args.end_date ? { end_date: args.end_date as string } : {}),
-      status: 'active',
-      user_id: userId,
-      created_at: now,
       updated_at: now,
     }
+
+    if (match) {
+      await match.ref.update(fields)
+      const campaignName = match.data().name as string
+      lastCampaign = { name: campaignName, ...fields } as ParsedCampaign
+      return `Updated existing campaign "${campaignName}" — spend ₱${(args.spend as number).toLocaleString()}`
+    }
+
+    const payload = { name: args.name as string, ...fields, status: 'active', user_id: userId, created_at: now }
     const ref = await adminDb.collection('ad_campaigns').add(payload)
-    lastCampaign = { ...payload, name: payload.name }
-    return `Created campaign "${payload.name}" (ID: ${ref.id}) — spend ₱${payload.spend.toLocaleString()}`
+    lastCampaign = { name: payload.name, ...fields } as ParsedCampaign
+    return `Created campaign "${payload.name}" (ID: ${ref.id}) — spend ₱${(args.spend as number).toLocaleString()}`
   }
 
   if (name === 'update_campaign') {
