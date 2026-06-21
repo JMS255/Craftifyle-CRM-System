@@ -5,24 +5,11 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import TopBar from '@/components/TopBar'
 
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-interface RoundTableEntry {
+interface Exchange {
   question: string
   cmo: string; cfo: string; ceo: string
-  cmo_rt: string; cfo_rt: string; ceo_rt: string
+  cmo_rt?: string; cfo_rt?: string; ceo_rt?: string
 }
-
-const CHIPS = [
-  'Should I run another ₱4k ad this week?',
-  'What\'s my biggest financial risk right now?',
-  'How do I hit ₱100k/month revenue?',
-  'Is it the right time to open a studio?',
-  'Where are my leads dropping off?',
-]
 
 const PERSONAS = [
   { key: 'cmo' as const, name: 'Buchi', role: 'CMO', emoji: '📊', color: 'var(--accent)', muted: 'var(--accent-subtle)', text: 'var(--accent-text)' },
@@ -30,66 +17,67 @@ const PERSONAS = [
   { key: 'ceo' as const, name: 'Alan',  role: 'CEO', emoji: '🎯', color: 'var(--success)',muted: 'var(--success-muted)',text: 'var(--success)'},
 ]
 
-function TypingDots({ color }: { color: string }) {
+const CHIPS = [
+  'Should I run another ₱4k ad this week?',
+  "What's my biggest financial risk right now?",
+  'How do I hit ₱100k/month revenue?',
+  'Is it the right time to open a studio?',
+  'Where are my leads dropping off?',
+]
+
+function Avatar({ persona }: { persona: typeof PERSONAS[0] }) {
   return (
-    <div className="flex gap-1 items-center py-1">
-      {[0,1,2].map(i => (
-        <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: color, animationDelay: `${i * 150}ms` }} />
-      ))}
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 font-bold"
+      style={{ background: persona.muted, border: `2px solid ${persona.color}`, color: persona.text }}
+    >
+      {persona.emoji}
     </div>
   )
 }
 
-function PersonaCard({
-  persona, messages, loading,
-}: {
-  persona: typeof PERSONAS[0]
-  messages: Message[]
-  loading: boolean
-}) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length, loading])
-
+function AdvisorBubble({ persona, text, faded }: { persona: typeof PERSONAS[0]; text: string; faded?: boolean }) {
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--card-elevated)', border: '1px solid var(--card-border)', minHeight: 260 }}>
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3" style={{ background: persona.muted, borderBottom: '1px solid var(--card-border)' }}>
-        <span className="text-xl">{persona.emoji}</span>
-        <div>
-          <p className="text-sm font-bold leading-tight" style={{ color: persona.text }}>{persona.name}</p>
-          <p className="text-xs leading-tight" style={{ color: persona.text, opacity: 0.7 }}>{persona.role} · Craftifyle</p>
+    <div className="flex items-start gap-2.5 mb-3">
+      <Avatar persona={persona} />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold mb-1" style={{ color: persona.text }}>
+          {persona.name} · {persona.role}
+          {faded && <span className="font-normal ml-1" style={{ color: 'var(--text-faint)' }}>reacting</span>}
+        </p>
+        <div
+          className="rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm leading-relaxed"
+          style={{
+            background: faded ? 'var(--card-elevated)' : persona.muted,
+            border: `1px solid ${faded ? 'var(--card-border)' : persona.color + '33'}`,
+            color: 'var(--text-body)',
+          }}
+        >
+          {text.split('\n').map((line, i, arr) => (
+            <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+          ))}
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ maxHeight: 320 }}>
-        {messages.length === 0 && !loading && (
-          <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>Ask {persona.name} a question below</p>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className="max-w-[90%] rounded-2xl px-3 py-2 text-sm leading-snug"
-              style={msg.role === 'user'
-                ? { background: persona.color, color: '#fff', borderBottomRightRadius: 4 }
-                : { background: 'var(--card-bg)', color: 'var(--text-body)', border: '1px solid var(--card-border)', borderBottomLeftRadius: 4 }
-              }
-            >
-              {msg.content.split('\n').map((line, j, arr) => (
-                <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+function TypingGroup() {
+  return (
+    <div className="space-y-3 mb-2">
+      {PERSONAS.map((p, i) => (
+        <div key={p.key} className="flex items-start gap-2.5" style={{ animationDelay: `${i * 100}ms` }}>
+          <Avatar persona={p} />
+          <div>
+            <p className="text-xs font-semibold mb-1" style={{ color: p.text }}>{p.name}</p>
+            <div className="rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 items-center" style={{ background: p.muted, border: `1px solid ${p.color}33` }}>
+              {[0,1,2].map(j => (
+                <span key={j} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: p.color, animationDelay: `${i * 100 + j * 150}ms` }} />
               ))}
             </div>
           </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderBottomLeftRadius: 4 }}>
-              <TypingDots color={persona.color} />
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -97,18 +85,20 @@ function PersonaCard({
 export default function BoardRoomPage() {
   const [authed, setAuthed] = useState(false)
   const [mode, setMode] = useState<'board' | 'roundtable'>('board')
-  const [cmoMsgs, setCmoMsgs] = useState<Message[]>([])
-  const [cfoMsgs, setCfoMsgs] = useState<Message[]>([])
-  const [ceoMsgs, setCeoMsgs] = useState<Message[]>([])
-  const [rtHistory, setRtHistory] = useState<RoundTableEntry[]>([])
+  const [exchanges, setExchanges] = useState<Exchange[]>([])
   const [loading, setLoading] = useState(false)
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, user => { if (user) setAuthed(true) })
     return () => unsub()
   }, [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [exchanges.length, loading])
 
   async function send(text?: string) {
     const msg = (text ?? input).trim()
@@ -116,48 +106,32 @@ export default function BoardRoomPage() {
     setInput('')
     setLoading(true)
 
-    if (mode === 'board') {
-      const userMsg: Message = { role: 'user', content: msg }
-      const newCmo = [...cmoMsgs, userMsg]
-      const newCfo = [...cfoMsgs, userMsg]
-      const newCeo = [...ceoMsgs, userMsg]
-      setCmoMsgs(newCmo); setCfoMsgs(newCfo); setCeoMsgs(newCeo)
-
-      try {
-        const res = await fetch('/api/board-room', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: newCmo, roundTable: false }),
-        })
-        const data = await res.json()
-        setCmoMsgs(h => [...h, { role: 'assistant', content: data.cmo ?? 'Done.' }])
-        setCfoMsgs(h => [...h, { role: 'assistant', content: data.cfo ?? 'Done.' }])
-        setCeoMsgs(h => [...h, { role: 'assistant', content: data.ceo ?? 'Done.' }])
-      } catch {
-        const err = { role: 'assistant' as const, content: 'Something went wrong. Try again.' }
-        setCmoMsgs(h => [...h, err]); setCfoMsgs(h => [...h, err]); setCeoMsgs(h => [...h, err])
-      }
-    } else {
-      // Round Table mode
-      try {
-        const res = await fetch('/api/board-room', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: msg }], roundTable: true }),
-        })
-        const data = await res.json()
-        setRtHistory(h => [...h, {
-          question: msg,
-          cmo: data.cmo ?? '', cfo: data.cfo ?? '', ceo: data.ceo ?? '',
-          cmo_rt: data.cmo_rt ?? '', cfo_rt: data.cfo_rt ?? '', ceo_rt: data.ceo_rt ?? '',
-        }])
-      } catch {
-        setRtHistory(h => [...h, {
-          question: msg,
-          cmo: 'Error', cfo: 'Error', ceo: 'Error',
-          cmo_rt: '', cfo_rt: '', ceo_rt: '',
-        }])
-      }
+    try {
+      const res = await fetch('/api/board-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: msg }],
+          roundTable: mode === 'roundtable',
+        }),
+      })
+      const data = await res.json()
+      setExchanges(h => [...h, {
+        question: msg,
+        cmo: data.cmo ?? 'No response.',
+        cfo: data.cfo ?? 'No response.',
+        ceo: data.ceo ?? 'No response.',
+        cmo_rt: data.cmo_rt,
+        cfo_rt: data.cfo_rt,
+        ceo_rt: data.ceo_rt,
+      }])
+    } catch {
+      setExchanges(h => [...h, {
+        question: msg,
+        cmo: 'Something went wrong. Try again.',
+        cfo: 'Something went wrong. Try again.',
+        ceo: 'Something went wrong. Try again.',
+      }])
     }
 
     setLoading(false)
@@ -165,166 +139,109 @@ export default function BoardRoomPage() {
   }
 
   if (!authed) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p style={{ color: 'var(--text-faint)' }}>Loading…</p>
-      </div>
-    )
+    return <div className="flex items-center justify-center min-h-screen"><p style={{ color: 'var(--text-faint)' }}>Loading…</p></div>
   }
 
   return (
-    <div className="min-h-screen pb-32 md:pb-8" style={{ background: 'var(--bg)' }}>
-      <TopBar page="Board Room" title="Board Room" subtitle="Your AI leadership team" />
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+      <TopBar page="Board Room" title="Board Room" subtitle="Buchi · Greg · Alan" />
 
-      <div className="p-4 md:p-6 max-w-6xl mx-auto">
-
-        {/* Mode toggle */}
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-            {mode === 'board' ? 'Independent advice from each advisor' : 'Advisors debate each other — uses 2× credits'}
-          </p>
-          <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
-            {(['board', 'roundtable'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className="px-3 py-1.5 text-xs font-medium transition-colors"
-                style={{
-                  background: mode === m ? 'var(--accent)' : 'var(--card-elevated)',
-                  color: mode === m ? '#fff' : 'var(--text-muted)',
-                }}
-              >
-                {m === 'board' ? '🏢 Board' : '🔄 Round Table'}
-              </button>
-            ))}
-          </div>
+      {/* Mode toggle */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1 max-w-2xl mx-auto w-full">
+        <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+          {mode === 'board' ? 'Each advisor responds independently' : 'Advisors debate each other · 2× credits'}
+        </p>
+        <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
+          {(['board', 'roundtable'] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{ background: mode === m ? 'var(--accent)' : 'var(--card-elevated)', color: mode === m ? '#fff' : 'var(--text-muted)' }}
+            >
+              {m === 'board' ? '🏢 Board' : '🔄 Round Table'}
+            </button>
+          ))}
         </div>
-
-        {/* Board mode */}
-        {mode === 'board' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-              {PERSONAS.map(p => (
-                <PersonaCard
-                  key={p.key}
-                  persona={p}
-                  messages={p.key === 'cmo' ? cmoMsgs : p.key === 'cfo' ? cfoMsgs : ceoMsgs}
-                  loading={loading}
-                />
-              ))}
-            </div>
-
-            {/* Clear */}
-            {(cmoMsgs.length > 0 || cfoMsgs.length > 0 || ceoMsgs.length > 0) && (
-              <div className="flex justify-end mb-2">
-                <button
-                  onClick={() => { setCmoMsgs([]); setCfoMsgs([]); setCeoMsgs([]) }}
-                  className="text-xs px-3 py-1.5 rounded-lg"
-                  style={{ color: 'var(--text-faint)', background: 'var(--card-elevated)', border: '1px solid var(--card-border)' }}
-                >
-                  Clear all
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Round Table mode */}
-        {mode === 'roundtable' && (
-          <div className="space-y-6 mb-4">
-            {rtHistory.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <p className="text-2xl mb-2">🏛️</p>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-heading)' }}>Round Table</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>Ask a big question — Buchi, Greg & Alan will debate it</p>
-              </div>
-            )}
-            {loading && rtHistory.length === 0 && (
-              <div className="card p-6 text-center">
-                <p className="text-xs mb-3" style={{ color: 'var(--text-faint)' }}>Board is deliberating…</p>
-                <div className="flex justify-center gap-4">
-                  {PERSONAS.map(p => <TypingDots key={p.key} color={p.color} />)}
-                </div>
-              </div>
-            )}
-            {rtHistory.map((entry, i) => (
-              <div key={i} className="space-y-3">
-                {/* Question */}
-                <div className="flex justify-end">
-                  <div className="rounded-2xl px-4 py-2.5 text-sm max-w-[80%]" style={{ background: 'var(--accent)', color: '#fff', borderBottomRightRadius: 4 }}>
-                    {entry.question}
-                  </div>
-                </div>
-
-                {/* Round 1 */}
-                <p className="text-xs font-semibold px-1" style={{ color: 'var(--text-faint)' }}>Initial responses</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  {PERSONAS.map(p => (
-                    <div key={p.key} className="rounded-xl p-3" style={{ background: p.muted, border: `1px solid ${p.color}22` }}>
-                      <p className="text-xs font-bold mb-1.5" style={{ color: p.text }}>{p.emoji} {p.name}</p>
-                      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-body)' }}>
-                        {entry[p.key]}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Round 2 */}
-                {(entry.cmo_rt || entry.cfo_rt || entry.ceo_rt) && (
-                  <>
-                    <p className="text-xs font-semibold px-1 pt-1" style={{ color: 'var(--text-faint)' }}>↩ Reacting to each other</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      {PERSONAS.map(p => (
-                        <div key={p.key} className="rounded-xl p-3" style={{ background: 'var(--card-elevated)', border: '1px solid var(--card-border)' }}>
-                          <p className="text-xs font-bold mb-1.5" style={{ color: p.text }}>{p.emoji} {p.name}</p>
-                          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-body)' }}>
-                            {entry[`${p.key}_rt` as keyof RoundTableEntry] as string}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-            {loading && rtHistory.length > 0 && (
-              <div className="flex justify-center gap-4 py-4">
-                {PERSONAS.map(p => <TypingDots key={p.key} color={p.color} />)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Chips */}
-        {(mode === 'board' ? (cmoMsgs.length === 0) : (rtHistory.length === 0)) && !loading && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {CHIPS.map(chip => (
-              <button
-                key={chip}
-                onClick={() => send(chip)}
-                className="text-xs px-3 py-2 rounded-full font-medium"
-                style={{ background: 'var(--card-elevated)', color: 'var(--text-body)', border: '1px solid var(--card-border)' }}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Sticky input */}
-      <div
-        className="fixed bottom-16 md:bottom-0 left-0 right-0 md:left-[14rem] px-4 py-3"
-        style={{ background: 'var(--bg)', borderTop: '1px solid var(--card-border)' }}
-      >
-        <div className="max-w-6xl mx-auto flex gap-2">
+      {/* Chat thread */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4 max-w-2xl mx-auto w-full">
+
+        {/* Empty state */}
+        {exchanges.length === 0 && !loading && (
+          <div className="text-center py-10">
+            <div className="flex justify-center gap-2 mb-4">
+              {PERSONAS.map(p => <Avatar key={p.key} persona={p} />)}
+            </div>
+            <p className="font-semibold text-sm mb-1" style={{ color: 'var(--text-heading)' }}>Your Board is ready</p>
+            <p className="text-xs mb-6" style={{ color: 'var(--text-faint)' }}>Buchi (CMO), Greg (CFO), and Alan (CEO) are listening</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {CHIPS.map(chip => (
+                <button key={chip} onClick={() => send(chip)}
+                  className="text-xs px-3 py-2 rounded-full font-medium"
+                  style={{ background: 'var(--card-elevated)', color: 'var(--text-body)', border: '1px solid var(--card-border)' }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exchanges */}
+        {exchanges.map((ex, i) => (
+          <div key={i} className="mb-6">
+            {/* User question */}
+            <div className="flex justify-end mb-4">
+              <div className="max-w-[80%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm" style={{ background: 'var(--accent)', color: '#fff' }}>
+                {ex.question}
+              </div>
+            </div>
+
+            {/* Initial responses */}
+            {PERSONAS.map(p => (
+              <AdvisorBubble key={p.key} persona={p} text={ex[p.key]} />
+            ))}
+
+            {/* Round Table reactions */}
+            {(ex.cmo_rt || ex.cfo_rt || ex.ceo_rt) && (
+              <>
+                <div className="flex items-center gap-2 my-3 mx-2">
+                  <div className="flex-1 h-px" style={{ background: 'var(--card-border)' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-faint)' }}>↩ reacting to each other</span>
+                  <div className="flex-1 h-px" style={{ background: 'var(--card-border)' }} />
+                </div>
+                {PERSONAS.map(p => {
+                  const rt = ex[`${p.key}_rt` as keyof Exchange] as string | undefined
+                  return rt ? <AdvisorBubble key={p.key} persona={p} text={rt} faded /> : null
+                })}
+              </>
+            )}
+          </div>
+        ))}
+
+        {/* Loading */}
+        {loading && <TypingGroup />}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Clear + Input */}
+      <div className="px-4 pb-20 md:pb-4 pt-2 max-w-2xl mx-auto w-full" style={{ borderTop: '1px solid var(--card-border)' }}>
+        {exchanges.length > 0 && (
+          <div className="flex justify-end mb-2">
+            <button onClick={() => setExchanges([])} className="text-xs px-2.5 py-1 rounded-lg" style={{ color: 'var(--text-faint)', background: 'var(--card-elevated)', border: '1px solid var(--card-border)' }}>
+              Clear chat
+            </button>
+          </div>
+        )}
+        <div className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={mode === 'board' ? 'Ask the board a question…' : 'Ask a big question for round table…'}
+            placeholder="Ask the board…"
             disabled={loading}
             className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
             style={{ background: 'var(--card-elevated)', color: 'var(--text-body)', border: '1px solid var(--card-border)' }}
