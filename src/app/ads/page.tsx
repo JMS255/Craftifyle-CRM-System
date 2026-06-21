@@ -193,6 +193,28 @@ export default function AdsPage() {
   const overallROAS = totalSpend > 0 ? totalRevenue / totalSpend : null
   const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0)
 
+  // Monthly breakdown grouped by start_date month
+  const monthlyMap = new Map<string, { spend: number; leads: number; booked: number; revenue: number }>()
+  for (const c of campaigns) {
+    if (!c.start_date) continue
+    const month = c.start_date.slice(0, 7)
+    const prev = monthlyMap.get(month) ?? { spend: 0, leads: 0, booked: 0, revenue: 0 }
+    monthlyMap.set(month, {
+      spend: prev.spend + c.spend,
+      leads: prev.leads + c.leads,
+      booked: prev.booked + c.booked,
+      revenue: prev.revenue + c.revenue,
+    })
+  }
+  const monthlyStats = Array.from(monthlyMap.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([month, s]) => ({
+      month,
+      label: new Date(month + '-01').toLocaleDateString('en-PH', { month: 'long', year: 'numeric' }),
+      ...s,
+      roas: s.spend > 0 && s.revenue > 0 ? s.revenue / s.spend : null,
+    }))
+
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6">
@@ -359,6 +381,43 @@ export default function AdsPage() {
               Review &amp; Save Parsed Campaign →
             </button>
           )}
+        </div>
+      )}
+
+      {/* Monthly breakdown */}
+      {monthlyStats.length > 0 && (
+        <div className="mb-6">
+          <p className="section-label mb-3">Monthly Performance</p>
+          <div className="card overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
+              <thead style={{ background: 'var(--card-elevated)', borderBottom: '1px solid var(--card-border)' }}>
+                <tr>
+                  <th className="section-label text-left px-5 py-3">Month</th>
+                  <th className="section-label text-right px-5 py-3">Spend</th>
+                  <th className="section-label text-right px-5 py-3">Leads</th>
+                  <th className="section-label text-right px-5 py-3">Booked</th>
+                  <th className="section-label text-right px-5 py-3">Revenue</th>
+                  <th className="section-label text-right px-5 py-3">ROAS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyStats.map(row => (
+                  <tr key={row.month} style={{ borderTop: '1px solid var(--border-secondary)' }}>
+                    <td className="px-5 py-3 font-medium" style={{ color: 'var(--text-heading)' }}>{row.label}</td>
+                    <td className="px-5 py-3 tabular text-right font-medium" style={{ color: 'var(--danger)' }}>₱{row.spend.toLocaleString()}</td>
+                    <td className="px-5 py-3 tabular text-right" style={{ color: 'var(--text-secondary)' }}>{row.leads}</td>
+                    <td className="px-5 py-3 tabular text-right font-medium" style={{ color: 'var(--success)' }}>{row.booked}</td>
+                    <td className="px-5 py-3 tabular text-right font-semibold" style={{ color: 'var(--money)' }}>
+                      {row.revenue > 0 ? `₱${row.revenue.toLocaleString()}` : '—'}
+                    </td>
+                    <td className="px-5 py-3 tabular text-right font-bold" style={{ color: row.roas !== null && row.roas >= 1 ? 'var(--success)' : row.roas !== null ? 'var(--danger)' : 'var(--text-faint)' }}>
+                      {row.roas !== null ? `${row.roas.toFixed(2)}x` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
