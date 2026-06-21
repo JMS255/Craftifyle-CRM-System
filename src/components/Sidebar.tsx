@@ -22,6 +22,7 @@ function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z 
 function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
 function CraftyIcon()   { return <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /> }
 function AdsIcon()      { return <Icon d="M22 12h-4l-3 9L9 3l-3 9H2" /> }
+function BoardIcon()    { return <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M12 3v4 M10 5h4" /> }
 function ChevronLeft()  { return <Icon d="M15 18l-6-6 6-6" size={16} /> }
 function ChevronRight() { return <Icon d="M9 18l6-6-6-6" size={16} /> }
 
@@ -33,7 +34,8 @@ const nav = [
   { href: '/inbox',    label: 'Messenger', short: 'Inbox',    icon: <InboxIcon /> },
   { href: '/settings', label: 'Packages',  short: 'Packages', icon: <PackagesIcon /> },
   { href: '/crafty',   label: 'Crafty AI', short: 'Crafty',   icon: <CraftyIcon /> },
-  { href: '/ads',      label: 'Ads',       short: 'Ads',      icon: <AdsIcon /> },
+  { href: '/ads',        label: 'Ads',        short: 'Ads',    icon: <AdsIcon /> },
+  { href: '/board-room', label: 'Board Room', short: 'Board',  icon: <BoardIcon /> },
 ]
 
 const AUTH_PATHS = ['/login', '/signup', '/contract/', '/confirm/', '/team/join/']
