@@ -193,54 +193,55 @@ export default function PersonalPage() {
         accentColor="#10b981"
       />
 
-      {/* Quick entry — always visible at top */}
-      <div className="card p-4 mb-4">
-        <div className="flex gap-2 mb-3">
-          {(['income', 'expense'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => { setManualMode(mode); setShowManual(true) }}
-              className="flex-1 py-2.5 rounded-[10px] text-sm font-semibold capitalize"
-              style={showManual && manualMode === mode
-                ? { background: mode === 'income' ? 'var(--accent)' : 'var(--danger)', color: '#fff' }
-                : { background: 'var(--card-elevated)', color: 'var(--text-muted)', border: '1px solid var(--card-border)' }}
-            >
-              {mode === 'income' ? '+ Income' : '+ Expense'}
-            </button>
-          ))}
+      {/* Quick entry */}
+      {!showManual ? (
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => { setManualMode('income'); setShowManual(true) }}
+            className="flex-1 py-2 rounded-[10px] text-sm font-medium"
+            style={{ background: 'var(--accent-subtle)', color: 'var(--accent-text)', border: '1px solid var(--card-border)' }}
+          >+ Income</button>
+          <button
+            onClick={() => { setManualMode('expense'); setShowManual(true) }}
+            className="flex-1 py-2 rounded-[10px] text-sm font-medium"
+            style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid var(--card-border)' }}
+          >+ Expense</button>
         </div>
-        {showManual && (
-          <form onSubmit={saveManual} className="space-y-2">
-            <div className="flex gap-2">
-              <input
-                required
-                autoFocus
-                className="flex-1 rounded-lg px-3 py-2.5 text-sm"
-                placeholder={manualMode === 'income' ? 'Source (e.g. booking, tips)' : 'What did you spend on?'}
-                value={manualForm.description}
-                onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
-              />
-              <input
-                required
-                type="number"
-                inputMode="numeric"
-                className="w-28 rounded-lg px-3 py-2.5 text-sm"
-                placeholder="₱ Amount"
-                value={manualForm.amount}
-                onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 rounded-[10px] text-sm font-semibold text-white disabled:opacity-50"
+      ) : (
+        <form onSubmit={saveManual} className="card p-3 mb-4">
+          <div className="flex gap-2 mb-2">
+            {(['income', 'expense'] as const).map(mode => (
+              <button type="button" key={mode}
+                onClick={() => setManualMode(mode)}
+                className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
+                style={manualMode === mode
+                  ? { background: mode === 'income' ? 'var(--accent)' : 'var(--danger)', color: '#fff' }
+                  : { background: 'var(--card-elevated)', color: 'var(--text-faint)' }}
+              >{mode === 'income' ? 'Income' : 'Expense'}</button>
+            ))}
+            <button type="button" onClick={() => setShowManual(false)}
+              className="px-2 rounded-lg text-xs" style={{ color: 'var(--text-faint)', background: 'var(--card-elevated)' }}>✕</button>
+          </div>
+          <div className="flex gap-2">
+            <input required autoFocus
+              className="flex-1 rounded-lg px-3 py-2.5 text-sm"
+              placeholder={manualMode === 'income' ? 'Source (booking, tips…)' : 'What did you buy?'}
+              value={manualForm.description}
+              onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
+            />
+            <input required type="number" inputMode="numeric"
+              className="w-24 rounded-lg px-3 py-2.5 text-sm"
+              placeholder="₱"
+              value={manualForm.amount}
+              onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
+            />
+            <button type="submit" disabled={saving}
+              className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50 shrink-0"
               style={{ background: manualMode === 'income' ? 'var(--accent)' : 'var(--danger)' }}
-            >
-              {saving ? 'Saving…' : `Save ${manualMode === 'income' ? 'Income' : 'Expense'}`}
-            </button>
-          </form>
-        )}
-      </div>
+            >{saving ? '…' : 'Save'}</button>
+          </div>
+        </form>
+      )}
 
       {/* AI bar — mobile only, top of page */}
       {!loading && (

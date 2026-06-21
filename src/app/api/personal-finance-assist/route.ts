@@ -191,6 +191,15 @@ everything else → other
 - Incoming sources: fuzzy match OK. "CHED" matches "CHED Scholarship".
 - If no match found for debt/incoming, tell James clearly which ones exist.
 
+=== IMAGE READING ===
+When the user sends a screenshot (GCash, bank app, e-wallet, receipt, transaction list):
+- Read ALL visible balances and transactions from the image.
+- For a balance screenshot (GCash home, Maribank, BDO, Maya, etc.): call update_cash_position with the balance shown. Infer the source name from the app UI.
+- For a transaction list: log each debit as log_expense and each credit as log_income using the description and date shown.
+- For a receipt: log_expense with amount, merchant, and date.
+- Never ask the user to confirm — just act and summarize what you did.
+- If the image is unreadable or numbers are unclear, say so briefly.
+
 === REPLY FORMAT ===
 - Start with "Done —" when completing an action.
 - For multiple actions: list each one briefly ("Logged ₱200 food, ₱150 transport").
@@ -640,7 +649,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { messages } = await req.json()
+  const { messages, imageData, imageMimeType } = await req.json() as {
+    messages: { role: string; content: string }[]
+    imageData?: string
+    imageMimeType?: string
+  }
   if (!messages?.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
 
   const apiKey = process.env.GEMINI_API_KEY
@@ -704,7 +717,13 @@ export async function POST(req: NextRequest) {
   }))
 
   const chat = model.startChat({ history })
-  let result = await chat.sendMessage(messages[messages.length - 1].content)
+
+  type Part = { text: string } | { inlineData: { data: string; mimeType: string } }
+  const lastText = messages[messages.length - 1].content || 'Read this financial screenshot and update my finances accordingly.'
+  const parts: Part[] = [{ text: lastText }]
+  if (imageData) parts.push({ inlineData: { data: imageData, mimeType: imageMimeType ?? 'image/jpeg' } })
+
+  let result = await chat.sendMessage(parts)
 
   // Tool-calling loop — max 5 rounds to handle compound multi-action messages
   for (let round = 0; round < 5; round++) {
