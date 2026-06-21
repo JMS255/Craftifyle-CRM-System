@@ -140,7 +140,8 @@ ${existingSection}
 
 RULES:
 - User will paste raw text from FB Ads Manager or any ad platform.
-- Extract: campaign name, spend (strip ₱ and commas, convert to number), impressions, reach, clicks, date range.
+- Extract: campaign name, spend, impressions, reach, clicks, date range.
+- For spend: ALWAYS use "Total amount" (which includes VAT) if present. Never use "Ad budget" or "Daily budget" alone. If only Ad budget is available and no Total amount, use Ad budget as a fallback. Strip ₱ and commas, convert to number.
 - Convert date ranges to YYYY-MM-DD format using today's year if not specified.
 - If a campaign with a similar name already exists, call update_campaign with its ID instead of creating a new one.
 - Platform defaults to "facebook" unless clearly stated otherwise.
