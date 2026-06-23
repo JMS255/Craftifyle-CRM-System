@@ -719,9 +719,19 @@ async function handlePOST(req: NextRequest) {
     avgMonthlyRevenue, currentMonth: currentYYYYMM(),
   }
 
+  async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+    for (let i = 0; i <= retries; i++) {
+      try { return await fn() } catch (err) {
+        if (!(err instanceof Error && err.message.includes('503')) || i === retries) throw err
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+      }
+    }
+    throw new Error('unreachable')
+  }
+
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash-lite',
     systemInstruction: buildSystemPrompt(ctx),
     tools: TOOLS,
     generationConfig: { thinkingConfig: { thinkingBudget: 5000 } } as Record<string, unknown>,
@@ -743,9 +753,9 @@ async function handlePOST(req: NextRequest) {
       { text: lastText },
       ...allImages.map(img => ({ inlineData: { data: img.data, mimeType: img.mimeType } })),
     ]
-    result = await chat.sendMessage(parts)
+    result = await withRetry(() => chat.sendMessage(parts))
   } else {
-    result = await chat.sendMessage(lastText)
+    result = await withRetry(() => chat.sendMessage(lastText))
   }
 
   // Tool-calling loop — max 5 rounds to handle compound multi-action messages
@@ -760,7 +770,7 @@ async function handlePOST(req: NextRequest) {
         },
       }))
     )
-    result = await chat.sendMessage(toolResults)
+    result = await withRetry(() => chat.sendMessage(toolResults))
   }
 
   let reply = ''

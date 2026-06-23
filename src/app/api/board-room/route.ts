@@ -276,11 +276,21 @@ async function handlePOST(req: NextRequest) {
 
   const ctx = buildCtx(bookingsSnap, leadsSnap, campaignsSnap, cashSnap, incomeSnap, obligationsSnap, debtsSnap)
 
+  async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+    for (let i = 0; i <= retries; i++) {
+      try { return await fn() } catch (err) {
+        if (!(err instanceof Error && err.message.includes('503')) || i === retries) throw err
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+      }
+    }
+    throw new Error('unreachable')
+  }
+
   const genAI = new GoogleGenerativeAI(apiKey)
 
   function makeModel(systemInstruction: string) {
     return genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-lite',
       systemInstruction,
       generationConfig: { thinkingConfig: { thinkingBudget: 3000 } } as Record<string, unknown>,
     })
@@ -298,9 +308,9 @@ async function handlePOST(req: NextRequest) {
   const alanChat = makeModel(buildAlanPrompt(ctx)).startChat({ history: geminiHistory })
 
   const [buchiRes, gregRes, alanRes] = await Promise.all([
-    buchiChat.sendMessage(lastMessage),
-    gregChat.sendMessage(lastMessage),
-    alanChat.sendMessage(lastMessage),
+    withRetry(() => buchiChat.sendMessage(lastMessage)),
+    withRetry(() => gregChat.sendMessage(lastMessage)),
+    withRetry(() => alanChat.sendMessage(lastMessage)),
   ])
 
   let cmo = ''; try { cmo = buchiRes.response.text() } catch { cmo = 'Done.' }
@@ -315,9 +325,9 @@ async function handlePOST(req: NextRequest) {
   const rtPrompt = `The board has shared their initial responses:\n\nBuchi (CMO): ${cmo}\n\nGreg (CFO): ${cfo}\n\nAlan (CEO): ${ceo}\n\nNow react — do you agree, disagree, or add something the others missed? Be direct and concise.`
 
   const [buchiRT, gregRT, alanRT] = await Promise.all([
-    buchiChat.sendMessage(rtPrompt),
-    gregChat.sendMessage(rtPrompt),
-    alanChat.sendMessage(rtPrompt),
+    withRetry(() => buchiChat.sendMessage(rtPrompt)),
+    withRetry(() => gregChat.sendMessage(rtPrompt)),
+    withRetry(() => alanChat.sendMessage(rtPrompt)),
   ])
 
   let cmo_rt = ''; try { cmo_rt = buchiRT.response.text() } catch { cmo_rt = 'Done.' }
