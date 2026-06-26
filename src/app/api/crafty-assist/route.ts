@@ -544,26 +544,42 @@ export async function POST(req: NextRequest) {
     parts: [{ text: m.content }],
   }))
 
-  const chat = model.startChat({ history })
-  let result = await chat.sendMessage(messages[messages.length - 1].content)
-
-  // Tool-calling loop — max 3 rounds
-  for (let round = 0; round < 3; round++) {
-    const calls = result.response.functionCalls()
-    if (!calls?.length) break
-
-    const toolResults = await Promise.all(
-      calls.map(async call => ({
-        functionResponse: {
-          name: call.name,
-          response: { result: await runTool(call.name, call.args as Record<string, unknown>, userId) },
-        },
-      }))
-    )
-    result = await chat.sendMessage(toolResults)
+  async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+    for (let i = 0; i <= retries; i++) {
+      try { return await fn() } catch (err) {
+        if (!(err instanceof Error && err.message.includes('503')) || i === retries) throw err
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+      }
+    }
+    throw new Error('unreachable')
   }
 
-  let reply = ''
-  try { reply = result.response.text() } catch { reply = 'Done.' }
-  return NextResponse.json({ reply })
+  try {
+    const chat = model.startChat({ history })
+    let result = await withRetry(() => chat.sendMessage(messages[messages.length - 1].content))
+
+    // Tool-calling loop — max 3 rounds
+    for (let round = 0; round < 3; round++) {
+      const calls = result.response.functionCalls()
+      if (!calls?.length) break
+
+      const toolResults = await Promise.all(
+        calls.map(async call => ({
+          functionResponse: {
+            name: call.name,
+            response: { result: await runTool(call.name, call.args as Record<string, unknown>, userId) },
+          },
+        }))
+      )
+      result = await withRetry(() => chat.sendMessage(toolResults))
+    }
+
+    let reply = ''
+    try { reply = result.response.text() } catch { reply = 'Done.' }
+    return NextResponse.json({ reply })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const is503 = msg.includes('503')
+    return NextResponse.json({ reply: is503 ? 'Gemini is overloaded right now. Please try again in a moment.' : `Something went wrong: ${msg}` })
+  }
 }
