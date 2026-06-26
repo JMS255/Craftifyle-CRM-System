@@ -760,7 +760,7 @@ async function handlePOST(req: NextRequest) {
 
   // Tool-calling loop — max 5 rounds to handle compound multi-action messages
   for (let round = 0; round < 5; round++) {
-    const calls = result.response.functionCalls()
+    const calls = result.response.functionCalls() as Array<{ name: string; args: Record<string, unknown> }> | undefined
     if (!calls?.length) break
     const toolResults = await Promise.all(
       calls.map(async call => ({
