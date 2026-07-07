@@ -19,10 +19,8 @@ function LeadsIcon()    { return <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v
 function BookingsIcon() { return <Icon d="M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z M9 14l2 2 4-4" /> }
 function FinanceIcon()  { return <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6v6l4 2" /> }
 function PackagesIcon() { return <Icon d="M12 2l9 4.5v11L12 22 3 17.5v-11L12 2z M12 22V12 M3 6.5l9 5.5 9-5.5" /> }
-function InboxIcon()    { return <Icon d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /> }
 function CraftyIcon()   { return <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /> }
 function AdsIcon()      { return <Icon d="M22 12h-4l-3 9L9 3l-3 9H2" /> }
-function BoardIcon()    { return <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M12 3v4 M10 5h4" /> }
 function ChevronLeft()  { return <Icon d="M15 18l-6-6 6-6" size={16} /> }
 function ChevronRight() { return <Icon d="M9 18l6-6-6-6" size={16} /> }
 
@@ -31,11 +29,9 @@ const nav = [
   { href: '/bookings', label: 'Bookings',  short: 'Bookings', icon: <BookingsIcon /> },
   { href: '/personal', label: 'Finances',  short: 'Money',    icon: <FinanceIcon /> },
   { href: '/leads',    label: 'Leads',     short: 'Leads',    icon: <LeadsIcon /> },
-  { href: '/inbox',    label: 'Messenger', short: 'Inbox',    icon: <InboxIcon /> },
   { href: '/settings', label: 'Packages',  short: 'Packages', icon: <PackagesIcon /> },
   { href: '/crafty',   label: 'Crafty AI', short: 'Crafty',   icon: <CraftyIcon /> },
-  { href: '/ads',        label: 'Ads',        short: 'Ads',    icon: <AdsIcon /> },
-  { href: '/board-room', label: 'Board Room', short: 'Board',  icon: <BoardIcon /> },
+  { href: '/ads',      label: 'Ads',       short: 'Ads',      icon: <AdsIcon /> },
 ]
 
 const AUTH_PATHS = ['/login', '/signup', '/contract/', '/confirm/', '/team/join/']
@@ -309,9 +305,9 @@ export default function Sidebar() {
           <div className="grid grid-cols-4 gap-2 mb-5">
             {[
               { href: '/leads',    label: 'Leads',     icon: '👥' },
-              { href: '/inbox',    label: 'Messenger', icon: '💬' },
               { href: '/settings', label: 'Packages',  icon: '📦' },
               { href: '/crafty',   label: 'Crafty AI', icon: '⚡' },
+              { href: '/ads',      label: 'Ads',        icon: '📊' },
             ].map(({ href, label, icon }, i) => (
               <Link key={href} href={href} onClick={() => setQuickAdd(false)}
                 className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-sm font-medium"
@@ -334,10 +330,6 @@ export default function Sidebar() {
             {[
               {
                 label: 'Add New Lead', icon: '◎', isLink: true, href: '/leads/new',
-              },
-              {
-                label: 'Paste Messenger DM', icon: '📋', isLink: false,
-                onClick: () => { setQuickAdd(false); window.dispatchEvent(new CustomEvent('crafty-prompt', { detail: { prompt: 'Parse this client inquiry and create a lead: ', mode: 'crm' } })) },
               },
               {
                 label: 'Log a Payment', icon: '💰', isLink: false,
